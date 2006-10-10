@@ -1,0 +1,247 @@
+.\"
+.\" Copyright (c) 2006 Zeljko Vrba <zvrba@globalnet.hr>
+.\" Copyright (c) 2006 Alon Bar-Lev <alon.barlev@gmail.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without modifi-
+.\" cation, are permitted provided that the following conditions are met:
+.\"
+.\"   o  Redistributions of source code must retain the above copyright notice,
+.\"      this list of conditions and the following disclaimer.
+.\"
+.\"   o  Redistributions in binary form must reproduce the above copyright no-
+.\"      tice, this list of conditions and the following disclaimer in the do-
+.\"      cumentation and/or other materials provided with the distribution.
+.\"
+.\"   o  The names of the contributors may not be used to endorse or promote
+.\"      products derived from this software without specific prior written
+.\"      permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LI-
+.\" ABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUEN-
+.\" TIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEV-
+.\" ER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI-
+.\" LITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+.\" THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Manual page for gnupg-pkcs11-scd
+.\" SH section heading
+.\" SS subsection heading
+.\" LP paragraph
+.\" IP indented paragraph
+.\" TP hanging label
+.TH gnupg-pkcs11-scd 8
+.\"*********************************************************
+.SH NAME
+gnupg-pkcs11-scd \- PKCS#11 enabled gnupg scd.
+.\"*********************************************************
+.SH SYNOPSIS
+.LP
+.nh
+.in +4
+.ti -4
+.B gnupg-pkcs11-scd
+[\ \fB\-\-server\fR\ ]
+[\ \fB\-\-multi\-server\fR\ ]
+[\ \fB\-\-daemon\fR\ ]
+[\ \fB\-\-verbose\fR\ ]
+[\ \fB\-\-quite\fR\ ]
+[\ \fB\-\-sh\fR\ ]
+[\ \fB\-\-csh\fR\ ]
+[\ \fB\-\-options\fR\ \fIfile\fR\ ]
+[\ \fB\-\-no\-detach\fR\ ]
+[\ \fB\-\-log\-file\fR\ \fIfile\fR\ ]
+[\ \fB\-\-help\fR\ ]
+.in -4
+.ti +4
+.hy
+.\"*********************************************************
+.SH INTRODUCTION
+.LP
+gnupg-pkcs11-scd introduce standard smartcard support into
+gnupg, using RSA Security Inc. PKCS #11 Cryptographic Token
+Interface (Cryptoki).
+.\"*********************************************************
+.SH OPTIONS
+The following options are available:
+.\"*********************************************************
+.TP
+.B --server
+run in server mode (foreground).
+.\"*********************************************************
+.TP
+.B --multi-server
+run in multi server mode (foreground).
+.\"*********************************************************
+.TP
+.B --daemon
+run in daemon mode (background).
+.\"*********************************************************
+.TP
+.B --verbose
+verbose.
+.\"*********************************************************
+.TP
+.B --quite
+be somewhat more quiet.
+.\"*********************************************************
+.TP
+.B --sh
+sh-style command output.
+.\"*********************************************************
+.TP
+.B --csh
+csh-style command output.
+.\"*********************************************************
+.TP
+.B --options file
+read options from file.
+.\"*********************************************************
+.TP
+.B --no-detach
+do not detach from the console.
+.\"*********************************************************
+.TP
+.B --log-file file
+use a log file for the server.
+.\"*********************************************************
+.TP
+.B --help
+print this information.
+.\"*********************************************************
+.SH CONFIGURATION FILES
+.TP
+.B ~/.gnupg/gnupg-pkcs11-scd.conf
+
+.RS
+.nf
+# Write log into
+#log-file log1
+
+# Set verbose mode, default off.
+#verbose
+
+# Set debugging mode, default off.
+#debug-all
+
+# Set pin cache period, defaut is infinite.
+#pin-cache 20
+
+# Set available provoder, comma seperated list
+# Each provider will follow using provider-[name]-attribute
+providers p1
+
+#
+# Provider attributes
+#
+# library
+#	PKCS#11 library location.
+# allow-protected-auth
+#	Allow protected authentication for provider, protected authentication
+#	needs to be supported by provider and you should have the right reader
+#	hardware.
+# cert-private
+#	Provider requires authentication before certificate can be accessed,
+# 	most configurations store certificate as public, so don't use this option.
+# sign-mode
+#	Signature mode, only use when you have problem singning.
+#		auto - Determine automatically.
+#		sign - Force sign.
+#		recover - Force sign-recover.
+#		any - Enforce both, failback.
+#
+provider-p1-library /usr/lib/pkcs11/p1.so
+#provider-p1-allow-protected-auth
+#provider-p1-cert-private
+#provider-p1-sign-mode recover
+.sf
+.RE
+.\"*********************************************************
+.TP
+.B ~/.gnupg/gpg-agent.conf
+This configuration is required so gpg-agent will use
+gnupg-pkcs11-scd daemon.
+
+.RS
+.nf
+scdaemon-program /usr/bin/gnupg-pkcs11-scd
+pinentry-program /usr/bin/pinentry-qt
+.sf
+.RE
+.\"*********************************************************
+.SH KEY MANAGEMENT
+In order to get PKCS#11 tokens usable with GnuPG, the following constraints are put onto the card: 
+
+.B 1.
+For each private key, a certificate must exist on the card. 
+
+.B 2.
+Certificate and private key must have identical CKA_ID attribute. If you don't have a certificate,
+put self-signed certificate.
+
+.B 3.
+The certificate object should be a public object.
+
+Although nothing is guaranteed w.r.t. CKA_ID, it seems that the popular applications are "sane" and respect the rules above.
+.\"*********************************************************
+.SH EXAMPLES
+.SS Setting up card:
+First trusted CA must be loaded into gnupg.
+
+.B gpgsm --import < ca-certificate
+
+Next, the card contents must be loaded into gnupg.
+
+.B gpgsm --learn-card
+.SS Signing:
+.B gpgsm --sign --disable-crl-checks < input > output
+.\"*********************************************************
+.SH SIGNALS
+.TP
+.B SIGHUP, SIGTERM, SIGINT
+Daemon stops.
+.\"*********************************************************
+.SH ENVIRONMENT
+.TP
+.B HOME
+Used to locate the default home directory.
+.TP
+.B GNUPGHOME
+If set directory used instead of "~/.gnupg".
+.\"*********************************************************
+.SH FILES
+.TP
+.B ~/gnupg/gnupg-pkcs11-scd.conf
+Default configuration file
+.\"*********************************************************
+.SH WEB
+.I https://dev.interhost.no/p11scd
+
+.I http://www.gnupg.org
+.\"*********************************************************
+.SH "SEE ALSO"
+.BR gnupg (7)
+.\"*********************************************************
+.SH COPYRIGHT
+Copyright (c) 2006 Zeljko Vrba <zvrba@globalnet.hr>
+
+Copyright (c) 2006 Alon Bar-Lev <alon.barlev@gmail.com>
+
+All rights reserved.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+.\"*********************************************************
+.SH AUTHORS
+Zeljko Vrba <zvrba@globalnet.hr>
+
+Alon Bar-Lev <alon.barlev@gmail.com>
