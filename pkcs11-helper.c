@@ -5709,6 +5709,12 @@ _pkcs11h_certificate_doPrivateOperation (
 					rv = CKR_ARGUMENTS_BAD;
 				break;
 			}
+
+			PKCS11H_DEBUG (
+				PKCS11H_LOG_DEBUG2,
+				"PKCS#11: _pkcs11h_certificate_doPrivateOperation init rv=%ld",
+				rv
+			);
 		}
 
 		if (rv == CKR_OK) {
@@ -5748,6 +5754,12 @@ _pkcs11h_certificate_doPrivateOperation (
 			}
 
 			*p_target_size = size;
+
+			PKCS11H_DEBUG (
+				PKCS11H_LOG_DEBUG2,
+				"PKCS#11: _pkcs11h_certificate_doPrivateOperation op rv=%ld",
+				rv
+			);
 		}
 		
 		if (
@@ -5768,6 +5780,21 @@ _pkcs11h_certificate_doPrivateOperation (
 			fOpSuccess = TRUE;
 		}
 		else {
+			/*
+			 * OpenSC workaround
+			 * It still allows C_FindObjectsInit when
+			 * token is removed/inserted but fails
+			 * private key operation.
+			 * So we force logout.
+			 * bug#108 at OpenSC trac
+			 */
+			if (fLoginRetry && rv == CKR_DEVICE_REMOVED) {
+				fLoginRetry = FALSE;
+				_pkcs11h_threading_mutexLock (&certificate->session->mutex);
+				_pkcs11h_session_logout (certificate->session);
+				_pkcs11h_threading_mutexRelease (&certificate->session->mutex);
+			}
+
 			if (!fLoginRetry) {
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
