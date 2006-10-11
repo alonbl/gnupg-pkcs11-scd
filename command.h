@@ -38,16 +38,17 @@ typedef struct {
 } cmd_data_t;
 
 void cmd_free_data (assuan_context_t ctx);
-int cmd_getinfo(assuan_context_t ctx, char *line);
-int cmd_serialno(assuan_context_t ctx, char *line);
-int cmd_learn(assuan_context_t ctx, char *line);
-int cmd_readcert(assuan_context_t ctx, char *line);
-int cmd_readkey(assuan_context_t ctx, char *line);
-int cmd_setdata(assuan_context_t ctx, char *line);
-int cmd_pksign(assuan_context_t ctx, char *line);
-int cmd_pkdecrypt(assuan_context_t ctx, char *line);
-int cmd_random(assuan_context_t ctx, char *line);
-int cmd_checkpin(assuan_context_t ctx, char *line);
-int cmd_getinfo(assuan_context_t ctx, char *line);
+int cmd_getinfo (assuan_context_t ctx, char *line);
+int cmd_serialno (assuan_context_t ctx, char *line);
+int cmd_learn (assuan_context_t ctx, char *line);
+int cmd_readcert (assuan_context_t ctx, char *line);
+int cmd_readkey (assuan_context_t ctx, char *line);
+int cmd_setdata (assuan_context_t ctx, char *line);
+int cmd_pksign (assuan_context_t ctx, char *line);
+int cmd_pkdecrypt (assuan_context_t ctx, char *line);
+int cmd_random (assuan_context_t ctx, char *line);
+int cmd_checkpin (assuan_context_t ctx, char *line);
+int cmd_getinfo (assuan_context_t ctx, char *line);
+int cmd_restart (assuan_context_t ctx, char *line);
 
 #endif
