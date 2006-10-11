@@ -1638,7 +1638,7 @@ pkcs11h_plugAndPlay () {
 	if (s_pkcs11h_data != NULL && s_pkcs11h_data->initialized) {
 		pkcs11h_provider_t current;
 #if defined(ENABLE_PKCS11H_SLOTEVENT)
-		PKCS11H_BOOL fSlotEventActive = FALSE;
+		PKCS11H_BOOL slot_event_active = FALSE;
 #endif
 
 #if defined(ENABLE_PKCS11H_THREADING)
@@ -1656,7 +1656,7 @@ pkcs11h_plugAndPlay () {
 
 #if defined(ENABLE_PKCS11H_SLOTEVENT)
 		if (s_pkcs11h_data->slotevent.initialized) {
-			fSlotEventActive = TRUE;
+			slot_event_active = TRUE;
 			_pkcs11h_slotevent_terminate ();
 		}
 #endif
@@ -1672,7 +1672,7 @@ pkcs11h_plugAndPlay () {
 		}
 
 #if defined(ENABLE_PKCS11H_SLOTEVENT)
-		if (fSlotEventActive) {
+		if (slot_event_active) {
 			_pkcs11h_slotevent_init ();
 		}
 #endif
@@ -2232,7 +2232,7 @@ void
 __pkcs1h_threading_mutexLockAll () {
 	__pkcs11h_threading_mutex_entry_t entry = NULL;
 	PKCS11H_BOOL mutex_locked = FALSE;
-	PKCS11H_BOOL fAllLocked = FALSE;
+	PKCS11H_BOOL all_mutexes_locked = FALSE;
 
 	if (_pkcs11h_threading_mutexLock (&__s_pkcs11h_threading_mutex_list.mutex) == CKR_OK) {
 		mutex_locked = TRUE;
@@ -2246,7 +2246,7 @@ __pkcs1h_threading_mutexLockAll () {
 		entry->locked = FALSE;
 	}
 
-	while (!fAllLocked) {
+	while (!all_mutexes_locked) {
 		PKCS11H_BOOL ok = TRUE;
 		
 		for (
@@ -2279,7 +2279,7 @@ __pkcs1h_threading_mutexLockAll () {
 			_pkcs11h_threading_mutexLock (&__s_pkcs11h_threading_mutex_list.mutex);
 		}
 		else {
-			fAllLocked  = TRUE;
+			all_mutexes_locked  = TRUE;
 		}
 	}
 
@@ -2908,7 +2908,10 @@ _pkcs11h_session_getObjectAttributes (
 	IN OUT const CK_ATTRIBUTE_PTR attrs,
 	IN const unsigned count
 ) {
-	/* session mutex must be locked */
+	/*
+	 * THREADING:
+	 * session->mutex must be locked
+	 */
 	CK_RV rv = CKR_OK;
 
 	PKCS11H_ASSERT (session!=NULL);
@@ -3013,7 +3016,11 @@ _pkcs11h_session_findObjects (
 	OUT CK_OBJECT_HANDLE **const p_objects,
 	OUT CK_ULONG *p_objects_found
 ) {
-	PKCS11H_BOOL fShouldFindObjectFinal = FALSE;
+	/*
+	 * THREADING:
+	 * session->mutex must be locked
+	 */
+	PKCS11H_BOOL should_FindObjectsFinal = FALSE;
 
 	CK_OBJECT_HANDLE *objects = NULL;
 	CK_ULONG objects_size = 0;
@@ -3048,7 +3055,7 @@ _pkcs11h_session_findObjects (
 			filter_attrs
 		)) == CKR_OK
 	) {
-		fShouldFindObjectFinal = TRUE;
+		should_FindObjectsFinal = TRUE;
 	}
 
 	while (
@@ -3112,11 +3119,11 @@ _pkcs11h_session_findObjects (
 		}
 	}
 
-	if (fShouldFindObjectFinal) {
+	if (should_FindObjectsFinal) {
 		session->provider->f->C_FindObjectsFinal (
 			session->session_handle
 		);
-		fShouldFindObjectFinal = FALSE;
+		should_FindObjectsFinal = FALSE;
 	}
 	
 	if (rv == CKR_OK) {
@@ -3258,7 +3265,7 @@ _pkcs11h_session_getSessionByTokenId (
 	PKCS11H_BOOL mutex_locked = FALSE;
 #endif
 	pkcs11h_session_t session = NULL;
-	PKCS11H_BOOL fNewSession = FALSE;
+	PKCS11H_BOOL is_new_session = FALSE;
 	CK_RV rv = CKR_OK;
 
 	PKCS11H_ASSERT (token_id!=NULL);
@@ -3310,10 +3317,10 @@ _pkcs11h_session_getSessionByTokenId (
 		rv == CKR_OK &&
 		session == NULL
 	) {
-		fNewSession = TRUE;
+		is_new_session = TRUE;
 	}
 
-	if (fNewSession) {
+	if (is_new_session) {
 		PKCS11H_DEBUG (
 			PKCS11H_LOG_DEBUG1,
 			"PKCS#11: Creating a new session"
@@ -3441,10 +3448,7 @@ _pkcs11h_session_reset (
 	IN const unsigned mask_prompt,
 	OUT CK_SLOT_ID * const p_slot
 ) {
-	/*
-	 * This function MUST NOT touch session
-	 */
-	PKCS11H_BOOL fFound = FALSE;
+	PKCS11H_BOOL found = FALSE;
 
 	CK_RV rv = CKR_OK;
 
@@ -3467,7 +3471,7 @@ _pkcs11h_session_reset (
 
 	while (
 		rv == CKR_OK &&
-		!fFound
+		!found
 	) {
 		pkcs11h_provider_t current_provider = NULL;
 
@@ -3476,7 +3480,7 @@ _pkcs11h_session_reset (
 			(
 				rv == CKR_OK &&
 				current_provider != NULL &&
-				!fFound
+				!found
 			);
 			current_provider = current_provider->next
 		) {
@@ -3509,7 +3513,7 @@ _pkcs11h_session_reset (
 				(
 					slot_index < slotnum &&
 					rv == CKR_OK && 
-					!fFound
+					!found
 				);
 				slot_index++
 			) {
@@ -3534,7 +3538,7 @@ _pkcs11h_session_reset (
 						token_id
 					)
 				) {
-					fFound = TRUE;
+					found = TRUE;
 					*p_slot = slots[slot_index];
 					if (session->provider == NULL) {
 						session->provider = current_provider;
@@ -3584,13 +3588,13 @@ _pkcs11h_session_reset (
 			}
 		}
 
-		if (rv == CKR_OK && !fFound && (mask_prompt & PKCS11H_PROMPT_MAST_ALLOW_CARD_PROMPT) == 0) {
+		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MAST_ALLOW_CARD_PROMPT) == 0) {
 			rv = CKR_TOKEN_NOT_PRESENT;
 		}
 
 		if (
 			rv == CKR_OK &&
-			!fFound
+			!found
 		) {
 			PKCS11H_DEBUG (
 				PKCS11H_LOG_DEBUG1,
@@ -3637,6 +3641,10 @@ _pkcs11h_session_getObjectById (
 	IN const size_t id_size,
 	OUT CK_OBJECT_HANDLE * const p_handle
 ) {
+	/*
+	 * THREADING:
+	 * session->mutex must be locked
+	 */
 	CK_ATTRIBUTE filter[] = {
 		{CKA_CLASS, (void *)&class, sizeof (class)},
 		{CKA_ID, (void *)id, id_size}
@@ -3762,8 +3770,10 @@ CK_RV
 _pkcs11h_session_touch (
 	IN const pkcs11h_session_t session
 ) {
-	/* LOCKS are helds */
-
+	/*
+	 * THREADING:
+	 * session->mutex must be locked
+	 */
 	PKCS11H_ASSERT (session!=NULL);
 
 	if (session->pin_cache_period == PKCS11H_PIN_CACHE_INFINITE) {
@@ -3890,12 +3900,14 @@ CK_RV
 _pkcs11h_session_login (
 	IN const pkcs11h_session_t session,
 	IN const PKCS11H_BOOL is_publicOnly,
-	IN const PKCS11H_BOOL fReadOnly,
+	IN const PKCS11H_BOOL readonly,
 	IN void * const user_data,
 	IN const unsigned mask_prompt
 ) {
-	/* session mutex must be locked before calling */
-
+	/*
+	 * THREADING:
+	 * session->mutex must be locked
+	 */
 	CK_SLOT_ID slot = PKCS11H_INVALID_SLOT_ID;
 	CK_RV rv = CKR_OK;
 
@@ -3904,10 +3916,10 @@ _pkcs11h_session_login (
 
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
-		"PKCS#11: _pkcs11h_session_login entry session=%p, is_publicOnly=%d, fReadOnly=%d, user_data=%p, mask_prompt=%08x",
+		"PKCS#11: _pkcs11h_session_login entry session=%p, is_publicOnly=%d, readonly=%d, user_data=%p, mask_prompt=%08x",
 		(void *)session,
 		is_publicOnly ? 1 : 0,
-		fReadOnly ? 1 : 0,
+		readonly ? 1 : 0,
 		user_data,
 		mask_prompt
 	);
@@ -3925,7 +3937,7 @@ _pkcs11h_session_login (
 			slot,
 			(
 				CKF_SERIAL_SESSION |
-				(fReadOnly ? 0 : CKF_RW_SESSION)
+				(readonly ? 0 : CKF_RW_SESSION)
 			),
 			NULL_PTR,
 			NULL_PTR,
@@ -3940,7 +3952,7 @@ _pkcs11h_session_login (
 			session->provider->cert_is_private
 		)
 	) {
-		PKCS11H_BOOL fSuccessLogin = FALSE;
+		PKCS11H_BOOL login_succeeded = FALSE;
 		unsigned nRetryCount = 0;
 
 		if ((mask_prompt & PKCS11H_PROMPT_MASK_ALLOW_PIN_PROMPT) == 0) {
@@ -3954,7 +3966,7 @@ _pkcs11h_session_login (
 
 		while (
 			rv == CKR_OK &&
-			!fSuccessLogin &&
+			!login_succeeded &&
 			nRetryCount < s_pkcs11h_data->max_retries 
 		) {
 			CK_UTF8CHAR_PTR utfPIN = NULL;
@@ -4023,7 +4035,7 @@ _pkcs11h_session_login (
 			memset (pin, 0, sizeof (pin));
 
 			if (rv == CKR_OK) {
-				fSuccessLogin = TRUE;
+				login_succeeded = TRUE;
 			}
 			else if (
 				rv == CKR_PIN_INCORRECT ||
@@ -4042,7 +4054,7 @@ _pkcs11h_session_login (
 		/*
 		 * Retry limit
 		 */
-		if (!fSuccessLogin && rv == CKR_OK) {
+		if (!login_succeeded && rv == CKR_OK) {
 			rv = CKR_PIN_INCORRECT;
 		}
 	}
@@ -4062,7 +4074,10 @@ CK_RV
 _pkcs11h_session_logout (
 	IN const pkcs11h_session_t session
 ) {
-	/* session mutex must be locked */
+	/*
+	 * THREADING:
+	 * session->mutex must be locked
+	 */
 	/*PKCS11H_ASSERT (session!=NULL); NOT NEEDED*/
 
 	PKCS11H_DEBUG (
@@ -4430,8 +4445,8 @@ pkcs11h_data_get (
 	PKCS11H_BOOL mutex_locked = FALSE;
 #endif
 	pkcs11h_session_t session = NULL;
-	PKCS11H_BOOL fOpSuccess = FALSE;
-	PKCS11H_BOOL fLoginRetry = FALSE;
+	PKCS11H_BOOL op_succeed = FALSE;
+	PKCS11H_BOOL login_retry = FALSE;
 	size_t blob_size_max = 0;
 
 	PKCS11H_ASSERT (s_pkcs11h_data!=NULL);
@@ -4476,7 +4491,7 @@ pkcs11h_data_get (
 	}
 #endif
 
-	while (rv == CKR_OK && !fOpSuccess) {
+	while (rv == CKR_OK && !op_succeed) {
 
 		if (rv == CKR_OK) {
 			rv = _pkcs11h_session_validate (session);
@@ -4501,17 +4516,17 @@ pkcs11h_data_get (
 		}
 
 		if (rv == CKR_OK) {
-			fOpSuccess = TRUE;
+			op_succeed = TRUE;
 		}
 		else {
-			if (!fLoginRetry) {
+			if (!login_retry) {
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
 					"PKCS#11: Read data object failed rv=%ld-'%s'",
 					rv,
 					pkcs11h_getMessage (rv)
 				);
-				fLoginRetry = TRUE;
+				login_retry = TRUE;
 				rv = _pkcs11h_session_login (
 					session,
 					is_public,
@@ -4597,8 +4612,8 @@ pkcs11h_data_put (
 	PKCS11H_BOOL mutex_locked = FALSE;
 #endif
 	pkcs11h_session_t session = NULL;
-	PKCS11H_BOOL fOpSuccess = FALSE;
-	PKCS11H_BOOL fLoginRetry = FALSE;
+	PKCS11H_BOOL op_succeed = FALSE;
+	PKCS11H_BOOL login_retry = FALSE;
 
 	PKCS11H_ASSERT (s_pkcs11h_data!=NULL);
 	PKCS11H_ASSERT (s_pkcs11h_data->initialized);
@@ -4636,7 +4651,7 @@ pkcs11h_data_put (
 	}
 #endif
 
-	while (rv == CKR_OK && !fOpSuccess) {
+	while (rv == CKR_OK && !op_succeed) {
 
 		if (rv == CKR_OK) {
 			rv = _pkcs11h_session_validate (session);
@@ -4652,17 +4667,17 @@ pkcs11h_data_put (
 		}
 
 		if (rv == CKR_OK) {
-			fOpSuccess = TRUE;
+			op_succeed = TRUE;
 		}
 		else {
-			if (!fLoginRetry) {
+			if (!login_retry) {
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
 					"PKCS#11: Write data object failed rv=%ld-'%s'",
 					rv,
 					pkcs11h_getMessage (rv)
 				);
-				fLoginRetry = TRUE;
+				login_retry = TRUE;
 				rv = _pkcs11h_session_login (
 					session,
 					is_public,
@@ -4709,8 +4724,8 @@ pkcs11h_data_del (
 	PKCS11H_BOOL mutex_locked = FALSE;
 #endif
 	pkcs11h_session_t session = NULL;
-	PKCS11H_BOOL fOpSuccess = FALSE;
-	PKCS11H_BOOL fLoginRetry = FALSE;
+	PKCS11H_BOOL op_succeed = FALSE;
+	PKCS11H_BOOL login_retry = FALSE;
 	CK_OBJECT_HANDLE handle = PKCS11H_INVALID_OBJECT_HANDLE;
 	CK_RV rv = CKR_OK;
 
@@ -4747,7 +4762,7 @@ pkcs11h_data_del (
 	}
 #endif
 
-	while (rv == CKR_OK && !fOpSuccess) {
+	while (rv == CKR_OK && !op_succeed) {
 
 		if (rv == CKR_OK) {
 			rv = _pkcs11h_session_validate (session);
@@ -4770,17 +4785,17 @@ pkcs11h_data_del (
 		}
 
 		if (rv == CKR_OK) {
-			fOpSuccess = TRUE;
+			op_succeed = TRUE;
 		}
 		else {
-			if (!fLoginRetry) {
+			if (!login_retry) {
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
 					"PKCS#11: Remove data object failed rv=%ld-'%s'",
 					rv,
 					pkcs11h_getMessage (rv)
 				);
-				fLoginRetry = TRUE;
+				login_retry = TRUE;
 				rv = _pkcs11h_session_login (
 					session,
 					is_public,
@@ -4916,7 +4931,7 @@ _pkcs11h_certificate_isBetterCertificate (
 	IN const unsigned char * const newone,
 	IN const size_t newone_size
 ) {
-	PKCS11H_BOOL fBetter = FALSE;
+	PKCS11H_BOOL is_better = FALSE;
 
 	/*PKCS11H_ASSERT (current!=NULL); NOT NEEDED */
 	PKCS11H_ASSERT (newone!=NULL);
@@ -4935,7 +4950,7 @@ _pkcs11h_certificate_isBetterCertificate (
 	 * always select
 	 */
 	if (current_size == 0 || current == NULL) {
-		fBetter = TRUE;
+		is_better = TRUE;
 	}
 	else {
 		time_t notAfterCurrent, notAfterNew;
@@ -4956,16 +4971,16 @@ _pkcs11h_certificate_isBetterCertificate (
 			asctime (localtime (&notAfterNew))
 		);
 
-		fBetter = notAfterNew > notAfterCurrent;
+		is_better = notAfterNew > notAfterCurrent;
 	}
 
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
-		"PKCS#11: _pkcs11h_certificate_isBetterCertificate return fBetter=%d",
-		fBetter ? 1 : 0
+		"PKCS#11: _pkcs11h_certificate_isBetterCertificate return is_better=%d",
+		is_better ? 1 : 0
 	);
 	
-	return fBetter;
+	return is_better;
 }
 
 static
@@ -5075,7 +5090,10 @@ CK_RV
 _pkcs11h_certificate_loadCertificate (
 	IN const pkcs11h_certificate_t certificate
 ) {
-	/* certificate mutext must be locked */
+	/*
+	 * THREADING:
+	 * certificate->mutex must be locked
+	 */
 #if defined(ENABLE_PKCS11H_THREADING)
 	PKCS11H_BOOL mutex_locked = FALSE;
 #endif
@@ -5286,8 +5304,8 @@ _pkcs11h_certificate_getKeyAttributes (
 #endif
 	CK_RV rv = CKR_OK;
 
-	PKCS11H_BOOL fOpSuccess = FALSE;
-	PKCS11H_BOOL fLoginRetry = FALSE;
+	PKCS11H_BOOL op_succeed = FALSE;
+	PKCS11H_BOOL login_retry = FALSE;
 
 	PKCS11H_ASSERT (certificate!=NULL);
 
@@ -5308,7 +5326,7 @@ _pkcs11h_certificate_getKeyAttributes (
 
 	certificate->mask_sign_mode = 0;
 
-	while (rv == CKR_OK && !fOpSuccess) {
+	while (rv == CKR_OK && !op_succeed) {
 		CK_ATTRIBUTE key_attrs[] = {
 			{CKA_SIGN, NULL, 0},
 			{CKA_SIGN_RECOVER, NULL, 0}
@@ -5327,7 +5345,7 @@ _pkcs11h_certificate_getKeyAttributes (
 		if (rv == CKR_OK) {
 			if (certificate->session->provider->mask_sign_mode != 0) {
 				certificate->mask_sign_mode = certificate->session->provider->mask_sign_mode;
-				fOpSuccess = TRUE;
+				op_succeed = TRUE;
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
 					"PKCS#11: Key attributes enforced by provider (%08x)",
@@ -5336,7 +5354,7 @@ _pkcs11h_certificate_getKeyAttributes (
 			}
 		}
 
-		if (rv == CKR_OK && !fOpSuccess) {
+		if (rv == CKR_OK && !op_succeed) {
 			rv = _pkcs11h_session_getObjectAttributes (
 				certificate->session,
 				certificate->key_handle,
@@ -5345,7 +5363,7 @@ _pkcs11h_certificate_getKeyAttributes (
 			);
 		}
 
-		if (rv == CKR_OK && !fOpSuccess) {
+		if (rv == CKR_OK && !op_succeed) {
 			CK_BBOOL *key_attrs_sign = (CK_BBOOL *)key_attrs[0].pValue;
 			CK_BBOOL *key_attrs_sign_recover = (CK_BBOOL *)key_attrs[1].pValue;
 
@@ -5371,10 +5389,10 @@ _pkcs11h_certificate_getKeyAttributes (
 		);
 
 		if (rv == CKR_OK) {
-			fOpSuccess = TRUE;
+			op_succeed = TRUE;
 		}
 		else {
-			if (!fLoginRetry) {
+			if (!login_retry) {
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
 					"PKCS#11: Get private key attributes failed: %ld:'%s'",
@@ -5387,7 +5405,7 @@ _pkcs11h_certificate_getKeyAttributes (
 					FALSE
 				);
 
-				fLoginRetry = TRUE;
+				login_retry = TRUE;
 			}
 		}
 	}
@@ -5414,7 +5432,10 @@ CK_RV
 _pkcs11h_certificate_validateSession (
 	IN const pkcs11h_certificate_t certificate
 ) {
-	/* certificate mutex must be locked */
+	/*
+	 * THREADING:
+	 * certificate->mutex must be locked
+	 */
 #if defined(ENABLE_PKCS11H_THREADING)
 	PKCS11H_BOOL mutex_locked = FALSE;
 #endif
@@ -5473,13 +5494,15 @@ _pkcs11h_certificate_resetSession (
 	IN const pkcs11h_certificate_t certificate,
 	IN const PKCS11H_BOOL public_only
 ) {
-	/* Certificate mutex must be locked */
-
+	/*
+	 * THREADING:
+	 * certificate->mutex must be locked
+	 */
 #if defined(ENABLE_PKCS11H_THREADING)
 	PKCS11H_BOOL mutex_locked = FALSE;
 #endif
-	PKCS11H_BOOL fKeyValid = FALSE;
-	PKCS11H_BOOL fSessionWasValid = FALSE;
+	PKCS11H_BOOL is_key_valid = FALSE;
+	PKCS11H_BOOL was_session_valid = FALSE;
 	CK_RV rv = CKR_OK;
 
 	PKCS11H_ASSERT (certificate!=NULL);
@@ -5495,7 +5518,7 @@ _pkcs11h_certificate_resetSession (
 		rv == CKR_OK &&
 		certificate->session != NULL
 	) {
-		fSessionWasValid = TRUE;
+		was_session_valid = TRUE;
 	}
 
 	if (rv == CKR_OK && certificate->session == NULL) {
@@ -5513,7 +5536,7 @@ _pkcs11h_certificate_resetSession (
 
 	if (
 		rv == CKR_OK &&
-		!fSessionWasValid
+		!was_session_valid
 	) {
 		if (certificate->pin_cache_period != PKCS11H_PIN_CACHE_INFINITE) {
 			if (certificate->session->pin_cache_period != PKCS11H_PIN_CACHE_INFINITE) {
@@ -5557,7 +5580,7 @@ _pkcs11h_certificate_resetSession (
 					&certificate->key_handle
 				)) == CKR_OK
 			) {
-				fKeyValid = TRUE;
+				is_key_valid = TRUE;
 			}
 			else {
 				/*
@@ -5570,7 +5593,7 @@ _pkcs11h_certificate_resetSession (
 	}
 
 	if (
-		!fKeyValid &&
+		!is_key_valid &&
 		rv == CKR_OK &&
 		(rv = _pkcs11h_session_login (
 			certificate->session,
@@ -5584,7 +5607,7 @@ _pkcs11h_certificate_resetSession (
 	}
 
 	if (
-		!fKeyValid &&
+		!is_key_valid &&
 		rv == CKR_OK &&
 		!public_only &&
 		(rv = _pkcs11h_session_getObjectById (
@@ -5595,13 +5618,13 @@ _pkcs11h_certificate_resetSession (
 			&certificate->key_handle
 		)) == CKR_OK
 	) {
-		fKeyValid = TRUE;
+		is_key_valid = TRUE;
 	}
 
 	if (
 		rv == CKR_OK &&
 		!public_only &&
-		!fKeyValid
+		!is_key_valid
 	) {
 		rv = CKR_FUNCTION_REJECTED;
 	}
@@ -5642,8 +5665,8 @@ _pkcs11h_certificate_doPrivateOperation (
 	};
 	
 	CK_RV rv = CKR_OK;
-	PKCS11H_BOOL fLoginRetry = FALSE;
-	PKCS11H_BOOL fOpSuccess = FALSE;
+	PKCS11H_BOOL login_retry = FALSE;
+	PKCS11H_BOOL op_succeed = FALSE;
 
 	PKCS11H_ASSERT (s_pkcs11h_data!=NULL);
 	PKCS11H_ASSERT (s_pkcs11h_data->initialized);
@@ -5677,7 +5700,7 @@ _pkcs11h_certificate_doPrivateOperation (
 	}
 #endif
 
-	while (rv == CKR_OK && !fOpSuccess) {
+	while (rv == CKR_OK && !op_succeed) {
 		if (rv == CKR_OK && !certificate->operation_active) {
 			rv = _pkcs11h_certificate_validateSession (certificate);
 		}
@@ -5777,7 +5800,7 @@ _pkcs11h_certificate_doPrivateOperation (
 		}
 
 		if (rv == CKR_OK) {
-			fOpSuccess = TRUE;
+			op_succeed = TRUE;
 		}
 		else {
 			/*
@@ -5788,21 +5811,21 @@ _pkcs11h_certificate_doPrivateOperation (
 			 * So we force logout.
 			 * bug#108 at OpenSC trac
 			 */
-			if (fLoginRetry && rv == CKR_DEVICE_REMOVED) {
-				fLoginRetry = FALSE;
+			if (login_retry && rv == CKR_DEVICE_REMOVED) {
+				login_retry = FALSE;
 				_pkcs11h_threading_mutexLock (&certificate->session->mutex);
 				_pkcs11h_session_logout (certificate->session);
 				_pkcs11h_threading_mutexRelease (&certificate->session->mutex);
 			}
 
-			if (!fLoginRetry) {
+			if (!login_retry) {
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
 					"PKCS#11: Private key operation failed rv=%ld-'%s'",
 					rv,
 					pkcs11h_getMessage (rv)
 				);
-				fLoginRetry = TRUE;
+				login_retry = TRUE;
 				rv = _pkcs11h_certificate_resetSession (
 					certificate,
 					FALSE
@@ -6429,9 +6452,9 @@ pkcs11h_certificate_getCertificateBlob (
 #endif
 
 	if (rv == CKR_OK && certificate->id->certificate_blob == NULL) {
-		PKCS11H_BOOL fOpSuccess = FALSE;
-		PKCS11H_BOOL fLoginRetry = FALSE;
-		while (rv == CKR_OK && !fOpSuccess) {
+		PKCS11H_BOOL op_succeed = FALSE;
+		PKCS11H_BOOL login_retry = FALSE;
+		while (rv == CKR_OK && !op_succeed) {
 			if (certificate->session == NULL) {
 				rv = CKR_SESSION_HANDLE_INVALID;
 			}
@@ -6441,11 +6464,11 @@ pkcs11h_certificate_getCertificateBlob (
 			}
 
 			if (rv == CKR_OK) {
-				fOpSuccess = TRUE;
+				op_succeed = TRUE;
 			}
 			else {
-				if (!fLoginRetry) {
-					fLoginRetry = TRUE;
+				if (!login_retry) {
+					login_retry = TRUE;
 					rv = _pkcs11h_certificate_resetSession (
 						certificate,
 						TRUE
@@ -6998,7 +7021,7 @@ _pkcs11h_locate_getTokenIdBySlotName (
 	CK_TOKEN_INFO info;
 	CK_RV rv = CKR_OK;
 
-	PKCS11H_BOOL fFound = FALSE;
+	PKCS11H_BOOL found = FALSE;
 
 	PKCS11H_ASSERT (name!=NULL);
 	PKCS11H_ASSERT (p_token_id!=NULL);
@@ -7016,7 +7039,7 @@ _pkcs11h_locate_getTokenIdBySlotName (
 	while (
 		current_provider != NULL &&
 		rv == CKR_OK &&
-		!fFound
+		!found
 	) {
 		CK_SLOT_ID_PTR slots = NULL;
 		CK_ULONG slotnum;
@@ -7040,7 +7063,7 @@ _pkcs11h_locate_getTokenIdBySlotName (
 			(
 				slot_index < slotnum &&
 				rv == CKR_OK &&
-				!fFound
+				!found
 			);
 			slot_index++
 		) {
@@ -7061,7 +7084,7 @@ _pkcs11h_locate_getTokenIdBySlotName (
 				);
 
 				if (!strcmp (current_name, name)) {
-					fFound = TRUE;
+					found = TRUE;
 					selected_slot = slots[slot_index];
 				}
 			}
@@ -7103,12 +7126,12 @@ _pkcs11h_locate_getTokenIdBySlotName (
 			slots = NULL;
 		}
 
-		if (!fFound) {
+		if (!found) {
 			current_provider = current_provider->next;
 		}
 	}
 
-	if (rv == CKR_OK && !fFound) {
+	if (rv == CKR_OK && !found) {
 		rv = CKR_SLOT_ID_INVALID;
 	}
 
@@ -7145,7 +7168,7 @@ _pkcs11h_locate_getTokenIdByLabel (
 	CK_TOKEN_INFO info;
 	CK_RV rv = CKR_OK;
 
-	PKCS11H_BOOL fFound = FALSE;
+	PKCS11H_BOOL found = FALSE;
 
 	PKCS11H_ASSERT (label!=NULL);
 	PKCS11H_ASSERT (p_token_id!=NULL);
@@ -7163,7 +7186,7 @@ _pkcs11h_locate_getTokenIdByLabel (
 	while (
 		current_provider != NULL &&
 		rv == CKR_OK &&
-		!fFound
+		!found
 	) {
 		CK_SLOT_ID_PTR slots = NULL;
 		CK_ULONG slotnum;
@@ -7187,7 +7210,7 @@ _pkcs11h_locate_getTokenIdByLabel (
 			(
 				slot_index < slotnum &&
 				rv == CKR_OK &&
-				!fFound
+				!found
 			);
 			slot_index++
 		) {
@@ -7210,7 +7233,7 @@ _pkcs11h_locate_getTokenIdByLabel (
 				);
 
 				if (!strcmp (current_label, label)) {
-					fFound = TRUE;
+					found = TRUE;
 					selected_slot = slots[slot_index];
 				}
 			}
@@ -7252,12 +7275,12 @@ _pkcs11h_locate_getTokenIdByLabel (
 			slots = NULL;
 		}
 
-		if (!fFound) {
+		if (!found) {
 			current_provider = current_provider->next;
 		}
 	}
 
-	if (rv == CKR_OK && !fFound) {
+	if (rv == CKR_OK && !found) {
 		rv = CKR_SLOT_ID_INVALID;
 	}
 
@@ -7296,7 +7319,7 @@ pkcs11h_locate_token (
 
 	pkcs11h_token_id_t dummy_token_id = NULL;
 	pkcs11h_token_id_t token_id = NULL;
-	PKCS11H_BOOL fFound = FALSE;
+	PKCS11H_BOOL found = FALSE;
 	
 	CK_RV rv = CKR_OK;
 
@@ -7344,7 +7367,7 @@ pkcs11h_locate_token (
 		dummy_token_id->display[sizeof (dummy_token_id->display)-1] = 0;
 	}
 
-	while (rv == CKR_OK && !fFound) {
+	while (rv == CKR_OK && !found) {
 		if (!strcmp (slot_type, "id")) {
 			rv = _pkcs11h_locate_getTokenIdBySlotId (
 				slot,
@@ -7368,12 +7391,12 @@ pkcs11h_locate_token (
 		}
 
 		if (rv == CKR_OK) {
-			fFound = TRUE;
+			found = TRUE;
 		}
 
 		/*
 		 * Ignore error, since we have what we
-		 * want in fFound.
+		 * want in found.
 		 */
 		if (rv != CKR_OK && rv != CKR_ARGUMENTS_BAD) {
 			PKCS11H_DEBUG (
@@ -7386,11 +7409,11 @@ pkcs11h_locate_token (
 			rv = CKR_OK;
 		}
 
-		if (rv == CKR_OK && !fFound && (mask_prompt & PKCS11H_PROMPT_MAST_ALLOW_CARD_PROMPT) == 0) {
+		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MAST_ALLOW_CARD_PROMPT) == 0) {
 			rv = CKR_TOKEN_NOT_PRESENT;
 		}
 
-		if (rv == CKR_OK && !fFound) {
+		if (rv == CKR_OK && !found) {
 
 			PKCS11H_DEBUG (
 				PKCS11H_LOG_DEBUG1,
@@ -7417,7 +7440,7 @@ pkcs11h_locate_token (
 		}
 	}
 
-	if (rv == CKR_OK && !fFound) {
+	if (rv == CKR_OK && !found) {
 		rv = CKR_SLOT_ID_INVALID;
 	}
 
@@ -7793,8 +7816,8 @@ pkcs11h_locate_certificate (
 #endif
 	pkcs11h_certificate_id_t certificate_id = NULL;
 	pkcs11h_session_t session = NULL;
-	PKCS11H_BOOL fOpSuccess = FALSE;
-	PKCS11H_BOOL fLoginRetry = FALSE;
+	PKCS11H_BOOL op_succeed = FALSE;
+	PKCS11H_BOOL login_retry = FALSE;
 	
 	CK_RV rv = CKR_OK;
 
@@ -7851,7 +7874,7 @@ pkcs11h_locate_certificate (
 	}
 #endif
 
-	while (rv == CKR_OK && !fOpSuccess) {
+	while (rv == CKR_OK && !op_succeed) {
 		if (!strcmp (id_type, "id")) {
 			certificate_id->attrCKA_ID_size = strlen (id)/2;
 
@@ -7892,10 +7915,10 @@ pkcs11h_locate_certificate (
 		}
 
 		if (rv == CKR_OK) {
-			fOpSuccess = TRUE;
+			op_succeed = TRUE;
 		}
 		else {
-			if (!fLoginRetry) {
+			if (!login_retry) {
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
 					"PKCS#11: Get certificate failed: %ld:'%s'",
@@ -7911,7 +7934,7 @@ pkcs11h_locate_certificate (
 					mask_prompt
 				);
 
-				fLoginRetry = TRUE;
+				login_retry = TRUE;
 			}
 		}
 	}
@@ -8124,11 +8147,11 @@ pkcs11h_token_enumTokenIds (
 			session = session->next
 		) {
 			pkcs11h_token_id_list_t entry = NULL;
-			PKCS11H_BOOL fFound = FALSE;
+			PKCS11H_BOOL found = FALSE;
 
 			for (
 				entry = token_id_list;
-				entry != NULL && !fFound;
+				entry != NULL && !found;
 				entry = entry->next
 			) {
 				if (
@@ -8137,11 +8160,11 @@ pkcs11h_token_enumTokenIds (
 						entry->token_id
 					)
 				) {
-					fFound = TRUE;
+					found = TRUE;
 				}
 			}
 
-			if (!fFound) {
+			if (!found) {
 				entry = NULL;
 
 				if (rv == CKR_OK) {
@@ -8258,8 +8281,8 @@ pkcs11h_data_enumDataObjects (
 	pkcs11h_data_id_list_t data_id_list = NULL;
 	CK_RV rv = CKR_OK;
 
-	PKCS11H_BOOL fOpSuccess = FALSE;
-	PKCS11H_BOOL fLoginRetry = FALSE;
+	PKCS11H_BOOL op_succeed = FALSE;
+	PKCS11H_BOOL login_retry = FALSE;
 
 	PKCS11H_ASSERT (s_pkcs11h_data!=NULL);
 	PKCS11H_ASSERT (s_pkcs11h_data->initialized);
@@ -8293,7 +8316,7 @@ pkcs11h_data_enumDataObjects (
 	}
 #endif
 
-	while (rv == CKR_OK && !fOpSuccess) {
+	while (rv == CKR_OK && !op_succeed) {
 
 		CK_OBJECT_CLASS class = CKO_DATA;
 		CK_ATTRIBUTE filter[] = {
@@ -8391,17 +8414,17 @@ pkcs11h_data_enumDataObjects (
 		}
 
 		if (rv == CKR_OK) {
-			fOpSuccess = TRUE;
+			op_succeed = TRUE;
 		}
 		else {
-			if (!fLoginRetry) {
+			if (!login_retry) {
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
 					"PKCS#11: Enumerate data objects failed rv=%ld-'%s'",
 					rv,
 					pkcs11h_getMessage (rv)
 				);
-				fLoginRetry = TRUE;
+				login_retry = TRUE;
 				rv = _pkcs11h_session_login (
 					session,
 					is_public,
@@ -8460,8 +8483,8 @@ _pkcs11h_certificate_enumSessionCertificates (
 #if defined(ENABLE_PKCS11H_THREADING)
 	PKCS11H_BOOL mutex_locked = FALSE;
 #endif
-	PKCS11H_BOOL fOpSuccess = FALSE;
-	PKCS11H_BOOL fLoginRetry = FALSE;
+	PKCS11H_BOOL op_succeed = FALSE;
+	PKCS11H_BOOL login_retry = FALSE;
 
 	CK_RV rv = CKR_OK;
 
@@ -8486,7 +8509,7 @@ _pkcs11h_certificate_enumSessionCertificates (
 	}
 #endif
 
-	while (rv == CKR_OK && !fOpSuccess) {
+	while (rv == CKR_OK && !op_succeed) {
 		CK_OBJECT_CLASS cert_filter_class = CKO_CERTIFICATE;
 		CK_ATTRIBUTE cert_filter[] = {
 			{CKA_CLASS, &cert_filter_class, sizeof (cert_filter_class)}
@@ -8613,10 +8636,10 @@ _pkcs11h_certificate_enumSessionCertificates (
 		}
 
 		if (rv == CKR_OK) {
-			fOpSuccess = TRUE;
+			op_succeed = TRUE;
 		}
 		else {
-			if (!fLoginRetry) {
+			if (!login_retry) {
 				PKCS11H_DEBUG (
 					PKCS11H_LOG_DEBUG1,
 					"PKCS#11: Get certificate attributes failed: %ld:'%s'",
@@ -8632,7 +8655,7 @@ _pkcs11h_certificate_enumSessionCertificates (
 					(mask_prompt & PKCS11H_PROMPT_MASK_ALLOW_PIN_PROMPT)
 				);
 
-				fLoginRetry = TRUE;
+				login_retry = TRUE;
 			}
 		}
 	}
@@ -8669,7 +8692,7 @@ _pkcs11h_certificate_splitCertificateIdList (
 #elif defined(USE_PKCS11H_GNUTLS)
 		gnutls_x509_crt_t cert;
 #endif
-		PKCS11H_BOOL fIsIssuer;
+		PKCS11H_BOOL is_issuer;
 	} *info_t;
 
 	pkcs11h_certificate_id_list_t cert_id_issuers_list = NULL;
@@ -8776,7 +8799,7 @@ _pkcs11h_certificate_splitCertificateIdList (
 
 			for (
 				info2 = head;
-				info2 != NULL && !info->fIsIssuer;
+				info2 != NULL && !info->is_issuer;
 				info2 = info2->next
 			) {
 				if (info != info2) {
@@ -8790,7 +8813,7 @@ _pkcs11h_certificate_splitCertificateIdList (
 						) &&
 						X509_verify (info2->x509, pub) == 1
 					) {
-						info->fIsIssuer = TRUE;
+						info->is_issuer = TRUE;
 					}
 #elif defined(USE_PKCS11H_GNUTLS)
 					unsigned result;
@@ -8807,7 +8830,7 @@ _pkcs11h_certificate_splitCertificateIdList (
 						) &&
 						(result & GNUTLS_CERT_INVALID) == 0
 					) {
-						info->fIsIssuer = TRUE;
+						info->is_issuer = TRUE;
 					}
 #else
 #error Invalid configuration.
@@ -8854,7 +8877,7 @@ _pkcs11h_certificate_splitCertificateIdList (
 			}
 
 			if (rv == CKR_OK) {
-				if (info->fIsIssuer) {
+				if (info->is_issuer) {
 					new_entry->next = cert_id_issuers_list;
 					cert_id_issuers_list = new_entry;
 					new_entry = NULL;
@@ -9420,7 +9443,7 @@ _pkcs11h_slotevent_provider (
 	}
 	else {
 		unsigned long ulLastChecksum = 0;
-		PKCS11H_BOOL fFirstTime = TRUE;
+		PKCS11H_BOOL is_first_time = TRUE;
 
 		while (
 			!s_pkcs11h_data->slotevent.should_terminate &&
@@ -9476,8 +9499,8 @@ _pkcs11h_slotevent_provider (
 			}
 			
 			if (rv == CKR_OK) {
-				if (fFirstTime) {
-					fFirstTime = FALSE;
+				if (is_first_time) {
+					is_first_time = FALSE;
 				}
 				else {
 					if (ulLastChecksum != ulCurrentChecksum) {
@@ -9517,7 +9540,7 @@ void *
 _pkcs11h_slotevent_manager (
 	IN void *p
 ) {
-	PKCS11H_BOOL fFirst = TRUE;
+	PKCS11H_BOOL first_time = TRUE;
 
 	(void)p;
 
@@ -9537,12 +9560,12 @@ _pkcs11h_slotevent_manager (
 	s_pkcs11h_data->hooks.slotevent (s_pkcs11h_data->hooks.slotevent_data);
 
 	while (
-		fFirst ||	/* Must enter wait or mutex will never be free */
+		first_time ||	/* Must enter wait or mutex will never be free */
 		!s_pkcs11h_data->slotevent.should_terminate
 	) {
 		pkcs11h_provider_t current_provider;
 
-		fFirst = FALSE;
+		first_time = FALSE;
 
 		/*
 		 * Start each provider thread
