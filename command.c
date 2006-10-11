@@ -930,7 +930,7 @@ int cmd_random (assuan_context_t ctx, char *line)
 	return gpg_error (GPG_ERR_INV_OP);
 }
 
-/** Not yet implemented. */
+/** Not implemented. */
 int cmd_checkpin (assuan_context_t ctx, char *line)
 {
 	(void)ctx;
@@ -939,7 +939,6 @@ int cmd_checkpin (assuan_context_t ctx, char *line)
 	return gpg_error (GPG_ERR_INV_OP);
 }
 
-/** The multi-server mode is currently not supported. */
 int cmd_getinfo (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_NO_ERROR;
@@ -959,5 +958,13 @@ int cmd_getinfo (assuan_context_t ctx, char *line)
 	}
 
 	return gpg_error (error);
+}
+
+int cmd_restart (assuan_context_t ctx, char *line)
+{
+	(void)ctx;
+	(void)line;
+
+	return gpg_error (GPG_ERR_NO_ERROR);
 }
 
