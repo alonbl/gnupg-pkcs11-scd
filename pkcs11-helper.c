@@ -5798,9 +5798,7 @@ _pkcs11h_certificate_doPrivateOperation (
 			 */
 			if (login_retry && rv == CKR_DEVICE_REMOVED) {
 				login_retry = FALSE;
-				_pkcs11h_threading_mutexLock (&certificate->session->mutex);
 				_pkcs11h_session_logout (certificate->session);
-				_pkcs11h_threading_mutexRelease (&certificate->session->mutex);
 			}
 
 			if (!login_retry) {
