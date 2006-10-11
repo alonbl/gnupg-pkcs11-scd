@@ -67,6 +67,8 @@
  * 	- (alonbl) Added support for gnutls in addition to openssl.
  * 	- (alonbl) Fixup threading lock issues.
  * 	- (alonbl) Added support for duplicate serial tokens, based on label.
+ * 	- (alonbl) Added workaround for OpenSC cards, OpenSC bug#108, thanks to Kaupo Arulo.
+ * 	- (alonbl) Added a methods to lock session between two sign/decrypt operations.
  * 	- (alonbl) Release 01.02.
  *
  * 2006.06.26
@@ -267,6 +269,7 @@ struct pkcs11h_certificate_s {
 
 	pkcs11h_certificate_id_t id;
 	int pin_cache_period;
+	PKCS11H_BOOL pin_cache_populated_to_session;
 
 	unsigned mask_sign_mode;
 
@@ -683,7 +686,8 @@ static
 CK_RV
 _pkcs11h_certificate_resetSession (
 	IN const pkcs11h_certificate_t certificate,
-	IN const PKCS11H_BOOL public_only
+	IN const PKCS11H_BOOL public_only,
+	IN const PKCS11H_BOOL session_mutex_locked
 );
 static
 CK_RV
@@ -5402,7 +5406,8 @@ _pkcs11h_certificate_getKeyAttributes (
 
 				rv = _pkcs11h_certificate_resetSession (
 					certificate,
-					FALSE
+					FALSE,
+					TRUE
 				);
 
 				login_retry = TRUE;
@@ -5435,10 +5440,8 @@ _pkcs11h_certificate_validateSession (
 	/*
 	 * THREADING:
 	 * certificate->mutex must be locked
+	 * certificate->session->mutex must be locked
 	 */
-#if defined(ENABLE_PKCS11H_THREADING)
-	PKCS11H_BOOL mutex_locked = FALSE;
-#endif
 	CK_RV rv = CKR_OK;
 
 	PKCS11H_ASSERT (certificate!=NULL);
@@ -5453,15 +5456,6 @@ _pkcs11h_certificate_validateSession (
 		rv = CKR_SESSION_HANDLE_INVALID;
 	}
 
-#if defined(ENABLE_PKCS11H_THREADING)
-	if (
-		rv == CKR_OK &&
-		(rv = _pkcs11h_threading_mutexLock (&certificate->session->mutex)) == CKR_OK
-	) {
-		mutex_locked = TRUE;
-	}
-#endif
-
 	if (rv == CKR_OK) {
 		rv = _pkcs11h_session_validate (certificate->session);
 	}
@@ -5471,13 +5465,6 @@ _pkcs11h_certificate_validateSession (
 			rv = CKR_OBJECT_HANDLE_INVALID;
 		}
 	}
-
-#if defined(ENABLE_PKCS11H_THREADING)
-	if (mutex_locked) {
-		_pkcs11h_threading_mutexRelease (&certificate->session->mutex);
-		mutex_locked = FALSE;
-	}
-#endif
 
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
@@ -5492,7 +5479,8 @@ _pkcs11h_certificate_validateSession (
 CK_RV
 _pkcs11h_certificate_resetSession (
 	IN const pkcs11h_certificate_t certificate,
-	IN const PKCS11H_BOOL public_only
+	IN const PKCS11H_BOOL public_only,
+	IN const PKCS11H_BOOL session_mutex_locked
 ) {
 	/*
 	 * THREADING:
@@ -5502,24 +5490,17 @@ _pkcs11h_certificate_resetSession (
 	PKCS11H_BOOL mutex_locked = FALSE;
 #endif
 	PKCS11H_BOOL is_key_valid = FALSE;
-	PKCS11H_BOOL was_session_valid = FALSE;
 	CK_RV rv = CKR_OK;
 
 	PKCS11H_ASSERT (certificate!=NULL);
 	
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
-		"PKCS#11: _pkcs11h_certificate_resetSession entry certificate=%p, public_only=%d",
+		"PKCS#11: _pkcs11h_certificate_resetSession entry certificate=%p, public_only=%d, session_mutex_locked=%d",
 		(void *)certificate,
-		public_only ? 1 : 0
+		public_only ? 1 : 0,
+		session_mutex_locked ? 1 : 0
 	);
-
-	if (
-		rv == CKR_OK &&
-		certificate->session != NULL
-	) {
-		was_session_valid = TRUE;
-	}
 
 	if (rv == CKR_OK && certificate->session == NULL) {
 		rv = _pkcs11h_session_getSessionByTokenId (certificate->id->token_id, &certificate->session);
@@ -5528,6 +5509,7 @@ _pkcs11h_certificate_resetSession (
 #if defined(ENABLE_PKCS11H_THREADING)
 	if (
 		rv == CKR_OK &&
+		!session_mutex_locked &&
 		(rv = _pkcs11h_threading_mutexLock (&certificate->session->mutex)) == CKR_OK
 	) {
 		mutex_locked = TRUE;
@@ -5536,8 +5518,10 @@ _pkcs11h_certificate_resetSession (
 
 	if (
 		rv == CKR_OK &&
-		!was_session_valid
+		!certificate->pin_cache_populated_to_session
 	) {
+		certificate->pin_cache_populated_to_session = TRUE;
+
 		if (certificate->pin_cache_period != PKCS11H_PIN_CACHE_INFINITE) {
 			if (certificate->session->pin_cache_period != PKCS11H_PIN_CACHE_INFINITE) {
 				if (certificate->session->pin_cache_period > certificate->pin_cache_period) {
@@ -5828,7 +5812,8 @@ _pkcs11h_certificate_doPrivateOperation (
 				login_retry = TRUE;
 				rv = _pkcs11h_certificate_resetSession (
 					certificate,
-					FALSE
+					FALSE,
+					TRUE
 				);
 			}
 		}
@@ -5988,6 +5973,52 @@ pkcs11h_certificate_freeCertificate (
 	);
 
 	return CKR_OK;
+}
+
+CK_RV
+pkcs11h_certificate_lockSession (
+	IN const pkcs11h_certificate_t certificate
+) {
+#if defined(ENABLE_PKCS11H_THREADING)
+	CK_RV rv = CKR_OK;
+
+	PKCS11H_ASSERT (s_pkcs11h_data!=NULL);
+	PKCS11H_ASSERT (s_pkcs11h_data->initialized);
+	PKCS11H_ASSERT (certificate!=NULL);
+
+	if (rv == CKR_OK && certificate->session == NULL) {
+		rv = _pkcs11h_session_getSessionByTokenId (certificate->id->token_id, &certificate->session);
+	}
+
+	if (rv == CKR_OK) {
+		rv = _pkcs11h_threading_mutexLock (&certificate->session->mutex);
+	}
+
+	return rv;
+#else
+	return CKR_OK;
+#endif
+}
+
+CK_RV
+pkcs11h_certificate_releaseSession (
+	IN const pkcs11h_certificate_t certificate
+) {
+#if defined(ENABLE_PKCS11H_THREADING)
+	CK_RV rv = CKR_OK;
+
+	PKCS11H_ASSERT (s_pkcs11h_data!=NULL);
+	PKCS11H_ASSERT (s_pkcs11h_data->initialized);
+	PKCS11H_ASSERT (certificate!=NULL);
+
+	if (certificate->session != NULL) {
+		rv = _pkcs11h_threading_mutexRelease (&certificate->session->mutex);
+	}
+
+	return rv;
+#else
+	return CKR_OK;
+#endif
 }
 
 CK_RV
@@ -6471,7 +6502,8 @@ pkcs11h_certificate_getCertificateBlob (
 					login_retry = TRUE;
 					rv = _pkcs11h_certificate_resetSession (
 						certificate,
-						TRUE
+						TRUE,
+						FALSE
 					);
 				}
 			}
@@ -6782,7 +6814,8 @@ pkcs11h_certificate_ensureCertificateAccess (
 		if (
 			(rv = _pkcs11h_certificate_resetSession (
 				certificate,
-				TRUE
+				TRUE,
+				FALSE
 			)) == CKR_OK
 		) {
 			validCert = TRUE;
@@ -6890,6 +6923,7 @@ pkcs11h_certificate_ensureKeyAccess (
 		if (
 			(rv = _pkcs11h_certificate_resetSession (
 				certificate,
+				FALSE,
 				FALSE
 			)) == CKR_OK
 		) {
@@ -9844,6 +9878,7 @@ _pkcs11h_openssl_sign (
 ) {
 #endif
 	pkcs11h_certificate_t certificate = _pkcs11h_openssl_get_pkcs11h_certificate (rsa);
+	PKCS11H_BOOL session_locked = FALSE;
 	CK_RV rv = CKR_OK;
 
 	int myrsa_size = 0;
@@ -9939,6 +9974,13 @@ _pkcs11h_openssl_sign (
 		rv = CKR_KEY_SIZE_RANGE;
 	}
 
+	if (
+		rv == CKR_OK &&
+		(rv = pkcs11h_certificate_lockSession (certificate)) == CKR_OK
+	) {
+		session_locked = TRUE;
+	}
+
 	if (rv == CKR_OK) {
 		PKCS11H_DEBUG (
 			PKCS11H_LOG_DEBUG1,
@@ -9959,6 +10001,11 @@ _pkcs11h_openssl_sign (
 		) {
 			PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot perform signature %ld:'%s'", rv, pkcs11h_getMessage (rv));
 		}
+	}
+
+	if (session_locked) {
+		pkcs11h_certificate_releaseSession (certificate);
+		session_locked = FALSE;
 	}
 
 	if (enc_alloc != NULL) {

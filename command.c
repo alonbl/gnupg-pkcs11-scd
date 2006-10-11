@@ -58,29 +58,30 @@ get_cert_blob (
 	pkcs11h_certificate_t cert = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
-	CK_RV rv;
 
 	*p_blob = NULL;
 	*p_blob_size = 0;
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_create (
-			cert_id,
-			ctx,
-			PKCS11H_PROMPT_MASK_ALLOW_ALL,
-			PKCS11H_PIN_CACHE_INFINITE,
-			&cert
-		)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_create (
+				cert_id,
+				ctx,
+				PKCS11H_PROMPT_MASK_ALLOW_ALL,
+				PKCS11H_PIN_CACHE_INFINITE,
+				&cert
+			)
+		);
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_getCertificateBlob (cert, NULL, &blob_size)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_getCertificateBlob (
+				cert,
+				NULL,
+				&blob_size
+			)
+		);
 	}
 
 	if (
@@ -90,11 +91,14 @@ get_cert_blob (
 		error = GPG_ERR_ENOMEM;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_getCertificateBlob (cert, blob, &blob_size)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_getCertificateBlob (
+				cert,
+				blob,
+				&blob_size
+			)
+		);
 	}
 
 	if (error == GPG_ERR_NO_ERROR) {
@@ -173,7 +177,6 @@ static int send_certificate_list (
 ) {
 	gpg_err_code_t error = GPG_ERR_NO_ERROR;
 	pkcs11h_certificate_id_list_t curr_cert;
-	CK_RV rv;
 	
 	for (
 		curr_cert = head;
@@ -197,15 +200,14 @@ static int send_certificate_list (
 			error = GPG_ERR_ENOMEM;
 		}
 
-		if (
-			error == GPG_ERR_NO_ERROR &&
-			(rv = pkcs11h_certificate_serializeCertificateId (
-				NULL,
-				&ser_len,
-				curr_cert->certificate_id
-			)) != CKR_OK
-		) {
-			rv = common_map_pkcs11_error (rv);
+		if (error == GPG_ERR_NO_ERROR) {
+			error = common_map_pkcs11_error (
+				pkcs11h_certificate_serializeCertificateId (
+					NULL,
+					&ser_len,
+					curr_cert->certificate_id
+				)
+			);
 		}
 
 		if (
@@ -215,15 +217,14 @@ static int send_certificate_list (
 			error = GPG_ERR_ENOMEM;
 		}
 
-		if (
-			error == GPG_ERR_NO_ERROR &&
-			(rv = pkcs11h_certificate_serializeCertificateId (
-				certid,
-				&ser_len,
-				curr_cert->certificate_id
-			)) != CKR_OK
-		) {
-			error = common_map_pkcs11_error (rv);
+		if (error == GPG_ERR_NO_ERROR) {
+			error = common_map_pkcs11_error (
+				pkcs11h_certificate_serializeCertificateId (
+					certid,
+					&ser_len,
+					curr_cert->certificate_id
+				)
+			);
 		}
 
 		if (
@@ -290,7 +291,6 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_NO_ERROR;
 #if defined(COMMENT)
-	CK_RV rv;
 	pkcs11h_token_id_list_t list = NULL;
 	pkcs11h_token_id_list_t i;
 #endif
@@ -344,12 +344,13 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 	}
 
 #if defined(COMMENT)
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_token_enumTokenIds (PKCS11H_ENUM_METHOD_RELOAD, &list)) != CKR_OK
-	) {
-		common_log (LOG_WARNING, "enumeration of tokens failed: %lx", rv);
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_token_enumTokenIds (
+				PKCS11H_ENUM_METHOD_RELOAD,
+				&list
+			)
+		);
 	}
 
 	if (
@@ -364,11 +365,14 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 		char *ser_token = NULL;
 		size_t ser_len;
 
-		if (
-			error == GPG_ERR_NO_ERROR &&
-			(rv = pkcs11h_token_serializeTokenId (NULL, &ser_len, i->token_id)) != CKR_OK
-		) {
-			error = common_map_pkcs11_error (rv);
+		if (error == GPG_ERR_NO_ERROR) {
+			error = common_map_pkcs11_error (
+				pkcs11h_token_serializeTokenId (
+					NULL,
+					&ser_len,
+					i->token_id
+				)
+			);
 		}
 
 		if (
@@ -378,11 +382,14 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 			error = GPG_ERR_ENOMEM;
 		}
 
-		if (
-			error == GPG_ERR_NO_ERROR &&
-			(rv = pkcs11h_token_serializeTokenId (ser_token, &ser_len, i->token_id)) != CKR_OK
-		) {
-			error = common_map_pkcs11_error (rv);
+		if (error == GPG_ERR_NO_ERROR) {
+			error = common_map_pkcs11_error (
+				pkcs11h_token_serializeTokenId (
+					ser_token,
+					&ser_len,
+					i->token_id
+				)
+			);
 		}
 
 		/*
@@ -439,21 +446,19 @@ int cmd_learn (assuan_context_t ctx, char *line)
 	gpg_err_code_t error = GPG_ERR_NO_ERROR;
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
 	pkcs11h_certificate_id_list_t issuer_certificates = NULL;
-	CK_RV rv;
 
 	(void)line;
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_enumCertificateIds (
-			PKCS11H_ENUM_METHOD_CACHE_EXIST,
-			ctx,
-			PKCS11H_PROMPT_MASK_ALLOW_ALL,
-			&issuer_certificates,
-			&user_certificates
-		)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_enumCertificateIds (
+				PKCS11H_ENUM_METHOD_CACHE_EXIST,
+				ctx,
+				PKCS11H_PROMPT_MASK_ALLOW_ALL,
+				&issuer_certificates,
+				&user_certificates
+			)
+		);
 	}
 
 	if (error == GPG_ERR_NO_ERROR) {
@@ -492,13 +497,11 @@ int cmd_readcert (assuan_context_t ctx, char *line)
 	pkcs11h_certificate_t cert = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
-	CK_RV rv;
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_deserializeCertificateId (&cert_id, line)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
+		);
 	}
 
 	if (error == GPG_ERR_NO_ERROR) {
@@ -535,13 +538,11 @@ int cmd_readkey (assuan_context_t ctx, char *line)
 	gcry_sexp_t sexp = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
-	CK_RV rv;
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_deserializeCertificateId (&cert_id, line)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
+		);
 	}
 
 	if (error == GPG_ERR_NO_ERROR) {
@@ -662,9 +663,9 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	cmd_data_t *_data = data;
 	int need_free__data = 0;
+	int session_locked = 0;
 	unsigned char *sig = NULL;
 	size_t sig_len;
-	CK_RV rv;
 
 	if (
 		data == NULL ||
@@ -720,38 +721,44 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 		}
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_deserializeCertificateId (&cert_id, line)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
+		);
+	}
+
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_create (
+				cert_id,
+				ctx,
+				PKCS11H_PROMPT_MASK_ALLOW_ALL,
+				PKCS11H_PIN_CACHE_INFINITE,
+				&cert
+			)
+		);
 	}
 
 	if (
 		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_create (
-			cert_id,
-			ctx,
-			PKCS11H_PROMPT_MASK_ALLOW_ALL,
-			PKCS11H_PIN_CACHE_INFINITE,
-			&cert
-		)) != CKR_OK
+		(error = common_map_pkcs11_error (
+			pkcs11h_certificate_lockSession (cert)
+		)) == GPG_ERR_NO_ERROR
 	) {
-		error = common_map_pkcs11_error(rv);
+		session_locked = 1;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_sign (
-			cert,
-			CKM_RSA_PKCS,
-			_data->data,
-			_data->size,
-			NULL,
-			&sig_len
-		)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_signAny (
+				cert,
+				CKM_RSA_PKCS,
+				_data->data,
+				_data->size,
+				NULL,
+				&sig_len
+			)
+		);
 	}
 
 	if (
@@ -761,18 +768,22 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 		error = GPG_ERR_ENOMEM;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_sign (
-			cert,
-			CKM_RSA_PKCS,
-			_data->data,
-			_data->size,
-			sig,
-			&sig_len
-		)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_signAny (
+				cert,
+				CKM_RSA_PKCS,
+				_data->data,
+				_data->size,
+				sig,
+				&sig_len
+			)
+		);
+	}
+
+	if (session_locked) {
+		pkcs11h_certificate_releaseSession (cert);
+		session_locked = 0;
 	}
 
 	if (error == GPG_ERR_NO_ERROR) {
@@ -810,8 +821,8 @@ int cmd_pkdecrypt (assuan_context_t ctx, char *line)
 	pkcs11h_certificate_t cert = NULL;
 	unsigned char *ptext = NULL;
 	size_t ptext_len;
+	int session_locked = 0;
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
-	CK_RV rv;
 	
 	if (
 		data == NULL ||
@@ -820,38 +831,44 @@ int cmd_pkdecrypt (assuan_context_t ctx, char *line)
 		error = GPG_ERR_INV_DATA;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_deserializeCertificateId (&cert_id, line)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
+		);
+	}
+
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_create (
+				cert_id,
+				ctx,
+				PKCS11H_PROMPT_MASK_ALLOW_ALL,
+				PKCS11H_PIN_CACHE_INFINITE,
+				&cert
+			)
+		);
 	}
 
 	if (
 		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_create (
-			cert_id,
-			ctx,
-			PKCS11H_PROMPT_MASK_ALLOW_ALL,
-			PKCS11H_PIN_CACHE_INFINITE,
-			&cert
-		)) != CKR_OK
+		(error = common_map_pkcs11_error (
+			pkcs11h_certificate_lockSession (cert)
+		)) == GPG_ERR_NO_ERROR
 	) {
-		error = common_map_pkcs11_error (rv);
+		session_locked = 1;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_decrypt (
-			cert,
-			CKM_RSA_PKCS, 
-			data->data,
-			data->size,
-			NULL,
-			&ptext_len
-		)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_decrypt (
+				cert,
+				CKM_RSA_PKCS, 
+				data->data,
+				data->size,
+				NULL,
+				&ptext_len
+			)
+		);
 	}
 
 	if (
@@ -861,18 +878,22 @@ int cmd_pkdecrypt (assuan_context_t ctx, char *line)
 		error = GPG_ERR_ENOMEM;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(rv = pkcs11h_certificate_decrypt (
-			cert,
-			CKM_RSA_PKCS, 
-			data->data,
-			data->size,
-			ptext,
-			&ptext_len
-		)) != CKR_OK
-	) {
-		error = common_map_pkcs11_error (rv);
+	if (error == GPG_ERR_NO_ERROR) {
+		error = common_map_pkcs11_error (
+			pkcs11h_certificate_decrypt (
+				cert,
+				CKM_RSA_PKCS, 
+				data->data,
+				data->size,
+				ptext,
+				&ptext_len
+			)
+		);
+	}
+
+	if (session_locked) {
+		pkcs11h_certificate_releaseSession (cert);
+		session_locked = 0;
 	}
 
 	if (error == GPG_ERR_NO_ERROR) {

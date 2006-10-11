@@ -825,6 +825,39 @@ pkcs11h_certificate_ensureKeyAccess (
 );
 
 /*
+ * pkcs11h_certificate_lockSession - Lock session for threded environment
+ *
+ * Parameters:
+ * 	certificate		- Certificate object.
+ *
+ * This must be called on threaded environment, so both calls to _sign and
+ * _signRecover and _decrypt will be from the same source.
+ * Failing to lock session, will result with CKR_OPERATION_ACTIVE if
+ * provider is good, or unexpected behaviour for others.
+ *
+ * It is save to call this also in none threaded environment, it will do nothing.
+ * Call this also if you are doing one stage operation, since locking is not
+ * done by method.
+ */
+CK_RV
+pkcs11h_certificate_lockSession (
+	IN const pkcs11h_certificate_t certificate
+);
+
+/*
+ * pkcs11h_certificate_releaseSession - Releases session lock.
+ *
+ * Parameters:
+ * 	certificate		- Certificate object.
+ *
+ * See pkcs11h_certificate_lockSession.
+ */
+CK_RV
+pkcs11h_certificate_releaseSession (
+	IN const pkcs11h_certificate_t certificate
+);
+
+/*
  * pkcs11h_certificate_sign - Sign data.
  *
  * Parameters:
