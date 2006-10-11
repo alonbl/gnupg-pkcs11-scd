@@ -5551,27 +5551,28 @@ _pkcs11h_certificate_resetSession (
 	 */
 	if (rv == CKR_OK) {
 		if (
-			certificate->session->session_handle != PKCS11H_INVALID_SESSION_HANDLE && 
-			certificate->key_handle == PKCS11H_INVALID_OBJECT_HANDLE &&
-			!public_only
+			certificate->session->session_handle != PKCS11H_INVALID_SESSION_HANDLE &&
+			certificate->key_handle == PKCS11H_INVALID_OBJECT_HANDLE
 		) {
-			if (
-				(rv = _pkcs11h_session_getObjectById (
-					certificate->session,
-					CKO_PRIVATE_KEY,
-					certificate->id->attrCKA_ID,
-					certificate->id->attrCKA_ID_size,
-					&certificate->key_handle
-				)) == CKR_OK
-			) {
-				is_key_valid = TRUE;
-			}
-			else {
-				/*
-				 * Ignore error
-				 */
-				rv = CKR_OK;
-				certificate->key_handle = PKCS11H_INVALID_OBJECT_HANDLE;
+			if (!public_only || certificate->session->provider->cert_is_private) {
+				if (
+					(rv = _pkcs11h_session_getObjectById (
+						certificate->session,
+						CKO_PRIVATE_KEY,
+						certificate->id->attrCKA_ID,
+						certificate->id->attrCKA_ID_size,
+						&certificate->key_handle
+					)) == CKR_OK
+				) {
+					is_key_valid = TRUE;
+				}
+				else {
+					/*
+					 * Ignore error
+					 */
+					rv = CKR_OK;
+					certificate->key_handle = PKCS11H_INVALID_OBJECT_HANDLE;
+				}
 			}
 		}
 	}
