@@ -4,6 +4,11 @@ Copyright (c) 2006 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
+????-??-?? -- Version 0.02
+
+* Added more charachters to serialization exclude chars.
+  People may need to re-learn cards.
+
 2006-10-11 -- Version 0.01
 
 * Initial release.
