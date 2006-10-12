@@ -120,7 +120,7 @@
 #define PKCS11H_DEFAULT_MAX_LOGIN_RETRY		3
 #define PKCS11H_DEFAULT_PIN_CACHE_PERIOD	PKCS11H_PIN_CACHE_INFINITE
 
-#define PKCS11H_SERIALIZE_INVALID_CHARS	"\\/\"'%&#@!?* "
+#define PKCS11H_SERIALIZE_INVALID_CHARS	"\\/\"'%&#@!?$* "
 
 enum _pkcs11h_private_op_e {
 	_pkcs11h_private_op_sign=0,
