@@ -97,6 +97,8 @@ typedef int PKCS11H_BOOL;
 
 #define PKCS11H_ASSERT		assert
 #define PKCS11H_TIME		time
+#define PKCS11H_MALLOC		malloc
+#define PKCS11H_FREE		free
 
 #if defined(USE_PKCS11H_OPENSSL)
 #include "openssl/x509.h"
