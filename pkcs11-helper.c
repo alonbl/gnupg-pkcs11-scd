@@ -348,18 +348,24 @@ struct pkcs11h_openssl_session_s {
 static
 CK_RV
 _pkcs11h_mem_malloc (
-	OUT const void ** const p,
+	OUT const void * * const p,
 	IN const size_t s
 );
 static
 CK_RV
 _pkcs11h_mem_free (
-	IN const void ** const p
+	IN const void * * const p
+);
+static
+CK_RV
+_pkcs11h_mem_strdup (
+	OUT const char * * const dest,
+	IN const char * const src
 );
 static
 CK_RV
 _pkcs11h_mem_duplicate (
-	OUT const void ** const dest,
+	OUT const void * * const dest,
 	OUT size_t * const dest_size,
 	IN const void * const src,
 	IN const size_t mem_size
@@ -1875,11 +1881,15 @@ pkcs11h_token_deserializeTokenId (
 
 	*p_token_id = NULL;
 
-	if (
-		rv == CKR_OK &&
-		(p1 = _sz = strdup (sz)) == NULL
-	) {
-		rv = CKR_HOST_MEMORY;
+	if (rv == CKR_OK) {
+		rv = _pkcs11h_mem_strdup (
+			(void *)&_sz,
+			sz
+		);
+	}
+
+	if (rv == CKR_OK) {
+		p1 = _sz;
 	}
 
 	if (
@@ -1958,8 +1968,7 @@ pkcs11h_token_deserializeTokenId (
 	}
 
 	if (_sz != NULL) {
-		free (_sz);
-		_sz = NULL;
+		_pkcs11h_mem_free ((void *)&_sz);
 	}
 
 	if (token_id != NULL) {
@@ -1979,7 +1988,7 @@ pkcs11h_token_deserializeTokenId (
 static
 CK_RV
 _pkcs11h_mem_malloc (
-	OUT const void ** const p,
+	OUT const void * * const p,
 	IN const size_t s
 ) {
 	CK_RV rv = CKR_OK;
@@ -1991,7 +2000,7 @@ _pkcs11h_mem_malloc (
 
 	if (s > 0) {
 		if (
-			(*p = (void *)malloc (s)) == NULL
+			(*p = (void *)PKCS11H_MALLOC (s)) == NULL
 		) {
 			rv = CKR_HOST_MEMORY;
 		}
@@ -2006,11 +2015,11 @@ _pkcs11h_mem_malloc (
 static
 CK_RV
 _pkcs11h_mem_free (
-	IN const void ** const p
+	IN const void * * const  p
 ) {
 	PKCS11H_ASSERT (p!=NULL);
 
-	free ((void *)*p);
+	PKCS11H_FREE ((void *)*p);
 	*p = NULL;
 
 	return CKR_OK;
@@ -2018,8 +2027,22 @@ _pkcs11h_mem_free (
 
 static
 CK_RV
+_pkcs11h_mem_strdup (
+	OUT const char * * const dest,
+	IN const char * const src
+) {
+	return _pkcs11h_mem_duplicate (
+		(void *)dest,
+		NULL,
+		src,
+		strlen (src)+1
+	);
+}
+
+static
+CK_RV
 _pkcs11h_mem_duplicate (
-	OUT const void ** const dest,
+	OUT const void * * const dest,
 	OUT size_t * const p_dest_size,
 	IN const void * const src,
 	IN const size_t mem_size
@@ -6696,11 +6719,15 @@ pkcs11h_certificate_deserializeCertificateId (
 		sz
 	);
 
-	if (
-		rv == CKR_OK &&
-		(p = _sz = strdup (sz)) == NULL
-	) {
-		rv = CKR_HOST_MEMORY;
+	if (rv == CKR_OK) {
+		rv = _pkcs11h_mem_strdup (
+			(void *)&_sz,
+			sz
+		);
+	}
+
+	if (rv == CKR_OK) {
+		p = _sz;
 	}
 
 	if (rv == CKR_OK) {
@@ -6755,8 +6782,7 @@ pkcs11h_certificate_deserializeCertificateId (
 	}
 
 	if (_sz != NULL) {
-		free (_sz);
-		_sz = NULL;
+		_pkcs11h_mem_free ((void *)&_sz);
 	}
 
 	PKCS11H_DEBUG (
