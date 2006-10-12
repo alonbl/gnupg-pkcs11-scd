@@ -466,11 +466,11 @@ int cmd_learn (assuan_context_t ctx, char *line)
 	}
 
 	if (error == GPG_ERR_NO_ERROR) {
-		error = send_certificate_list(ctx, user_certificates, 0);
+		error = send_certificate_list (ctx, user_certificates, 0);
 	}
 
 	if (error == GPG_ERR_NO_ERROR) {
-		error = send_certificate_list(ctx, issuer_certificates, 1);
+		error = send_certificate_list (ctx, issuer_certificates, 1);
 	}
 
 	if (issuer_certificates != NULL) {
