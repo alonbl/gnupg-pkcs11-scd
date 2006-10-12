@@ -69,6 +69,7 @@
  * 	- (alonbl) Added support for duplicate serial tokens, based on label.
  * 	- (alonbl) Added workaround for OpenSC cards, OpenSC bug#108, thanks to Kaupo Arulo.
  * 	- (alonbl) Added a methods to lock session between two sign/decrypt operations.
+ * 	- (alonbl) Modified openssl interface.
  * 	- (alonbl) Release 01.02.
  *
  * 2006.06.26
@@ -5872,7 +5873,7 @@ pkcs11h_certificate_freeCertificateId (
 }
 
 CK_RV
-pkcs11h_duplicateCertificateId (
+pkcs11h_certificate_duplicateCertificateId (
 	OUT pkcs11h_certificate_id_t * const to,
 	IN const pkcs11h_certificate_id_t from
 ) {
@@ -5885,7 +5886,7 @@ pkcs11h_duplicateCertificateId (
 
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
-		"PKCS#11: pkcs11h_duplicateCertificateId entry to=%p form=%p",
+		"PKCS#11: pkcs11h_certificate_duplicateCertificateId entry to=%p form=%p",
 		(void *)to,
 		(void *)from
 	);
@@ -5930,10 +5931,52 @@ pkcs11h_duplicateCertificateId (
 
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
-		"PKCS#11: pkcs11h_duplicateCertificateId return rv=%ld-'%s', *to=%p",
+		"PKCS#11: pkcs11h_certificate_duplicateCertificateId return rv=%ld-'%s', *to=%p",
 		rv,
 		pkcs11h_getMessage (rv),
 		(void *)*to
+	);
+	
+	return rv;
+}
+
+CK_RV
+pkcs11h_certificate_setCertificateIdCertificateBlob (
+	IN const pkcs11h_certificate_id_t certificate_id,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size
+) {
+	CK_RV rv = CKR_OK;
+
+	PKCS11H_ASSERT (s_pkcs11h_data!=NULL);
+	PKCS11H_ASSERT (s_pkcs11h_data->initialized);
+	PKCS11H_ASSERT (certificate_id!=NULL);
+	PKCS11H_ASSERT (blob!=NULL);
+
+	PKCS11H_DEBUG (
+		PKCS11H_LOG_DEBUG2,
+		"PKCS#11: pkcs11h_certificate_setCertificateIdCertificateBlob entry certificate_id=%p",
+		(void *)certificate_id
+	);
+
+	if (rv == CKR_OK && certificate_id->certificate_blob != NULL) {
+		rv = _pkcs11h_mem_free ((void *)&certificate_id->certificate_blob);
+	}
+
+	if (rv == CKR_OK) {
+		rv = _pkcs11h_mem_duplicate (
+			(void *)&certificate_id->certificate_blob,
+			&certificate_id->certificate_blob_size,
+			blob,
+			blob_size
+		);
+	}
+
+	PKCS11H_DEBUG (
+		PKCS11H_LOG_DEBUG2,
+		"PKCS#11: pkcs11h_certificate_setCertificateIdCertificateBlob return rv=%ld-'%s'",
+		rv,
+		pkcs11h_getMessage (rv)
 	);
 	
 	return rv;
@@ -6341,7 +6384,7 @@ pkcs11h_certificate_create (
 #endif
 
 	if (rv == CKR_OK) {
-		rv = pkcs11h_duplicateCertificateId (&certificate->id, certificate_id);
+		rv = pkcs11h_certificate_duplicateCertificateId (&certificate->id, certificate_id);
 	}
 
 	if (rv == CKR_OK) {
@@ -6425,7 +6468,7 @@ pkcs11h_certificate_getCertificateId (
 	);
 
 	if (rv == CKR_OK) {
-		rv = pkcs11h_duplicateCertificateId (
+		rv = pkcs11h_certificate_duplicateCertificateId (
 			p_certificate_id,
 			certificate->id
 		);
@@ -8898,7 +8941,7 @@ _pkcs11h_certificate_splitCertificateIdList (
 
 			if (
 				rv == CKR_OK &&
-				(rv = pkcs11h_duplicateCertificateId (
+				(rv = pkcs11h_certificate_duplicateCertificateId (
 					&new_entry->certificate_id,
 					info->e
 				)) == CKR_OK
@@ -9312,7 +9355,7 @@ pkcs11h_certificate_enumCertificateIds (
 						(void *)&new_entry,
 						sizeof (struct pkcs11h_certificate_id_list_s)
 					)) == CKR_OK &&
-					(rv = pkcs11h_duplicateCertificateId (
+					(rv = pkcs11h_certificate_duplicateCertificateId (
 						&new_entry->certificate_id,
 						entry->certificate_id
 					)) == CKR_OK
@@ -9916,6 +9959,7 @@ _pkcs11h_openssl_sign (
 		ASN1_TYPE parameter;
 		X509_ALGOR algor;
 		ASN1_OCTET_STRING digest;
+		unsigned char *p = NULL;
 
 		if (
 			rv == CKR_OK &&
@@ -9959,10 +10003,17 @@ _pkcs11h_openssl_sign (
 		) {
 			rv = CKR_FUNCTION_FAILED;
 		}
+
+		/*
+		 * d_X509_SIG increments pointer!
+		 */
+		p = enc;
 	
-		if (rv == CKR_OK) {
-			unsigned char *p = enc;
-			i2d_X509_SIG (&sig, &p);
+		if (
+			rv == CKR_OK &&
+			(enc_len=i2d_X509_SIG (&sig, &p)) < 0
+		) {
+			rv = CKR_FUNCTION_FAILED;
 		}
 	}
 
@@ -10064,6 +10115,89 @@ _pkcs11h_openssl_finish (
 	);
 	
 	return 1;
+}
+
+X509 *
+pkcs11h_openssl_getX509 (
+	IN const pkcs11h_certificate_t certificate
+) {
+	unsigned char *certificate_blob = NULL;
+	size_t certificate_blob_size = 0;
+	X509 *x509 = NULL;
+	CK_RV rv = CKR_OK;
+
+	pkcs11_openssl_d2i_t d2i1 = NULL;
+	PKCS11H_BOOL ok = TRUE;
+
+	PKCS11H_ASSERT (certificate!=NULL);
+
+	PKCS11H_DEBUG (
+		PKCS11H_LOG_DEBUG2,
+		"PKCS#11: pkcs11h_openssl_getX509 - entry certificate=%p",
+		(void *)certificate
+	);
+
+	if (
+		ok &&
+		(x509 = X509_new ()) == NULL
+	) {
+		ok = FALSE;
+		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Unable to allocate certificate object");
+	}
+
+	if (
+		ok &&
+		pkcs11h_certificate_getCertificateBlob (
+			certificate,
+			NULL,
+			&certificate_blob_size
+		) != CKR_OK
+	) {
+		ok = FALSE;
+		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot read X.509 certificate from token %ld-'%s'", rv, pkcs11h_getMessage (rv));
+	}
+
+	if (
+		ok &&
+		(rv = _pkcs11h_mem_malloc ((void *)&certificate_blob, certificate_blob_size)) != CKR_OK
+	) {
+		ok = FALSE;
+		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot allocate X.509 memory %ld-'%s'", rv, pkcs11h_getMessage (rv));
+	}
+
+	if (
+		ok &&
+		pkcs11h_certificate_getCertificateBlob (
+			certificate,
+			certificate_blob,
+			&certificate_blob_size
+		) != CKR_OK
+	) {
+		ok = FALSE;
+		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot read X.509 certificate from token %ld-'%s'", rv, pkcs11h_getMessage (rv));
+	}
+
+	d2i1 = (pkcs11_openssl_d2i_t)certificate_blob;
+	if (
+		ok &&
+		!d2i_X509 (&x509, &d2i1, certificate_blob_size)
+	) {
+		ok = FALSE;
+		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Unable to parse X.509 certificate");
+	}
+
+	if (!ok) {
+		X509_free (x509);
+		x509 = NULL;
+	}
+	
+	PKCS11H_DEBUG (
+		PKCS11H_LOG_DEBUG2,
+		"PKCS#11: pkcs11h_openssl_getX509 - return x509=%p",
+		(void *)x509
+	);
+
+	return x509;
 }
 
 pkcs11h_openssl_session_t
@@ -10176,17 +10310,12 @@ pkcs11h_openssl_freeSession (
 }
 
 RSA *
-pkcs11h_openssl_getRSA (
+pkcs11h_openssl_session_getRSA (
 	IN const pkcs11h_openssl_session_t openssl_session
 ) {
-	unsigned char *certificate_blob = NULL;
-	size_t certificate_blob_size = 0;
 	X509 *x509 = NULL;
 	RSA *rsa = NULL;
 	EVP_PKEY *pubkey = NULL;
-	CK_RV rv = CKR_OK;
-
-	pkcs11_openssl_d2i_t d2i1 = NULL;
 	PKCS11H_BOOL ok = TRUE;
 
 	PKCS11H_ASSERT (openssl_session!=NULL);
@@ -10195,57 +10324,19 @@ pkcs11h_openssl_getRSA (
 
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
-		"PKCS#11: pkcs11h_openssl_getRSA - entry openssl_session=%p",
+		"PKCS#11: pkcs11h_openssl_session_getRSA - entry openssl_session=%p",
 		(void *)openssl_session
 	);
-
+	
+	/*
+	 * Dup x509 so RSA will not hold session x509
+	 */
 	if (
 		ok &&
-		(x509 = X509_new ()) == NULL
+		(x509 = pkcs11h_openssl_session_getX509 (openssl_session)) == NULL
 	) {
 		ok = FALSE;
-		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Unable to allocate certificate object");
-	}
-
-	if (
-		ok &&
-		pkcs11h_certificate_getCertificateBlob (
-			openssl_session->certificate,
-			NULL,
-			&certificate_blob_size
-		) != CKR_OK
-	) {
-		ok = FALSE;
-		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot read X.509 certificate from token %ld-'%s'", rv, pkcs11h_getMessage (rv));
-	}
-
-	if (
-		ok &&
-		(rv = _pkcs11h_mem_malloc ((void *)&certificate_blob, certificate_blob_size)) != CKR_OK
-	) {
-		ok = FALSE;
-		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot allocate X.509 memory %ld-'%s'", rv, pkcs11h_getMessage (rv));
-	}
-
-	if (
-		ok &&
-		pkcs11h_certificate_getCertificateBlob (
-			openssl_session->certificate,
-			certificate_blob,
-			&certificate_blob_size
-		) != CKR_OK
-	) {
-		ok = FALSE;
-		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot read X.509 certificate from token %ld-'%s'", rv, pkcs11h_getMessage (rv));
-	}
-
-	d2i1 = (pkcs11_openssl_d2i_t)certificate_blob;
-	if (
-		ok &&
-		!d2i_X509 (&x509, &d2i1, certificate_blob_size)
-	) {
-		ok = FALSE;
-		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Unable to parse X.509 certificate");
+		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot get certificate object");
 	}
 
 	if (
@@ -10273,7 +10364,6 @@ pkcs11h_openssl_getRSA (
 	}
 
 	if (ok) {
-
 		RSA_set_method (rsa, &openssl_session->smart_rsa);
 		RSA_set_app_data (rsa, openssl_session);
 		openssl_session->reference_count++;
@@ -10291,10 +10381,6 @@ pkcs11h_openssl_getRSA (
 #endif
 		
 	if (ok) {
-		/*
-		 * dup x509 so that it won't hold RSA
-		 */
-		openssl_session->x509 = X509_dup (x509);
 		rsa->flags |= RSA_FLAG_SIGN_VER;
 		openssl_session->initialized = TRUE;
 	}
@@ -10321,7 +10407,7 @@ pkcs11h_openssl_getRSA (
 	
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
-		"PKCS#11: pkcs11h_openssl_getRSA - return rsa=%p",
+		"PKCS#11: pkcs11h_openssl_session_getRSA - return rsa=%p",
 		(void *)rsa
 	);
 
@@ -10329,26 +10415,40 @@ pkcs11h_openssl_getRSA (
 }
 
 X509 *
-pkcs11h_openssl_getX509 (
+pkcs11h_openssl_session_getX509 (
 	IN const pkcs11h_openssl_session_t openssl_session
 ) {
 	X509 *x509 = NULL;
+	PKCS11H_BOOL ok = TRUE;
 	
 	PKCS11H_ASSERT (openssl_session!=NULL);
 
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
-		"PKCS#11: pkcs11h_openssl_getX509 - entry openssl_session=%p",
+		"PKCS#11: pkcs11h_openssl_session_getX509 - entry openssl_session=%p",
 		(void *)openssl_session
 	);
 
-	if (openssl_session->x509 != NULL) {
-		x509 = X509_dup (openssl_session->x509);
+	if (
+		ok &&
+		openssl_session->x509 == NULL &&
+		(openssl_session->x509 = pkcs11h_openssl_getX509 (openssl_session->certificate)) == NULL
+	) {	
+		ok = FALSE;
+		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot get certificate object");
+	}
+
+	if (
+		ok &&
+		(x509 = X509_dup (openssl_session->x509)) == NULL
+	) {
+		ok = FALSE;
+		PKCS11H_LOG (PKCS11H_LOG_WARN, "PKCS#11: Cannot duplicate certificate object");
 	}
 	
 	PKCS11H_DEBUG (
 		PKCS11H_LOG_DEBUG2,
-		"PKCS#11: pkcs11h_openssl_getX509 - return x509=%p",
+		"PKCS#11: pkcs11h_openssl_session_getX509 - return x509=%p",
 		(void *)x509
 	);
 
@@ -10463,16 +10563,29 @@ pkcs11h_standalone_dump_slots (
 		else {
 			my_output (
 				global_data,
+				"The following slots are available for use with this provider.\n"
+			);
+
+#if defined(PKCS11H_PRM_SLOT_TYPE)
+			my_output (
+				global_data,
 				(
-					"The following slots are available for use with this provider.\n"
 					"Each slot shown below may be used as a parameter to a\n"
 					"%s and %s options.\n"
-					"\n"
-					"Slots: (id - name)\n"
 				),
 				PKCS11H_PRM_SLOT_TYPE,
 				PKCS11H_PRM_SLOT_ID
 			);
+#endif
+
+			my_output (
+				global_data,
+				(
+					"\n"
+					"Slots: (id - name)\n"
+				)
+			);
+
 			for (slot_index=0;slot_index < slotnum;slot_index++) {
 				CK_SLOT_INFO info;
 	
@@ -10685,19 +10798,27 @@ pkcs11h_standalone_dump_objects (
 					"\tserialNumber:\t%s\n"
 					"\tflags:\t\t%08x\n"
 					"\n"
-					"You can access this token using\n"
-					"%s \"label\" %s \"%s\" options.\n"
-					"\n"
 				),
 				label,
 				manufacturerID,
 				model,
 				serialNumberNumber,
-				(unsigned)info.flags,
+				(unsigned)info.flags
+			);
+
+#if defined(PKCS11H_PRM_SLOT_TYPE)
+			my_output (
+				global_data,
+				(
+					"You can access this token using\n"
+					"%s \"label\" %s \"%s\" options.\n"
+					"\n"
+				),
 				PKCS11H_PRM_SLOT_TYPE,
 				PKCS11H_PRM_SLOT_ID,
 				label
 			);
+#endif
 
 			if (
 				rv == CKR_OK &&
@@ -10743,14 +10864,24 @@ pkcs11h_standalone_dump_objects (
 	
 		my_output (
 			global_data,
+			"The following objects are available for use with this token.\n"
+		);
+
+#if defined(PKCS11H_PRM_OBJ_TYPE)
+		my_output (
+			global_data,
 			(
-				"The following objects are available for use with this token.\n"
 				"Each object shown below may be used as a parameter to\n"
 				"%s and %s options.\n"
-				"\n"
 			),
 			PKCS11H_PRM_OBJ_TYPE,
 			PKCS11H_PRM_OBJ_ID
+		);
+#endif
+
+		my_output (
+			global_data,
+			"\n"
 		);
 
 		if (

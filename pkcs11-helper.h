@@ -649,6 +649,23 @@ pkcs11h_certificate_duplicateCertificateId (
 );
 
 /*
+ * pkcs11h_certificate_setCertificateIdCertificateBlob - Sets internal certificate_id blob.
+ *
+ * Parameters:
+ * 	certificate_id		- Certificate id ojbect.
+ * 	blob			- blob.
+ * 	blob_size		- blob size.
+ *
+ * Useful to set after deserialization so certificate is available and not read from token.
+ */
+CK_RV
+pkcs11h_certificate_setCertificateIdCertificateBlob (
+	IN const pkcs11h_certificate_id_t certificate_id,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size
+);
+
+/*
  * pkcs11h_certificate_freeCertificate - Free certificate object.
  *
  * Parameters:
@@ -1172,6 +1189,17 @@ pkcs11h_certificate_enumCertificateIds (
  *======================================================================*/
 
 /*
+ * pkcs11h_openssl_getX509 - Returns an X509 object out of the openssl_session object.
+ *
+ * Parameters:
+ * 	certificate		- Certificate object.
+ */
+X509 *
+pkcs11h_openssl_getX509 (
+	IN const pkcs11h_certificate_t certificate
+);
+
+/*
  * pkcs11h_openssl_createSession - Create OpenSSL session based on a certificate object.
  *
  * Parameters:
@@ -1222,24 +1250,24 @@ pkcs11h_openssl_freeSession (
 );
 
 /*
- * pkcs11h_openssl_getRSA - Returns an RSA object out of the openssl_session object.
+ * pkcs11h_openssl_session_getRSA - Returns an RSA object out of the openssl_session object.
  *
  * Parameters:
  * 	openssl_session		- Session.
  */
 RSA *
-pkcs11h_openssl_getRSA (
+pkcs11h_openssl_session_getRSA (
 	IN const pkcs11h_openssl_session_t openssl_session
 );
 
 /*
- * pkcs11h_openssl_getX509 - Returns an X509 object out of the openssl_session object.
+ * pkcs11h_openssl_session_getX509 - Returns an X509 object out of the openssl_session object.
  *
  * Parameters:
  * 	openssl_session		- Session.
  */
 X509 *
-pkcs11h_openssl_getX509 (
+pkcs11h_openssl_session_getX509 (
 	IN const pkcs11h_openssl_session_t openssl_session
 );
 
