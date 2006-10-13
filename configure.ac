@@ -51,10 +51,10 @@ AC_ARG_WITH(gnutls,
 	[USE_GNUTLS="yes"]
 )
 
-GNUPG_HOME="~/.gnupg"
-AC_ARG_WITH(gnutls,
+AC_ARG_WITH(gnupg-home,
 	[  --with-gnupg-home=DIR   Define gnupg home],
-	[GNUPG_HOME="${withval}"]
+	[GNUPG_HOME="${withval}"],
+	[GNUPG_HOME="~/.gnupg" ]
 )
 
 AC_ARG_WITH(mem-check,
