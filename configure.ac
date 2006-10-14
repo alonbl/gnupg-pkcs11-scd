@@ -37,8 +37,14 @@ AC_CONFIG_SRCDIR([common.h])
 
 AC_ARG_ENABLE(pedantic,
 	[  --enable-pedantic       Enable pedantic compiler warnings, will not generate a working executable (debugging option)],
-	[PEDANTIC="$enableval"],
+	[PEDANTIC="${enableval}"],
 	[PEDANTIC="no"]
+)
+
+AC_ARG_ENABLE(openssl-pkg-config,
+	[  --disable-openssl-pkg-config     Define if pkg-config should no tbe used],
+	[DISABLE_OPENSSL_PKG_CONFIG="${enableval}"],
+	[DISABLE_OPENSSL_PKG_CONFIG="no"]
 )
 
 AC_ARG_WITH(openssl,
@@ -57,14 +63,43 @@ AC_ARG_WITH(gnupg-home,
 	[GNUPG_HOME="~/.gnupg" ]
 )
 
+AC_ARG_WITH(libgpg-error-prefix,
+	[  --with-libgpg-error-prefix=DIR   Define libgpgp-error prefix],
+	[LIBGPG_ERROR_PREFIX="${withval}"],
+	[LIBGPG_ERROR_PREFIX="/usr" ]
+)
+
+AC_ARG_WITH(libassuan-prefix,
+	[  --with-libassuan-prefix=DIR       Define libassuan prefix],
+	[LIBASSUAN_PREFIX="${withval}"],
+	[LIBASSUAN_PREFIX="/usr" ]
+)
+
+AC_ARG_WITH(libgcrypt-prefix,
+	[  --with-libgcrypt-prefix=DIR       Define libgcrypt prefix],
+	[LIBGCRYPT_PREFIX="${withval}"],
+	[LIBGCRYPT_PREFIX="/usr" ]
+)
+
 AC_ARG_WITH(mem-check,
 	[  --with-mem-check=TYPE  Build with debug memory checking, TYPE = valgrind],
 	[MEMCHECK="$withval"]
 )
 
 # Checks for programs.
+AC_CANONICAL_HOST
 AC_PROG_CC
 AC_PROG_INSTALL
+
+have_w32_system=no
+case "${host}" in
+	*-mingw32*)
+		have_w32_system=yes
+	;;
+	*)
+	;;
+esac
+
 AC_FUNC_MKTIME
 AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
@@ -74,17 +109,52 @@ AC_CHECK_FUNCS([ \
 ])
 
 # Checks for libraries.
-AC_CHECK_LIB([gcrypt], [gcry_pk_get_keygrip],, AC_MSG_ERROR([Cannot locate gcrypt]))
-AC_CHECK_LIB([assuan], [assuan_init_pipe_server],, AC_MSG_ERROR([Cannot locate assuan]))
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([pthread], [pthread_create])
 
-PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4], [HAVE_GNUTLS=yes], [HAVE_GNUTLS=no])
-PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7], [HAVE_OPENSSL=yes], [HAVE_OPENSSL=no])
-if test "${HAVE_OPENSSL}" = "no"; then
-	PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.7], [HAVE_OPENSSL=yes], [HAVE_OPENSSL=no])
+AC_MSG_CHECKING([for libgpg-error])
+if ! test -x "${LIBGPG_ERROR_PREFIX}/bin/gpg-error-config"; then
+	AC_MSG_ERROR([Cannot locate libgpg-error])
+else
+	AC_MSG_RESULT([found])
+	CFLAGS="${CFLAGS} `\"${LIBGPG_ERROR_PREFIX}/bin/gpg-error-config\" --cflags`"
+	LIBS="${LIBS} `\"${LIBGPG_ERROR_PREFIX}/bin/gpg-error-config\" --libs`"
 fi
 
+AC_MSG_CHECKING([for libassuan])
+if ! test -x "${LIBASSUAN_PREFIX}/bin/libassuan-config"; then
+	AC_MSG_ERROR([Cannot locate libassuan])
+else
+	AC_MSG_RESULT([found])
+	CFLAGS="${CFLAGS} `\"${LIBASSUAN_PREFIX}/bin/libassuan-config\" --cflags`"
+	LIBS="${LIBS} `\"${LIBASSUAN_PREFIX}/bin/libassuan-config\" --libs`"
+fi
+
+AC_MSG_CHECKING([for libgcrypt])
+if ! test -x "${LIBGCRYPT_PREFIX}/bin/libgcrypt-config"; then
+	AC_MSG_ERROR([Cannot locate libgcrypt])
+else
+	AC_MSG_RESULT([found])
+	CFLAGS="${CFLAGS} `\"${LIBGCRYPT_PREFIX}/bin/libgcrypt-config\" --cflags`"
+	LIBS="${LIBS} `\"${LIBGCRYPT_PREFIX}/bin/libgcrypt-config\" --libs`"
+fi
+
+PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4], [HAVE_GNUTLS=yes], [HAVE_GNUTLS=no])
+
+if test "${DISABLE_OPENSSL_PKG_CONFIG}" = "yes"; then
+	if test -n "${OPENSSL_LIBS}"; then
+		HAVE_OPENSSL="yes"
+	else
+		HAVE_OPENSSL="no"
+	fi
+else
+	PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7], [HAVE_OPENSSL=yes], [HAVE_OPENSSL=no])
+	if test "${HAVE_OPENSSL}" = "no"; then
+		PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.7], [HAVE_OPENSSL=yes], [HAVE_OPENSSL=no])
+	fi
+fi
+
+AC_MSG_CHECKING([cryptographic library to use])
 if test "${USE_OPENSSL}" != "yes" -a "${USE_GNUTLS}" != "yes"; then
 	if test "${HAVE_OPENSSL}" = "yes"; then
 		USE_OPENSSL="yes"
@@ -94,10 +164,6 @@ if test "${USE_OPENSSL}" != "yes" -a "${USE_GNUTLS}" != "yes"; then
 		AC_MSG_ERROR([Cannot locate OpenSSL or GNUTLS])
 	fi
 fi
-###########
-#USE_OPENSSL=yes
-#OPENSSL_CFLAGS=""
-#OPENSSL_LIBS=""
 
 if test "${USE_GNUTLS}" = "yes" -a "${HAVE_GNUTLS}" != "yes"; then
 	AC_MSG_ERROR([Cannot locate use GNUTLS since it was not located])
@@ -117,6 +183,10 @@ else
 	AC_DEFINE(USE_GNUTLS, 1, [Use GNUTLS library])
 	CFLAGS="${CFLAGS} ${GNUTLS_CFLAGS}"
 	LIBS="${LIBS} ${GNUTLS_LIBS}"
+fi
+
+if test "$have_w32_system" = yes; then
+    AC_DEFINE(HAVE_W32_SYSTEM,1,[Defined if we run on a W32 API based system])
 fi
 
 # Checks for header files.
@@ -142,9 +212,6 @@ AC_CHECK_HEADERS([ \
 	dlfcn.h \
 	unistd.h \
 ])
-AC_CHECK_HEADERS([gpg-error.h],, AC_MSG_ERROR([Missing gpg-error.h]))
-AC_CHECK_HEADERS([assuan.h],, AC_MSG_ERROR([Missing assuan.h]))
-
 
 if test "$MEMCHECK" = "valgrind"; then
 	AC_CHECKING([for valgrind tool and Header files])
@@ -163,7 +230,9 @@ if test "$PEDANTIC" = "yes"; then
 	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_POSIX_SOURCE -D_POSIX_C_SOURCE -D_SVID_SOURCE"
 fi
 
-#LIBS="${LIBS} -lgcrypt -lassuan -lgpg-error -lcrypto -lkernel32 -lgdi32 -lws2_32"
+if test "${have_w32_system}" = "yes"; then
+	LIBS="${LIBS} -lkernel32 -lgdi32 -lws2_32"
+fi
 
 AC_DEFINE_UNQUOTED([CONFIG_GPG_HOME], ["${GNUPG_HOME}"], [gnupg home])
 

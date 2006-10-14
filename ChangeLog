@@ -11,6 +11,8 @@ $Id$
 
 * Fixed configure GPG_HOME typeo, thanks to Bob Dunlop.
 
+* Modify autoconf to support win32.
+
 2006-10-11 -- Version 0.01
 
 * Initial release.
