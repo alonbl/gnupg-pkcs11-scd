@@ -33,9 +33,20 @@
 # INSTALL targets:
 AUTOMAKE_OPTIONS=foreign dist-bzip2
 
+MAN2HTML=man2html
+
+docdir=$(datadir)/doc/@PACKAGE@-@PACKAGE_VERSION@
+exampledir=$(docdir)
+htmldir=$(docdir)
+
+EXTRA_DIST=
+
 PKCS11_INCLUDES=pkcs11-headers/*.h cryptoki.h cryptoki-win32.h
 
 bin_PROGRAMS=gnupg-pkcs11-scd
+doc_DATA=README COPYING
+dist_example_DATA=gnupg-pkcs11-scd.conf.example
+
 gnupg_pkcs11_scd_SOURCES= \
 	common.h \
 	scdaemon.h scdaemon.c \
@@ -46,6 +57,21 @@ gnupg_pkcs11_scd_SOURCES= \
 	dconfig.h dconfig.c \
 	pkcs11-helper.h pkcs11-helper.c pkcs11-helper-config.h \
 	${PKCS11_INCLUDES}
+
+if HAVE_W32_SYSTEM
+dist:
+	echo "Cannot build dist in win32" >&2
+	false
+
+dist_man_MANS=
+nodist_html_DATA=gnupg-pkcs11-scd.8.html
+
+gnupg-pkcs11-scd.8.html: gnupg-pkcs11-scd.8
+	$(MAN2HTML) < gnupg-pkcs11-scd.8 > gnupg-pkcs11-scd.8.html
+else
 dist_man_MANS=gnupg-pkcs11-scd.8
-EXTRA_DIST=gnupg-pkcs11-scd.conf.example
+endif
+
+clean-generic:
+	-rm -f *.html
 

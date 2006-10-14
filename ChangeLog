@@ -11,7 +11,9 @@ $Id$
 
 * Fixed configure GPG_HOME typeo, thanks to Bob Dunlop.
 
-* Modify autoconf to support win32.
+* Works as single threaded win32 server. Implementing multi-threaded server
+  forces copy of win32 socket handling from gnupg, and it is GPLed.
+  When libassuan will handle sockets we will be able to implement it.
 
 2006-10-11 -- Version 0.01
 

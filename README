@@ -16,7 +16,7 @@ To build and install:
 *************************************************************************
 
 Operating Systems:
-	POSIX compliant.
+	POSIX compliant, WIN32
 
 Dependencies:
 	libgpg-error>=1.3
@@ -35,3 +35,23 @@ Dependencies:
 	dl
 
 *************************************************************************
+
+WIN32
+
+Supported single threaded server mode.
+Implementing multi-threaded server forces copy of win32 socket handling
+from gnupg, and it is GPLed. When libassuan will handle sockets we will
+be able to implement it.
+
+Compiling:
+	Using cross compiler MinGW
+
+	w32root=/tmp/gpg-win32; \
+	./configure --prefix=/ --host=mingw32 \
+		--with-libgpg-error-prefix=${w32root} \
+		--with-libassuan-prefix=${w32root} \
+		--with-libgcrypt-prefix=${w32root} \
+		--disable-openssl-pkg-config OPENSSL_LIBS="-L${w32root} -lcrypto"
+
+*************************************************************************
+

@@ -75,10 +75,13 @@ typedef struct thread_list_s {
 #define ALARM_INTERVAL 10
 #define SOCKET_DIR_TEMPLATE ( "/tmp/" PACKAGE ".XXXXXX" )
 
-static char *s_socket_dir = NULL;
 static char *s_socket_name = NULL;
+
+#if !defined(HAVE_W32_SYSTEM)
+static char *s_socket_dir = NULL;
 static int s_fd_accept_terminate[2] = {-1, -1};
 static int s_parent_pid = -1;
+#endif
 
 const char *
 scdaemon_get_socket_name () {
@@ -121,15 +124,16 @@ register_commands (const assuan_context_t ctx)
 
 	for(i=0; table[i].name; i++) {
 		if (
-			(ret = assuan_register_command(
+			(ret = assuan_register_command (
 				ctx,
 				table[i].name,
-				table[i].handler)
-			)
+				table[i].handler
+			))
 		) {
 			return ret;
 		}
 	} 
+
 	assuan_set_hello_line(ctx, "PKCS#11 smart-card server for GnuPG ready");
 	/*assuan_register_reset_notify(ctx, reset_notify);*/
 	/*assuan_register_option_handler(ctx, option_handler);*/
@@ -149,9 +153,9 @@ command_handler (const int fd)
 
 	if(fd < 0) {
 		int fds[2] = {0, 1};
-		ret = assuan_init_pipe_server(&ctx, fds);
+		ret = assuan_init_pipe_server (&ctx, fds);
 	} else {
-		ret = assuan_init_connected_socket_server(&ctx, fd);
+		ret = assuan_init_connected_socket_server (&ctx, fd);
 	}
 
 	if (ret != ASSUAN_No_Error) {
@@ -409,7 +413,7 @@ server_socket_accept_terminate (pthread_t thread) {
 	close (s_fd_accept_terminate[0]);
 	close (s_fd_accept_terminate[1]);
 }
-#endif
+#endif				/* HAVE_W32_SYSTEM */
 
 static
 void
@@ -506,7 +510,7 @@ static RETSIGTYPE on_signal (int signo)
 	return 0
 #endif
 }
-#endif
+#endif				/* HAVE_W32_SYSTEM */
 
 static void usage (const char * const argv0)
 {
@@ -543,6 +547,59 @@ static void usage (const char * const argv0)
 		argv0
 	);
 	exit(1);
+}
+
+char *get_home_dir () {
+#if defined(HAVE_W32_SYSTEM)
+	static const char * GPG_HOME_KEY = "Software\\GNU\\GnuPG";
+	const char *HOME_ENV = getenv ("USERPROFILE");
+#else
+	const char *HOME_ENV = getenv ("HOME");
+#endif
+	char *home_dir = NULL;
+
+	if (home_dir == NULL && getenv ("GNUPGHOME") != NULL) {
+		home_dir=strdup (getenv ("GNUPGHOME"));
+	}
+#if defined(HAVE_W32_SYSTEM)
+	if (home_dir == NULL) {
+		char home[1024] = {0};
+		char key_val[1024];
+		HKEY hkey = NULL;
+		DWORD dw = sizeof (home);
+
+		if (RegOpenKeyEx (HKEY_CURRENT_USER, GPG_HOME_KEY, 0, KEY_READ, &hkey) != ERROR_SUCCESS) {
+			RegOpenKeyEx (HKEY_LOCAL_MACHINE, GPG_HOME_KEY, 0, KEY_READ, &hkey);
+		}
+		if (hkey != NULL) {
+			if (RegQueryValueEx (hkey, "HomeDir", NULL, NULL, (PBYTE)key_val, &dw) == ERROR_SUCCESS) {
+				if (ExpandEnvironmentStrings (key_val, home, sizeof (home))) {
+					home_dir = strdup (home);
+				}
+			}
+		}
+		if (hkey != NULL) {
+			RegCloseKey (hkey);
+		}
+
+	}
+#endif
+	if (home_dir == NULL) {
+		if (
+			CONFIG_GPG_HOME[0] == '~' &&
+			HOME_ENV != NULL
+		) {
+			if ((home_dir=(char *)malloc (strlen (CONFIG_GPG_HOME) + strlen (HOME_ENV))) == NULL) {
+				common_log (LOG_FATAL, "malloc failed");
+			}
+			sprintf (home_dir, "%s%s", HOME_ENV, CONFIG_GPG_HOME+1);
+		}
+		else {
+			home_dir = strdup (CONFIG_GPG_HOME);
+		}
+	}
+
+	return home_dir;
 }
 
 int main (int argc, char *argv[])
@@ -604,7 +661,9 @@ int main (int argc, char *argv[])
 	const char * CONFIG_SUFFIX = ".conf";
 	char *default_config_file = NULL;
 
+#if !defined(HAVE_W32_SYSTEM)
 	s_parent_pid = getpid ();
+#endif
 
 	if ((default_config_file = (char *)malloc (strlen (PACKAGE)+strlen (CONFIG_SUFFIX)+1)) == NULL) {
 		common_log (LOG_FATAL, "malloc failed");
@@ -689,31 +748,19 @@ int main (int argc, char *argv[])
 		common_log (LOG_FATAL, "please use the option `--daemon' to run the program in the background");
 	}
 
-	if (getenv ("GNUPGHOME") != NULL) {
-		home_dir=strdup (getenv ("GNUPGHOME"));
+#if defined(HAVE_W32_SYSTEM)
+	if (run_mode == RUN_MODE_DAEMON) {
+		common_log (LOG_FATAL, "daemon mode is not supported");
 	}
-	else if (
-		CONFIG_GPG_HOME[0] == '~' &&
-		getenv ("HOME") != NULL
-	) {
-		if ((home_dir=(char *)malloc (strlen (CONFIG_GPG_HOME) + strlen (getenv ("HOME")))) == NULL) {
-			common_log (LOG_FATAL, "malloc failed");
-		}
-		sprintf (home_dir, "%s%s", getenv ("HOME"), CONFIG_GPG_HOME+1);
-	}
-	else {
-		home_dir = strdup (CONFIG_GPG_HOME);
-	}
+#endif
 
-	if (home_dir == NULL) {
-		common_log (LOG_FATAL, "Cannot determine home home directory");
-	}
+	home_dir = get_home_dir ();
 
 	if (config_file == NULL) {
 		if ((config_file = (char *)malloc (strlen (home_dir) + strlen (default_config_file)+2)) == NULL) {
 			common_log (LOG_FATAL, "malloc failed");
 		}
-		sprintf (config_file, "%s/%s", home_dir, default_config_file);
+		sprintf (config_file, "%s%c%s", home_dir, CONFIG_PATH_SEPARATOR, default_config_file);
 	}
 
 	dconfig_read (config_file, &config);
@@ -830,7 +877,7 @@ int main (int argc, char *argv[])
 			alarm (10);
 		}
 	}
-#endif
+#endif				/* HAVE_W32_SYSTEM */
 
 	assuan_set_assuan_log_prefix (PACKAGE);
 	assuan_set_assuan_log_stream (common_get_log_stream ());
@@ -866,7 +913,7 @@ int main (int argc, char *argv[])
 					config.providers[i].cert_is_private
 				)) != CKR_OK
 			) {
-				common_log (LOG_WARNING, "Cannot add PKCS#11 provider: '%s'-'%s'", rv, pkcs11h_getMessage (rv));
+				common_log (LOG_WARNING, "Cannot add PKCS#11 provider '%s': %ld-'%s'", config.providers[i].name, rv, pkcs11h_getMessage (rv));
 			}
 			else {
 				have_at_least_one_provider = 1;
