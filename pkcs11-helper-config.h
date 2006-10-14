@@ -27,7 +27,7 @@
 
 #if !defined(PKCS11H_NO_NEED_INCLUDE_CONFIG)
 
-#include "config.h"
+#include "common.h"
 
 #endif /* PKCS11H_NO_NEED_INCLUDE_CONFIG */
 
@@ -35,17 +35,12 @@
 
 #include <assert.h>
 #include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <malloc.h>
-#include <string.h>
 #include <ctype.h>
 #include <time.h>
 #if !defined(WIN32)
 #include <signal.h>
 #include <unistd.h>
 #include <dlfcn.h>
-#include <pthread.h>
 #include <sys/time.h>
 #endif
 

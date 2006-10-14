@@ -40,8 +40,11 @@
 #include <gpg-error.h>
 #include <assuan.h>
 #include <gcrypt.h>
+#if defined(HAVE_W32_SYSTEM)
+#include <windows.h>
+#else
 #include <pthread.h>
-#include "pkcs11-helper.h"
+#endif
 
 #if defined(USE_VALGRIND)
 #include "valgrind/memcheck.h"
@@ -55,7 +58,7 @@ typedef enum {
 	LOG_FATAL
 } common_log_t;
 
-gpg_err_code_t common_map_pkcs11_error (CK_RV rv);
+gpg_err_code_t common_map_pkcs11_error (int rv);
 gpg_err_code_t common_map_assuan_error (int err);
 
 void

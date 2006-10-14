@@ -65,24 +65,6 @@ AC_ARG_WITH(mem-check,
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
-AC_PROG_GCC_TRADITIONAL
-AC_C_CONST
-AC_C_INLINE
-AC_C_VOLATILE
-AC_TYPE_OFF_T
-AC_TYPE_PID_T
-AC_TYPE_SIZE_T
-
-# Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
-AC_TYPE_PID_T
-AC_TYPE_SIZE_T
-AC_HEADER_TIME
-AC_STRUCT_TM
-
-# Checks for library functions.
-AC_FUNC_MALLOC
-AC_FUNC_MEMCMP
 AC_FUNC_MKTIME
 AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
@@ -112,6 +94,10 @@ if test "${USE_OPENSSL}" != "yes" -a "${USE_GNUTLS}" != "yes"; then
 		AC_MSG_ERROR([Cannot locate OpenSSL or GNUTLS])
 	fi
 fi
+###########
+#USE_OPENSSL=yes
+#OPENSSL_CFLAGS=""
+#OPENSSL_LIBS=""
 
 if test "${USE_GNUTLS}" = "yes" -a "${HAVE_GNUTLS}" != "yes"; then
 	AC_MSG_ERROR([Cannot locate use GNUTLS since it was not located])
@@ -135,7 +121,14 @@ fi
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([ \
+AC_C_CONST
+AC_C_VOLATILE
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_HEADER_TIME
+AC_STRUCT_TM
+AC_CHECK_HEADERS([[ \
 	stdio.h \
 	stdlib.h \
 	stdargs.h \
@@ -143,6 +136,8 @@ AC_CHECK_HEADERS([ \
 	ctype.h \
 	string.h \
 	errno.h \
+]])
+AC_CHECK_HEADERS([ \
 	signal.h \
 	dlfcn.h \
 	unistd.h \
@@ -165,8 +160,10 @@ fi
 CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wsign-compare -Wno-unused-parameter -Wno-unused-function"
 
 if test "$PEDANTIC" = "yes"; then
-	CFLAGS="$CFLAGS -ansi -pedantic -D__STRICT_ANSI__ -D_POSIX_SOURCE -D_POSIX_C_SOURCE -D_SVID_SOURCE"
+	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_POSIX_SOURCE -D_POSIX_C_SOURCE -D_SVID_SOURCE"
 fi
+
+#LIBS="${LIBS} -lgcrypt -lassuan -lgpg-error -lcrypto -lkernel32 -lgdi32 -lws2_32"
 
 AC_DEFINE_UNQUOTED([CONFIG_GPG_HOME], ["${GNUPG_HOME}"], [gnupg home])
 
