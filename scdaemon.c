@@ -45,11 +45,14 @@
 #include "dconfig.h"
 #include <signal.h>
 #include <getopt.h>
+#include <errno.h>
+#include "pkcs11-helper.h"
+#if !defined(HAVE_W32_SYSTEM)
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/select.h>
-#include <errno.h>
+#endif
 
 #if defined(USE_GNUTLS)
 #include <gnutls/gnutls.h>
@@ -60,12 +63,14 @@ typedef enum {
 	ACCEPT_THREAD_CLEAN
 } accept_command_t;
 
+#if !defined(HAVE_W32_SYSTEM)
 typedef struct thread_list_s {
 	struct thread_list_s *next;
 	int fd;
 	pthread_t thread;
 	int stopped;
 } *thread_list_t;
+#endif
 
 #define ALARM_INTERVAL 10
 #define SOCKET_DIR_TEMPLATE ( "/tmp/" PACKAGE ".XXXXXX" )
@@ -183,6 +188,7 @@ command_handler (const int fd)
 	}
 }
 
+#if !defined(HAVE_W32_SYSTEM)
 static
 void
 server_socket_close (const int fd) {
@@ -403,6 +409,7 @@ server_socket_accept_terminate (pthread_t thread) {
 	close (s_fd_accept_terminate[0]);
 	close (s_fd_accept_terminate[1]);
 }
+#endif
 
 static
 void
@@ -468,6 +475,7 @@ pkcs11_pin_prompt_hook (
 	return ret;
 }
 
+#if !defined(HAVE_W32_SYSTEM)
 static RETSIGTYPE on_alarm (int signo)
 {
 	(void)signo;
@@ -498,6 +506,7 @@ static RETSIGTYPE on_signal (int signo)
 	return 0
 #endif
 }
+#endif
 
 static void usage (const char * const argv0)
 {
@@ -721,11 +730,13 @@ int main (int argc, char *argv[])
 		config.verbose = 1;
 	}
 
+#if !defined(HAVE_W32_SYSTEM)
 	signal (SIGPIPE, SIG_IGN);
 	signal (SIGINT, on_signal);
 	signal (SIGTERM, on_signal);
 	signal (SIGABRT, on_signal);
 	signal (SIGHUP, on_signal);
+#endif
 
 	if (log_file != NULL) {
 		if (strcmp (log_file, "stderr")) {
@@ -748,6 +759,7 @@ int main (int argc, char *argv[])
 		common_log (LOG_DEBUG, "run_mode: %d", run_mode);
 	}
 
+#if !defined(HAVE_W32_SYSTEM)
 	if (run_mode == RUN_MODE_DAEMON || run_mode == RUN_MODE_MULTI_SERVER) {
 		server_socket_create_name ();
 	}
@@ -818,6 +830,7 @@ int main (int argc, char *argv[])
 			alarm (10);
 		}
 	}
+#endif
 
 	assuan_set_assuan_log_prefix (PACKAGE);
 	assuan_set_assuan_log_stream (common_get_log_stream ());
@@ -865,6 +878,9 @@ int main (int argc, char *argv[])
 		common_log (LOG_FATAL, "Could not load any provider");
 	}
 
+#if defined(HAVE_W32_SYSTEM)
+	command_handler (-1);
+#else
 {
 	pthread_t accept_thread = 0;
 	int accept_socket = -1;
@@ -897,6 +913,7 @@ int main (int argc, char *argv[])
 		server_socket_close (accept_socket);
 	}
 }
+#endif
 
 	pkcs11h_terminate ();
 
@@ -933,3 +950,4 @@ int main (int argc, char *argv[])
 
 	return 0;
 }
+

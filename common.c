@@ -30,6 +30,7 @@
  */
 
 #include "common.h"
+#include "pkcs11-helper.h"
 
 static FILE *log_stream = NULL;
 
@@ -49,8 +50,14 @@ common_vlog (
 	const char * const format,
 	va_list args
 ) {
+	unsigned id;
+#if defined(HAVE_W32_SYSTEM)
+	id = 0;
+#else
+	id = (unsigned)pthread_self ();
+#endif
 	if (log_stream != NULL) {
-		fprintf (log_stream, "%s[%u.%u]: ", PACKAGE, (unsigned)getpid (), (unsigned)pthread_self ());
+		fprintf (log_stream, "%s[%u.%u]: ", PACKAGE, (unsigned)getpid (), id);
 		vfprintf (log_stream, format, args);
 		fputc ('\n', log_stream);
 		fflush (log_stream);
@@ -76,7 +83,7 @@ common_log (
 }
 
 gpg_err_code_t
-common_map_pkcs11_error (CK_RV rv) {
+common_map_pkcs11_error (int rv) {
 	gpg_err_code_t error;
 
 	switch (rv) {

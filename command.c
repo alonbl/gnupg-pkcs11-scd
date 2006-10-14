@@ -30,6 +30,7 @@
  */
 
 #include "common.h"
+#include "pkcs11-helper.h"
 #include "command.h"
 #include "scdaemon.h"
 #include "encoding.h"
