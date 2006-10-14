@@ -30,7 +30,7 @@
 #
 
 AC_PREREQ(2.59)
-AC_INIT(gnupg-pkcs11-scd, 0.01)
+AC_INIT(gnupg-pkcs11-scd, 0.02)
 AM_INIT_AUTOMAKE(gnupg-pkcs11-scd, [$PACKAGE_VERSION])
 AM_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([common.h])
@@ -91,10 +91,10 @@ AC_CANONICAL_HOST
 AC_PROG_CC
 AC_PROG_INSTALL
 
-have_w32_system=no
+HAVE_W32_SYSTEM="no"
 case "${host}" in
 	*-mingw32*)
-		have_w32_system=yes
+		HAVE_W32_SYSTEM="yes"
 	;;
 	*)
 	;;
@@ -185,9 +185,13 @@ else
 	LIBS="${LIBS} ${GNUTLS_LIBS}"
 fi
 
-if test "$have_w32_system" = yes; then
+if test "${HAVE_W32_SYSTEM}" = yes; then
     AC_DEFINE(HAVE_W32_SYSTEM,1,[Defined if we run on a W32 API based system])
+    AC_DEFINE(CONFIG_PATH_SEPARATOR, ['\\'], [System path separator])
+else
+    AC_DEFINE(CONFIG_PATH_SEPARATOR, ['/'], [System path separator])
 fi
+AM_CONDITIONAL(HAVE_W32_SYSTEM, test "${HAVE_W32_SYSTEM}" = yes)
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -230,7 +234,8 @@ if test "$PEDANTIC" = "yes"; then
 	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_POSIX_SOURCE -D_POSIX_C_SOURCE -D_SVID_SOURCE"
 fi
 
-if test "${have_w32_system}" = "yes"; then
+if test "${HAVE_W32_SYSTEM}" = "yes"; then
+	GNUPG_HOME="${GNUPG_HOME//\//\\\\}"
 	LIBS="${LIBS} -lkernel32 -lgdi32 -lws2_32"
 fi
 

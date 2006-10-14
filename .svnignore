@@ -1,6 +1,7 @@
 *.bz2
 *.gz
 *.o
+*.html
 configure
 Makefile.in
 config.log
@@ -9,6 +10,8 @@ config.h
 .deps
 Makefile
 config.status
+config.guess
+config.sub
 gnupg-pkcs11-scd
 stamp-h1
 config.h.in
