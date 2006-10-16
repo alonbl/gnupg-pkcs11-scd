@@ -84,13 +84,13 @@ encoding_bin2hex (
 	char * target = NULL;
 	size_t i;
 
-	target = (char *)malloc (source_size*2+1);
-
-	for (i=0;i<source_size;i++) {
-		target[i*2] =   x[(source[i]&0xf0)>>4];
-		target[i*2+1] = x[(source[i]&0x0f)>>0];
+	if ((target = (char *)malloc (source_size*2+1)) != NULL) {
+		for (i=0;i<source_size;i++) {
+			target[i*2] =   x[(source[i]&0xf0)>>4];
+			target[i*2+1] = x[(source[i]&0x0f)>>0];
+		}
+		target[source_size*2] = '\x0';
 	}
-	target[source_size*2] = '\x0';
 
 	return target;
 }
