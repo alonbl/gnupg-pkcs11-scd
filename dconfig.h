@@ -49,7 +49,7 @@ typedef struct {
 	} providers[DCONFIG_MAX_PROVIDERS];
 } dconfig_data;
 
-void
+int
 dconfig_read (const char * const file, dconfig_data * const config);
 void
 dconfig_print (const dconfig_data * const config);

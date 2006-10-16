@@ -69,19 +69,32 @@ prefix_is (const char * const s, const char * const p) {
 	return !strncmp (s, p, strlen (p));
 }
 
-void
-dconfig_read (const char * const file, dconfig_data * const config) {
+int
+dconfig_read (const char * const _file, dconfig_data * const config) {
+#if defined(HAVE_W32_SYSTEM)
+	char file[1024];
+#else
+	char *file = _file;
+#endif
 	char line[1024];
 	FILE *fp = NULL;
+	int ok = 1;
 
 	memset (config, 0, sizeof (dconfig_data));
 	config->pin_cache = PKCS11H_PIN_CACHE_INFINITE;
-	
-	if ((fp = fopen (file, "r")) == NULL) {
-		common_log (LOG_FATAL, "Cannot open configuration file '%s'", file);
+
+#if defined(HAVE_W32_SYSTEM)
+	if (!ExpandEnvironmentStrings (_file, file, sizeof (file))) {
+		ok = 0;
+	}
+#endif
+
+	if (ok && (fp = fopen (file, "r")) == NULL) {
+		ok = 0;
+		common_log (LOG_ERROR, "Cannot open configuration file '%s'", file);
 	}
 
-	while (fgets (line, sizeof (line), fp) != NULL) {
+	while (ok && fgets (line, sizeof (line), fp) != NULL) {
 		trim (line);
 		
 		if (!strcmp (line, "")) {
@@ -175,13 +188,15 @@ dconfig_read (const char * const file, dconfig_data * const config) {
 						config->providers[entry].cert_is_private = 1;
 					}
 					else {
-						common_log (LOG_FATAL, "Invalid certificate attribute '%s'", p);
+						ok = 0;
+						common_log (LOG_ERROR, "Invalid certificate attribute '%s'", p);
 					}
 				}
 			}
 		}
 		else {
-			common_log (LOG_FATAL, "Invalid option '%s'", line);
+			ok = 0;
+			common_log (LOG_ERROR, "Invalid option '%s'", line);
 		}
 	}
 
@@ -189,6 +204,12 @@ dconfig_read (const char * const file, dconfig_data * const config) {
 		fclose (fp);
 		fp = NULL;
 	}
+
+	if (!ok) {
+		dconfig_free (config);
+	}
+
+	return ok;
 }
 
 void

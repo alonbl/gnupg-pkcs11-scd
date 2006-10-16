@@ -608,19 +608,27 @@ char *get_home_dir () {
 	}
 #if defined(HAVE_W32_SYSTEM)
 	if (home_dir == NULL) {
-		char home[1024] = {0};
 		char key_val[1024];
 		HKEY hkey = NULL;
-		DWORD dw = sizeof (home);
+		DWORD dw = 0;
 
 		if (RegOpenKeyEx (HKEY_CURRENT_USER, GPG_HOME_KEY, 0, KEY_READ, &hkey) != ERROR_SUCCESS) {
-			RegOpenKeyEx (HKEY_LOCAL_MACHINE, GPG_HOME_KEY, 0, KEY_READ, &hkey);
+			if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, GPG_HOME_KEY, 0, KEY_READ, &hkey) != ERROR_SUCCESS) {
+				hkey = NULL;
+			}
 		}
 		if (hkey != NULL) {
-			if (RegQueryValueEx (hkey, "HomeDir", NULL, NULL, (PBYTE)key_val, &dw) == ERROR_SUCCESS) {
-				if (ExpandEnvironmentStrings (key_val, home, sizeof (home))) {
-					home_dir = strdup (home);
-				}
+			if (
+				RegQueryValueEx (
+					hkey,
+					"HomeDir",
+					NULL,
+					NULL,
+					(PBYTE)key_val,
+					&dw
+				) == ERROR_SUCCESS
+			) {
+				home_dir = strdup (key_val);
 			}
 		}
 		if (hkey != NULL) {
@@ -629,6 +637,7 @@ char *get_home_dir () {
 
 	}
 #endif
+
 	if (home_dir == NULL) {
 		if (
 			CONFIG_GPG_HOME[0] == '~' &&
@@ -808,7 +817,13 @@ int main (int argc, char *argv[])
 		sprintf (config_file, "%s%c%s", home_dir, CONFIG_PATH_SEPARATOR, default_config_file);
 	}
 
-	dconfig_read (config_file, &config);
+	if (
+		!dconfig_read (config_file, &config) &&
+		!dconfig_read (CONFIG_SYSTEM_CONFIG, &config)
+	) {
+		common_log (LOG_FATAL, "Cannot open configuration file");
+	}
+
 	if (log_file != NULL) {
 		if (config.log_file != NULL) {
 			free (config.log_file);

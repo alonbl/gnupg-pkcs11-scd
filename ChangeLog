@@ -23,6 +23,8 @@ $Id$
   forces copy of win32 socket handling from gnupg, and it is GPLed.
   When libassuan will handle sockets we will be able to implement it.
 
+* Added system wide configuration file, thanks to Bub Dunlop.
+
 2006-10-11 -- Version 0.01
 
 * Initial release.
