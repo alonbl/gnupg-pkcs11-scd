@@ -94,8 +94,11 @@ AC_PROG_INSTALL
 HAVE_W32_SYSTEM="no"
 case "${host}" in
 	*-mingw32*)
+    		AC_DEFINE(HAVE_W32_SYSTEM,1,[Defined if we run on a W32 API based system])
 		HAVE_W32_SYSTEM="yes"
 	;;
+	*-cygwin*)
+		AC_DEFINE(HAVE_CYGWIN, 1, [Define if you are on Cygwin])
 	*)
 	;;
 esac
@@ -186,7 +189,6 @@ else
 fi
 
 if test "${HAVE_W32_SYSTEM}" = yes; then
-    AC_DEFINE(HAVE_W32_SYSTEM,1,[Defined if we run on a W32 API based system])
     AC_DEFINE(CONFIG_PATH_SEPARATOR, ['\\'], [System path separator])
 else
     AC_DEFINE(CONFIG_PATH_SEPARATOR, ['/'], [System path separator])
