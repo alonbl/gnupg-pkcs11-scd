@@ -28,68 +28,70 @@
 .\" LITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 .\" THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" Always put argument after .Nm (otherwise man2html breaks)
+.\"
 .Dd October 15, 2006
-.Os POSIX\-compatible
+.Os POSIX-compatible
 .Dt gnupg-pkcs11-scd 1
 .Sh NAME
-.Nm gnupg\-pkcs11\-scd
-.Nd GnuPG-compatible smart\-card daemon with PKCS#11 support
+.Nm gnupg-pkcs11-scd
+.Nd GnuPG-compatible smart-card daemon with PKCS#11 support
 .Sh SYNOPSIS
-.Nm
-.Op \-\-server
-.Op \-\-multi-server
-.Op \-\-daemon
-.Op \-\-verbose
-.Op \-\-quiet
-.Op \-\-sh
-.Op \-\-csh
-.Op \-\-options Ar file
-.Op \-\-no\-detach
-.Op \-\-log\-file Ar file
-.Op \-\-help
+.Nm gnupg-pkcs11-scd
+.Op --server
+.Op --multi-server
+.Op --daemon
+.Op --verbose
+.Op --quiet
+.Op --sh
+.Op --csh
+.Op --options Ar file
+.Op --no-detach
+.Op --log-file Ar file
+.Op --help
 .Sh DESCRIPTION
-.Nm
-is a drop-in replacement for the smart\-card daemon (scd) shipped with the
-next-generation GnuPG (gnupg-1.99). The daemon interfaces to smart\-cards
+.Nm gnupg-pkcs11-scd
+is a drop-in replacement for the smart-card daemon (scd) shipped with the
+next-generation GnuPG (gnupg-1.99). The daemon interfaces to smart-cards
 by using RSA Security Inc. PKCS#11 Cryptographic Token Interface (Cryptoki).
 The following options are available:
 .Bl -tag -width "AA"
-.It \-\-server
+.It --server
 Run in server mode (foreground). If not redirected, input and output are
 over stdin/stdout.
-.It \-\-multi-server
+.It --multi-server
 Run in multi-server mode (foreground). In addition to communicating over
 stdin/stdout, the server also opens an additional listening UNIX socket.
-.It \-\-daemon
+.It --daemon
 Detach and run in background.
-.It \-\-verbose
+.It --verbose
 Be verbose while running.
-.It \-\-quiet
+.It --quiet
 Be as quiet as possible.
-.It \-\-sh
+.It --sh
 Output sh-style environment variable definition.
-.It \-\-csh
+.It --csh
 Output csh-style environment variable definition.
-.It \-\-options Ar file
+.It --options Ar file
 Read options from
 .Ar file .
 Some of the configuration options can only be set in the configuration
 file (see the
 .Sx EXAMPLES
 section).
-.It \-\-no-detach
+.It --no-detach
 Do not detach from console (useful for debugging purposes).
-.It \-\-log-file Ar file
+.It --log-file Ar file
 Output log to
 .Ar file .
-.It \-\-help
+.It --help
 Print help information.
 .El
 .Pp
 When the daemon receives any of the SIGHUP, SIGTERM and SIGINT signals,
 it cleans up and exits.
 .Pp
-.Nm
+.Nm gnupg-pkcs11-scd
 works only with
 .Em already personalized cards ,
 and supports (for the time being) only RSA keypairs.  The following
@@ -109,16 +111,16 @@ The PKCS#11 implementation is not obliged to enforce any of the above rules.
 However, practice has shown that popular PKCS#11 implementations found "in
 the wild" seem to respect them.
 .Sh NOTES
-Unlike gpg\-agent,
-.Nm
+Unlike gpg-agent,
+.Nm gnupg-pkcs11-scd
 supports more than one token available
-at the same time. In order to make gpg\-agent happy,
-.Nm
+at the same time. In order to make gpg-agent happy,
+.Nm gnupg-pkcs11-scd
 always returns the same card serial number to gpg-agent.
 When unavailable token is requested,
-.Nm
+.Nm gnupg-pkcs11-scd
 will use NEEDPIN callback in order to ask for the requested token.
-When and if gpg\-agent will support more than one serial number or NEEDTOKEN
+When and if gpg-agent will support more than one serial number or NEEDTOKEN
 callback, this behaviour will be modified.
 .Sh ENVIRONMENT
 .Bl -tag -width "USERPROFILE" -compact
@@ -135,69 +137,69 @@ Additionaly, the \\\\Software\\\\GNU\\\\GnuPG\\\\HomeDir registry key is used on
 Win32 to locate the default GNUPGHOME.
 .Sh FILES
 Files affecting the operation of
-.Nm :
+.Nm gnupg-pkcs11-scd :
 .Bl -tag
-.It Pa ~/.gnupg/gnupg\-pkcs11\-scd.conf
-.Nm
+.It Pa ~/.gnupg/gnupg-pkcs11-scd.conf
+.Nm gnupg-pkcs11-scd
 uses this as a default configuration file.
-.It Pa ~/.gnupg/gpg\-agent.conf
-Default configuration file for gpg\-agent.
+.It Pa ~/.gnupg/gpg-agent.conf
+Default configuration file for gpg-agent.
 .El
 .Sh EXAMPLES
-To tell gpg\-agent to use another smart\-card daemon, the following needs to
+To tell gpg-agent to use another smart-card daemon, the following needs to
 be put in
-.Pa ~/.gnupg/gpg\-agent.conf :
+.Pa ~/.gnupg/gpg-agent.conf :
 .Bd -literal -offset indent
-scdaemon-program /usr/bin/gnupg\-pkcs11\-scd
-pinentry-program /usr/bin/pinentry\-qt
+scdaemon-program /usr/bin/gnupg-pkcs11-scd
+pinentry-program /usr/bin/pinentry-qt
 .Ed
 .Pp
 The first line is mandatory in order to use
-.Nm .
+.Nm gnupg-pkcs11-scd .
 With the second line you can set your preferred pinentry program (it has to be
 one compatible with GnuPG). Of course, you need to adjust the paths according
 to your system setup.
 .Pp
 An example
-.Pa ~/.gnupg/gnupg\-pkcs11\-scd.conf
+.Pa ~/.gnupg/gnupg-pkcs11-scd.conf
 file (lines beginning with # are comments):
 .Bd -literal -offset indent
 # Log file.
-#log\-file log1
+#log-file log1
 
 # Default is not verbose.
 #verbose
 
 # Default is no debugging.
-#debug\-all
+#debug-all
 
 # Pin cache period in seconds; defaut is infinite.
-#pin\-cache 20
+#pin-cache 20
 
-# Comma\-separated list of available provider names. Then set
-# attributes for each provider using the provider\-[name]\-attribute
+# Comma-separated list of available provider names. Then set
+# attributes for each provider using the provider-[name]-attribute
 # syntax.
 providers p1
 
 # Provider attributes (see below for detailed description)
-provider\-p1\-library /usr/lib/pkcs11/p1.so
-#provider\-p1\-allow-protected-auth
-#provider\-p1\-cert-private
-#provider\-p1\-sign-mode recover
+provider-p1-library /usr/lib/pkcs11/p1.so
+#provider-p1-allow-protected-auth
+#provider-p1-cert-private
+#provider-p1-sign-mode recover
 .Ed
 .Pp
 The following attributes can be set for each provider:
 .Bl -tag -width "AA"
 .It library
 Full path to the PKCS#11 shared library (= provider).
-.It allow\-protected\-auth
+.It allow-protected-auth
 Allow protected authentication for provider. This needs to be supported by
 the provider and you should have appropriate reader hardware.
-.It cert\-private
+.It cert-private
 Authentication is required before certificates can be accessed. Most
 configurations store certificates as public, so there is no need to use this
 option.
-.It sign\-mode
+.It sign-mode
 Signature mode. Use this only when you have problem singning. Valid values
 are:
 .Bl -tag -width "RECOVER" -compact
@@ -216,11 +218,11 @@ Typical steps to set up a card:
 .Bl -enum
 .It
 Import the CA certificate of your issuer:
-.Dl gpgsm \-\-import < ca-certficate
+.Dl gpgsm --import < ca-certficate
 You should also manually import all self-signed certificates.
 .It
 Instruct GnuPG to discover all useful certificates on the card:
-.Dl gpgsm \-\-learn-card
+.Dl gpgsm --learn-card
 .El
 .Pp
 Signing, verification, etc. work as usual with gpgsm.
@@ -230,7 +232,7 @@ text (that's how the Assuan protocol operates). It is trivial to trace (using
 e.g. the
 .Xr strace 1
 program) individual components (e.g. pinentry) and steal sensitive data (such
-as the smart\-card PIN) or even change it (e.g. the hash to be signed).
+as the smart-card PIN) or even change it (e.g. the hash to be signed).
 .Pp
 When using the software in production scenario,
 .Sy be sure to turn off debugging/verbose options
@@ -245,11 +247,9 @@ displayed on the screen (most notably, the PIN).
 .%O http://www.gnupg.org
 .Re
 .Sh AUTHORS AND COPYRIGHT
-Copyright (c) 2006 Zeljko Vrba
-.Aq zvrba@globalnet.hr
+Copyright (c) 2006 Zeljko Vrba <zvrba@globalnet.hr>
 .Pp
-Copyright (c) 2006 Alon Bar-Lev
-.Aq alon.barlev@gmail.com
+Copyright (c) 2006 Alon Bar-Lev <alon.barlev@gmail.com>
 .Pp
 All rights reserved.
 .Pp
