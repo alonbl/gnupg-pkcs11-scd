@@ -431,6 +431,50 @@ pkcs11_log_hook (
 
 static
 PKCS11H_BOOL
+pkcs11_token_prompt_hook (
+	void * const global_data,
+	void * const user_data,
+	const pkcs11h_token_id_t token,
+	const unsigned retry
+) {
+	char cmd[1024];
+	unsigned char *user_read = NULL;
+	size_t user_read_len = 0;
+	assuan_context_t ctx = user_data;
+	int rc;
+	int ret = TRUE;
+
+	(void)global_data;
+
+	if (ret) {
+		snprintf (
+			cmd,
+			sizeof(cmd),
+			"NEEDPIN Please insert token '%s' !!!DO NOT ENTER PIN HERE!!!!",
+			token->display
+		);
+	}
+
+	if(ret && (rc = assuan_inquire (ctx, cmd, &user_read, &user_read_len, 1024))) {
+		common_log (LOG_WARNING,"Token inquire error: %d", rc);
+		ret = FALSE;
+	}
+
+	if (!strcmp ((char *)user_read, "cancel")) {
+		ret = FALSE;
+	}
+
+	if (user_read != NULL) {
+		memset (user_read, 0, strlen ((char *)user_read));
+		free (user_read);
+		user_read = NULL;
+	}
+
+	return ret;
+}
+
+static
+PKCS11H_BOOL
 pkcs11_pin_prompt_hook (
 	void * const global_data,
 	void * const user_data,
@@ -452,7 +496,7 @@ pkcs11_pin_prompt_hook (
 		snprintf (
 			cmd,
 			sizeof(cmd),
-			"NEEDPIN PIN required for token %s (try %u)",
+			"NEEDPIN PIN required for token '%s' (try %u)",
 			token->display,
 			retry
 		);
@@ -468,10 +512,11 @@ pkcs11_pin_prompt_hook (
 	}
 
 	if (ret) {
-		strcpy (pin, (char*)pin_read);
+		strcpy (pin, (char *)pin_read);
 	}
 
 	if (pin_read != NULL) {
+		memset (pin_read, 0, strlen ((char *)pin_read));
 		free (pin_read);
 		pin_read = NULL;
 	}
@@ -894,6 +939,7 @@ int main (int argc, char *argv[])
 
 	pkcs11h_setLogLevel (config.verbose ? PKCS11H_LOG_DEBUG2 : PKCS11H_LOG_INFO);
 	pkcs11h_setLogHook (pkcs11_log_hook, NULL);
+	pkcs11h_setTokenPromptHook (pkcs11_token_prompt_hook, NULL);
 	pkcs11h_setPINPromptHook (pkcs11_pin_prompt_hook, NULL);
 	pkcs11h_setProtectedAuthentication (TRUE);
 

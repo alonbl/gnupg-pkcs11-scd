@@ -64,12 +64,12 @@ dist:
 	false
 
 dist_man_MANS=
-nodist_html_DATA=gnupg-pkcs11-scd.8.html
+nodist_html_DATA=gnupg-pkcs11-scd.1.html
 
-gnupg-pkcs11-scd.8.html: gnupg-pkcs11-scd.8
-	$(MAN2HTML) < gnupg-pkcs11-scd.8 > gnupg-pkcs11-scd.8.html
+gnupg-pkcs11-scd.1.html: gnupg-pkcs11-scd.1
+	$(MAN2HTML) < gnupg-pkcs11-scd.1 > gnupg-pkcs11-scd.1.html
 else
-dist_man_MANS=gnupg-pkcs11-scd.8
+dist_man_MANS=gnupg-pkcs11-scd.1
 endif
 
 clean-generic:

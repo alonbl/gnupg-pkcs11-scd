@@ -108,6 +108,18 @@ attribute.
 The PKCS#11 implementation is not obliged to enforce any of the above rules.
 However, practice has shown that popular PKCS#11 implementations found "in
 the wild" seem to respect them.
+.Sh NOTES
+Unlike gpg\-agent,
+.Nm
+supports more than one token available
+at the same time. In order to make gpg\-agent happy,
+.Nm
+always returns the same card serial number to gpg-agent.
+When unavailable token is requested,
+.Nm
+will use NEEDPIN callback in order to ask for the requested token.
+When and if gpg\-agent will support more than one serial number or NEEDTOKEN
+callback, this behaviour will be modified.
 .Sh ENVIRONMENT
 .Bl -tag -width "USERPROFILE" -compact
 .It HOME
