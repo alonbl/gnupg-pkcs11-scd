@@ -99,6 +99,7 @@ case "${host}" in
 	;;
 	*-cygwin*)
 		AC_DEFINE(HAVE_CYGWIN, 1, [Define if you are on Cygwin])
+	;;
 	*)
 	;;
 esac
