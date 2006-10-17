@@ -51,7 +51,8 @@ Compiling:
 		--with-libgpg-error-prefix=${w32root} \
 		--with-libassuan-prefix=${w32root} \
 		--with-libgcrypt-prefix=${w32root} \
-		--disable-openssl-pkg-config OPENSSL_LIBS="-L${w32root} -lcrypto"
+		PKG_CONFIG=true \
+		OPENSSL_CFLAGS="-I${w32root}/include" OPENSSL_LIBS="-L${w32root} -lcrypto"
 
 *************************************************************************
 
