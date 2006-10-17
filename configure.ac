@@ -59,12 +59,6 @@ AC_ARG_ENABLE(pedantic,
 	[PEDANTIC="no"]
 )
 
-AC_ARG_ENABLE(openssl-pkg-config,
-	[  --disable-openssl-pkg-config     Define if pkg-config should no tbe used],
-	[DISABLE_OPENSSL_PKG_CONFIG="${enableval}"],
-	[DISABLE_OPENSSL_PKG_CONFIG="no"]
-)
-
 AC_ARG_WITH(openssl,
 	[  --with-openssl          Use OpenSSL],
 	[USE_OPENSSL="yes"]
@@ -149,19 +143,23 @@ else
 	LIBS="${LIBS} `\"${LIBGCRYPT_PREFIX}/bin/libgcrypt-config\" --libs`"
 fi
 
-PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4], [HAVE_GNUTLS=yes], [HAVE_GNUTLS=no])
+PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7])
+if test "${HAVE_OPENSSL}" = "no"; then
+	PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.7])
+fi
 
-if test "${DISABLE_OPENSSL_PKG_CONFIG}" = "yes"; then
-	if test -n "${OPENSSL_LIBS}"; then
-		HAVE_OPENSSL="yes"
-	else
-		HAVE_OPENSSL="no"
-	fi
+PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4])
+
+if test -n "${OPENSSL_LIBS}"; then
+	HAVE_OPENSSL="yes"
 else
-	PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7], [HAVE_OPENSSL=yes], [HAVE_OPENSSL=no])
-	if test "${HAVE_OPENSSL}" = "no"; then
-		PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.7], [HAVE_OPENSSL=yes], [HAVE_OPENSSL=no])
-	fi
+	HAVE_OPENSSL="no"
+fi
+
+if test -n "${GNUTLS_LIBS}"; then
+	HAVE_GNUTLS="yes"
+else
+	HAVE_GNUTLS="no"
 fi
 
 AC_MSG_CHECKING([cryptographic library to use])
