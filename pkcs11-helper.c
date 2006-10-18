@@ -3134,8 +3134,12 @@ _pkcs11h_session_findObjects (
 			);
 		}
 
-		if (rv == CKR_OK) {
+		if (objects != NULL) {
 			_pkcs11h_mem_free ((void *)&objects);
+			objects = NULL;
+		}
+
+		if (rv == CKR_OK) {
 			objects = temp;
 			objects_size += objects_found;
 			temp = NULL;
