@@ -44,15 +44,34 @@ from gnupg, and it is GPLed. When libassuan will handle sockets we will
 be able to implement it.
 
 Compiling:
-	Using cross compiler MinGW
+	Using cross compiler MinGW, patches available at misc-patches.
 
-	w32root=/tmp/gpg-win32; \
-	./configure --prefix=/ --host=mingw32 \
-		--with-libgpg-error-prefix=${w32root} \
-		--with-libassuan-prefix=${w32root} \
-		--with-libgcrypt-prefix=${w32root} \
-		PKG_CONFIG=true \
-		OPENSSL_CFLAGS="-I${w32root}/include" OPENSSL_LIBS="-L${w32root} -lcrypto"
+	w32root=/tmp/gpg-win32
+
+	OpenSSL
+		./Configure --prefix=//  mingw-cross
+		make install INSTALL_PREFIX="${w32root}"
+
+	libgpg-error
+		./autogen.sh --build-w32
+		make install
+	
+	libassuan
+		./autogen.sh --build-w32
+		make install
+
+	libgcrypt
+		./autogen.sh --build-w32
+		make install
+
+	gnupg-pkcs11-scd
+		./configure --prefix=/ --host=mingw32 \
+			--with-libgpg-error-prefix=${w32root} \
+			--with-libassuan-prefix=${w32root} \
+			--with-libgcrypt-prefix=${w32root} \
+			PKG_CONFIG=true \
+			OPENSSL_CFLAGS="-I${w32root}/include" OPENSSL_LIBS="-L${w32root}/lib -lcrypto"
+		make install DESTDIR="${w32root}"
 
 *************************************************************************
 
