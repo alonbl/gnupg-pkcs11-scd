@@ -6,7 +6,7 @@ $Id$
 
 2006-10-20 -- Version 0.02
 
-* Added more charachters to serialization exclude chars.
+* Added more characters to serialization exclude chars.
   People may need to re-learn cards.
 
 * Fixed configure GPG_HOME typeo, thanks to Bob Dunlop.
