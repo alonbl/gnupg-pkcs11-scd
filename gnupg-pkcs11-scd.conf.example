@@ -1,38 +1,39 @@
-# Write log into
+# Log file.
 #log-file log1
 
-# Set verbose mode, default off.
+# Default is not verbose.
 #verbose
 
-# Set debugging mode, default off.
+# Default is no debugging.
 #debug-all
 
-# Set pin cache period, defaut is infinite.
+# Pin cache period in seconds; defaut is infinite.
 #pin-cache 20
 
-# Set available provoder, comma seperated list
-# Each provider will follow using provider-[name]-attribute
+# Comma-separated list of available provider names. Then set
+# attributes for each provider using the provider-[name]-attribute
+# syntax.
 providers p1
 
-#
-# Provider attributes
+# The following attributes can be set for each provider:
 #
 # library
-#	PKCS#11 library location.
+#	Full path to the PKCS#11 shared library (= provider).
 # allow-protected-auth
-#	Allow protected authentication for provider, protected authentication
-#	needs to be supported by provider and you should have the right reader
-#	hardware.
+#	Allow protected authentication for provider. This needs to be supported by
+#	the provider and you should have appropriate reader hardware.
 # cert-private
-#	Provider requires authentication before certificate can be accessed,
-# 	most configurations store certificate as public, so don't use this option.
+#	Authentication is required before certificates can be accessed. Most
+#	configurations store certificates as public, so there is no need to use this
+#	option.
 # sign-mode
-#	Signature mode, only use when you have problem singning.
-#		auto - Determine automatically.
-#		sign - Force sign.
-#		recover - Force sign-recover.
-#		any - Enforce both, failback.
+#	Signature mode. Use this only when you have problem singning. Valid values
+#	are:
 #
+#	auto - Determine automatically.
+#	sign - Force sign.
+#	recover - Force sign with recovery.
+#	any - Try both.
 provider-p1-library /usr/lib/pkcs11/p1.so
 #provider-p1-allow-protected-auth
 #provider-p1-cert-private
