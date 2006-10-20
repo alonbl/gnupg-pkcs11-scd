@@ -4,7 +4,7 @@ Copyright (c) 2006 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
-????-??-?? -- Version 0.02
+2006-10-20 -- Version 0.02
 
 * Added more charachters to serialization exclude chars.
   People may need to re-learn cards.
@@ -24,6 +24,8 @@ $Id$
   When libassuan will handle sockets we will be able to implement it.
 
 * Added system wide configuration file, thanks to Bub Dunlop.
+
+* Some more minor fixes.
 
 2006-10-11 -- Version 0.01
 
