@@ -11,17 +11,22 @@ $Id$
 
 * Fixed configure GPG_HOME typeo, thanks to Bob Dunlop.
 
-* Unlike gpg-agent, gnupg-pkcs11-scd supports more than one token available
-  at the same time. In order to make gpg-agent happy, gnupg-pkcs11-scd always
-  returns the same card serial number to gpg-agent.
-  When unavailable token is requested, gnupg-pkcs11-scd will use NEEDPIN
-  callback in order to ask for the requested token.
-  When and if gpg-agent will support more than one serial number or NEEDTOKEN
-  callback, this behaviour will be modified.
+* Unlike gpg-agent, gnupg-pkcs11-scd supports more than
+  one token available at the same time. In order to make
+  gpg-agent happy, gnupg-pkcs11-scd always returns the
+  same card serial number to gpg-agent.
+  When unavailable token is requested, gnupg-pkcs11-scd
+  will use NEEDPIN callback in order to ask for the
+  requested token.
+  When and if gpg-agent will support more than one serial
+  number or NEEDTOKEN callback, this behavior will be
+  modified.
 
-* Works as single threaded win32 server. Implementing multi-threaded server
-  forces copy of win32 socket handling from gnupg, and it is GPLed.
-  When libassuan will handle sockets we will be able to implement it.
+* Works as single threaded win32 server. Implementing
+  multi-threaded server forces copy of win32 socket handling
+  from gnupg, and it is GPLed.
+  When libassuan will handle sockets we will be able to
+  implement it.
 
 * Added system wide configuration file, thanks to Bub Dunlop.
 
