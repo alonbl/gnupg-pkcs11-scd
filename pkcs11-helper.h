@@ -574,7 +574,7 @@ pkcs11h_data_get (
 	IN const char * const label,
 	IN void * const user_data,
 	IN const unsigned mask_prompt,
-	OUT char * const blob,
+	OUT unsigned char * const blob,
 	IN OUT size_t * const p_blob_size
 );
 
@@ -599,7 +599,7 @@ pkcs11h_data_put (
 	IN const char * const label,
 	IN void * const user_data,
 	IN const unsigned mask_prompt,
-	OUT char * const blob,
+	OUT unsigned char * const blob,
 	IN const size_t blob_size
 );
 

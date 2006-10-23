@@ -33,6 +33,8 @@
 
 #define ENABLE_PKCS11H_HELPER
 
+#if defined(ENABLE_PKCS11H_HELPER)
+
 #include <assert.h>
 #include <stdarg.h>
 #include <ctype.h>
@@ -103,7 +105,6 @@ typedef int PKCS11H_BOOL;
 #include "gnutls/x509.h"
 #endif
 
-#ifdef ENABLE_PKCS11H_HELPER
 #if defined(WIN32) || defined(PKCS11H_USE_CYGWIN)
 #include "cryptoki-win32.h"
 #else
