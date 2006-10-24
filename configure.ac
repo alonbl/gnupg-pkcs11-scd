@@ -70,7 +70,7 @@ AC_ARG_WITH(gnutls,
 )
 
 AC_ARG_WITH(system-config,
-	[  --with-system-config=FILE        Define gnupg home],
+	[  --with-system-config=FILE        Define gnupg system wide config],
 	[SYSTEM_CONFIG="${withval}"],
 	[test "${HAVE_W32_SYSTEM}" = "yes" && SYSTEM_CONFIG="%SystemRoot%\\\\${PACKAGE}.conf" || SYSTEM_CONFIG="/etc/${PACKAGE}.conf"]
 )
