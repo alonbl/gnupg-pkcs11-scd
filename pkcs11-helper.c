@@ -92,7 +92,7 @@
  * Constants
  */
 
-#if defined(USE_PKCS11H_OPENSSL)
+#if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
 
 #if OPENSSL_VERSION_NUMBER < 0x00907000L && defined(CRYPTO_LOCK_ENGINE)
 # define RSA_get_default_method RSA_get_default_openssl_method
@@ -165,7 +165,7 @@ typedef struct pkcs11h_provider_s *pkcs11h_provider_t;
 typedef struct pkcs11h_session_s *pkcs11h_session_t;
 typedef struct pkcs11h_data_s *pkcs11h_data_t;
 
-#if defined(USE_PKCS11H_OPENSSL)
+#if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
 
 #if OPENSSL_VERSION_NUMBER < 0x00908000L
 typedef unsigned char *pkcs11_openssl_d2i_t;
@@ -643,12 +643,6 @@ _pkcs11h_forkFixup ();
  *======================================================================*/
 
 static
-time_t
-_pkcs11h_certificate_getExpiration (
-	IN const unsigned char * const certificate,
-	IN const size_t certificate_size
-);
-static
 PKCS11H_BOOL
 _pkcs11h_certificate_isBetterCertificate (
 	IN const unsigned char * const current,
@@ -660,14 +654,6 @@ static
 CK_RV
 _pkcs11h_certificate_newCertificateId (
 	OUT pkcs11h_certificate_id_t * const certificate_id
-);
-static
-CK_RV
-_pkcs11h_certificate_getDN (
-	IN const unsigned char * const blob,
-	IN const size_t blob_size,
-	OUT char * const dn,
-	IN const size_t dn_size
 );
 static
 CK_RV
@@ -875,6 +861,106 @@ _pkcs11h_openssl_get_pkcs11h_certificate (
 );  
 #endif				/* ENABLE_PKCS11H_OPENSSL */
 
+/*======================================================================*
+ * CRYPTO ENGINES
+ *======================================================================*/
+
+#if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
+static
+int
+_pkcs11h_crypto_openssl_initialize (
+	IN void * const global_data
+);
+static
+int
+_pkcs11h_crypto_openssl_uninitialize (
+	IN void * const global_data
+);
+static
+int
+_pkcs11h_crypto_openssl_certificate_get_expiration (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT time_t * const expiration
+);
+static
+int
+_pkcs11h_crypto_openssl_certificate_get_dn (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT char * const dn,
+	IN const size_t dn_max
+);
+static
+int
+_pkcs11h_crypto_openssl_certificate_get_serial (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT char * const serial,
+	IN const size_t serial_max
+);
+static
+int
+_pkcs11h_crypto_openssl_certificate_is_issuer (
+	IN void * const global_data,
+	IN const unsigned char * const signer_blob,
+	IN const size_t signer_blob_size,
+	IN const unsigned char * const cert_blob,
+	IN const size_t cert_blob_size
+);
+#endif
+
+#if defined(ENABLE_PKCS11H_ENGINE_GNUTLS)
+static
+int
+_pkcs11h_crypto_gnutls_initialize (
+	IN void * const global_data
+);
+static
+int
+_pkcs11h_crypto_gnutls_uninitialize (
+	IN void * const global_data
+);
+static
+int
+_pkcs11h_crypto_gnutls_certificate_get_expiration (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT time_t * const expiration
+);
+static
+int
+_pkcs11h_crypto_gnutls_certificate_get_dn (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT char * const dn,
+	IN const size_t dn_max
+);
+static
+int
+_pkcs11h_crypto_gnutls_certificate_get_serial (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT char * const serial,
+	IN const size_t serial_max
+);
+static
+int
+_pkcs11h_crypto_gnutls_certificate_is_issuer (
+	IN void * const global_data,
+	IN const unsigned char * const signer_blob,
+	IN const size_t signer_blob_size,
+	IN const unsigned char * const cert_blob,
+	IN const size_t cert_blob_size
+);
+#endif
+
 /*==========================================
  * Static data
  */
@@ -891,8 +977,46 @@ static struct {
 #endif
 #endif
 
-pkcs11h_data_t s_pkcs11h_data = NULL;
-unsigned int s_pkcs11h_loglevel = PKCS11H_LOG_INFO;
+static pkcs11h_data_t s_pkcs11h_data = NULL;
+static unsigned int s_pkcs11h_loglevel = PKCS11H_LOG_INFO;
+
+static pkcs11h_sys_engine_t s_pkcs11h_sys_engine = {
+	malloc,
+	free,
+	time
+};
+
+#if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
+static pkcs11h_crypto_engine_t s_pkcs11h_crypto_engine = {
+	NULL,
+	_pkcs11h_crypto_openssl_initialize,
+	_pkcs11h_crypto_openssl_uninitialize,
+	_pkcs11h_crypto_openssl_certificate_get_expiration,
+	_pkcs11h_crypto_openssl_certificate_get_dn,
+	_pkcs11h_crypto_openssl_certificate_get_serial,
+	_pkcs11h_crypto_openssl_certificate_is_issuer
+};
+#elif defined(ENABLE_PKCS11H_ENGINE_GNUTLS)
+static pkcs11h_crypto_engine_t s_pkcs11h_crypto_engine = {
+	NULL,
+	_pkcs11h_crypto_gnutls_initialize,
+	_pkcs11h_crypto_gnutls_uninitialize,
+	_pkcs11h_crypto_gnutls_certificate_get_expiration,
+	_pkcs11h_crypto_gnutls_certificate_get_dn,
+	_pkcs11h_crypto_gnutls_certificate_get_serial,
+	_pkcs11h_crypto_gnutls_certificate_is_issuer
+};
+#else
+static pkcs11h_crypto_engine_t *s_pkcs11h_crypto_engine = {
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL
+};
+#endif
 
 /*======================================================================*
  * PUBLIC INTERFACE
@@ -994,6 +1118,28 @@ pkcs11h_getMessage (
 }
 
 CK_RV
+pkcs11h_set_crypto_engine (
+	IN const pkcs11h_crypto_engine_t * const engine
+) {
+	PKCS11H_ASSERT (engine!=NULL);
+
+	memmove (&s_pkcs11h_crypto_engine, engine, sizeof (pkcs11h_crypto_engine_t));
+
+	return CKR_OK;
+}
+
+CK_RV
+pkcs11h_set_sys_engine (
+	IN const pkcs11h_sys_engine_t * const engine
+) {
+	PKCS11H_ASSERT (engine!=NULL);
+
+	memmove (&s_pkcs11h_sys_engine, engine, sizeof (pkcs11h_sys_engine_t));
+
+	return CKR_OK;
+}
+
+CK_RV
 pkcs11h_initialize () {
 
 #if defined(ENABLE_PKCS11H_THREADING)
@@ -1012,15 +1158,25 @@ pkcs11h_initialize () {
 		rv = _pkcs11h_mem_malloc ((void*)&s_pkcs11h_data, sizeof (struct pkcs11h_data_s));
 	}
 
-#if defined(USE_PKCS11H_OPENSSL) || defined(ENABLE_PKCS11H_OPENSSL)
-	OpenSSL_add_all_digests ();
-#endif
-#if defined(USE_PKCS11H_GNUTLS)
+	if (rv == CKR_OK && s_pkcs11h_crypto_engine.initialize == NULL) {
+		rv = CKR_FUNCTION_FAILED;
+	}
+
 	if (
 		rv == CKR_OK &&
-		gnutls_global_init () != GNUTLS_E_SUCCESS
+		!s_pkcs11h_crypto_engine.initialize (s_pkcs11h_crypto_engine.global_data)
 	) {
+		PKCS11H_DEBUG (
+			PKCS11H_LOG_ERROR,
+			"PKCS#11: Cannot initialize crypto engine"
+		);
+
 		rv = CKR_FUNCTION_FAILED;
+	}
+
+#if defined(ENABLE_PKCS11H_OPENSSL)
+	if (rv == CKR_OK) {
+		OpenSSL_add_all_digests ();
 	}
 #endif
 
@@ -1184,9 +1340,7 @@ pkcs11h_terminate () {
 		_pkcs11h_threading_mutexFree (&s_pkcs11h_data->mutexes.session); 
 #endif
 
-#if defined(USE_PKCS11H_GNUTLS)
-		gnutls_global_deinit ();
-#endif
+		s_pkcs11h_crypto_engine.uninitialize (s_pkcs11h_crypto_engine.global_data);
 
 		_pkcs11h_mem_free ((void *)&s_pkcs11h_data);
 	}
@@ -2000,7 +2154,7 @@ _pkcs11h_mem_malloc (
 
 	if (s > 0) {
 		if (
-			(*p = (void *)PKCS11H_MALLOC (s)) == NULL
+			(*p = (void *)s_pkcs11h_sys_engine.malloc (s)) == NULL
 		) {
 			rv = CKR_HOST_MEMORY;
 		}
@@ -2019,7 +2173,7 @@ _pkcs11h_mem_free (
 ) {
 	PKCS11H_ASSERT (p!=NULL);
 
-	PKCS11H_FREE ((void *)*p);
+	s_pkcs11h_sys_engine.free ((void *)*p);
 	*p = NULL;
 
 	return CKR_OK;
@@ -3777,7 +3931,7 @@ _pkcs11h_session_validate (
 	if (
 		rv == CKR_OK &&
 		session->pin_expire_time != (time_t)0 &&
-		session->pin_expire_time < PKCS11H_TIME (NULL)
+		session->pin_expire_time < s_pkcs11h_sys_engine.time (NULL)
 	) {
 		PKCS11H_DEBUG (
 			PKCS11H_LOG_DEBUG1,
@@ -3813,7 +3967,7 @@ _pkcs11h_session_touch (
 	}
 	else {
 		session->pin_expire_time = (
-			PKCS11H_TIME (NULL) +
+			s_pkcs11h_sys_engine.time (NULL) +
 			(time_t)session->pin_cache_period
 		);
 	}
@@ -4869,93 +5023,6 @@ pkcs11h_data_del (
  *======================================================================*/
 
 static
-time_t
-_pkcs11h_certificate_getExpiration (
-	IN const unsigned char * const certificate,
-	IN const size_t certificate_size
-) {
-	/*
-	 * This function compare the notAfter
-	 * and select the most recent certificate
-	 */
-
-#if defined(USE_PKCS11H_OPENSSL)
-	X509 *x509 = NULL;
-#elif defined(USE_PKCS11H_GNUTLS)
-	gnutls_x509_crt_t cert = NULL;
-#endif
-	time_t expire = (time_t)0;
-
-	PKCS11H_ASSERT (certificate!=NULL);
-
-#if defined(USE_PKCS11H_OPENSSL)
-	x509 = X509_new ();
-
-	if (x509 != NULL) {
-		pkcs11_openssl_d2i_t d2i = (pkcs11_openssl_d2i_t)certificate;
-
-		if (
-			d2i_X509 (&x509, &d2i, certificate_size)
-		) {
-			ASN1_TIME *notBefore = X509_get_notBefore (x509);
-			ASN1_TIME *notAfter = X509_get_notAfter (x509);
-
-			if (
-				notBefore != NULL &&
-				notAfter != NULL &&
-				X509_cmp_current_time (notBefore) <= 0 &&
-				X509_cmp_current_time (notAfter) >= 0 &&
-				notAfter->length >= 12
-			) {
-				struct tm tm1;
-				time_t now = time (NULL);
-
-				memset (&tm1, 0, sizeof (tm1));
-				tm1.tm_year = (notAfter->data[ 0] - '0') * 10 + (notAfter->data[ 1] - '0') + 100;
-				tm1.tm_mon  = (notAfter->data[ 2] - '0') * 10 + (notAfter->data[ 3] - '0') - 1;
-				tm1.tm_mday = (notAfter->data[ 4] - '0') * 10 + (notAfter->data[ 5] - '0');
-				tm1.tm_hour = (notAfter->data[ 6] - '0') * 10 + (notAfter->data[ 7] - '0');
-				tm1.tm_min  = (notAfter->data[ 8] - '0') * 10 + (notAfter->data[ 9] - '0');
-				tm1.tm_sec  = (notAfter->data[10] - '0') * 10 + (notAfter->data[11] - '0');
-
-				tm1.tm_sec += (int)(mktime (localtime (&now)) - mktime (gmtime (&now)));
-
-				expire = mktime (&tm1);
-			}
-		}
-	}
-
-	if (x509 != NULL) {
-		X509_free (x509);
-		x509 = NULL;
-	}
-#elif defined(USE_PKCS11H_GNUTLS)
-	if (gnutls_x509_crt_init (&cert) == GNUTLS_E_SUCCESS) {
-		gnutls_datum_t datum = {(unsigned char *)certificate, certificate_size};
-
-		if (gnutls_x509_crt_import (cert, &datum, GNUTLS_X509_FMT_DER) == GNUTLS_E_SUCCESS) {
-
-			time_t activation_time = gnutls_x509_crt_get_activation_time (cert);
-			time_t expiration_time = gnutls_x509_crt_get_expiration_time (cert);
-			time_t now = time (NULL);
-
-			if (
-				now >= activation_time &&
-				now <= expiration_time
-			) {
-				expire = expiration_time;
-			}
-		}
-		gnutls_x509_crt_deinit (cert);
-	}
-#else
-#error Invalid configuration
-#endif
-
-	return expire;
-}
-
-static
 PKCS11H_BOOL
 _pkcs11h_certificate_isBetterCertificate (
 	IN const unsigned char * const current,
@@ -4987,14 +5054,27 @@ _pkcs11h_certificate_isBetterCertificate (
 	else {
 		time_t notAfterCurrent, notAfterNew;
 
-		notAfterCurrent = _pkcs11h_certificate_getExpiration (
-			current,
-			current_size
-		);
-		notAfterNew = _pkcs11h_certificate_getExpiration (
-			newone,
-			newone_size
-		);
+		if (
+			!s_pkcs11h_crypto_engine.certificate_get_expiration (
+				s_pkcs11h_crypto_engine.global_data,
+				current,
+				current_size,
+				&notAfterCurrent
+			)
+		) {
+			notAfterCurrent = (time_t)0;
+		}
+
+		if (
+			!s_pkcs11h_crypto_engine.certificate_get_expiration (
+				s_pkcs11h_crypto_engine.global_data,
+				newone,
+				newone_size,
+				&notAfterNew
+			)
+		) {
+			notAfterCurrent = (time_t)0;
+		}
 
 		PKCS11H_DEBUG (
 			PKCS11H_LOG_DEBUG2,
@@ -5045,76 +5125,6 @@ _pkcs11h_certificate_newCertificateId (
 	);
 
 	return rv;
-}
-
-static
-CK_RV
-_pkcs11h_certificate_getDN (
-	IN const unsigned char * const blob,
-	IN const size_t blob_size,
-	OUT char * const dn,
-	IN const size_t dn_size
-) {
-#if defined(USE_PKCS11H_OPENSSL)
-	X509 *x509 = NULL;
-	pkcs11_openssl_d2i_t d2i1;
-#elif defined(USE_PKCS11H_GNUTLS)
-	gnutls_x509_crt_t cert = NULL;
-#endif
-
-	PKCS11H_ASSERT (blob_size==0||blob!=NULL);
-	PKCS11H_ASSERT (dn!=NULL);
-
-	dn[0] = '\x0';
-
-#if defined(USE_PKCS11H_OPENSSL)
-
-	if (blob_size > 0) {
-		x509 = X509_new ();
-
-		d2i1 = (pkcs11_openssl_d2i_t)blob;
-		if (d2i_X509 (&x509, &d2i1, blob_size)) {
-			X509_NAME_oneline (
-				X509_get_subject_name (x509),
-				dn,
-				dn_size
-			);
-		}
-
-		if (x509 != NULL) {
-			X509_free (x509);
-			x509 = NULL;
-		}
-	}
-
-#elif defined(USE_PKCS11H_GNUTLS)
-
-	if (blob_size > 0) {
-		if (gnutls_x509_crt_init (&cert) == GNUTLS_E_SUCCESS) {
-			gnutls_datum_t datum = {(unsigned char *)blob, blob_size};
-
-			if (gnutls_x509_crt_import (cert, &datum, GNUTLS_X509_FMT_DER) == GNUTLS_E_SUCCESS) {
-				size_t s = dn_size;
-				if (
-					gnutls_x509_crt_get_dn (
-						cert,
-						dn,
-						&s
-					) != GNUTLS_E_SUCCESS
-				) {
-					/* gnutls sets output parameters */
-					dn[0] = '\x0';
-				}
-			}
-			gnutls_x509_crt_deinit (cert);
-		}
-	}
-
-#else
-#error Invalid configuration
-#endif
-
-	return CKR_OK;
 }
 
 static
@@ -5284,14 +5294,18 @@ _pkcs11h_certificate_updateCertificateIdDescription (
 		(void *)certificate_id
 	);
 
-	certificate_id->displayName[0] = '\x0';
-
-	_pkcs11h_certificate_getDN (
-		certificate_id->certificate_blob,
-		certificate_id->certificate_blob_size,
-		certificate_id->displayName,
-		sizeof (certificate_id->displayName)
-	);
+	if (
+		certificate_id->certificate_blob_size != 0 &&
+		!s_pkcs11h_crypto_engine.certificate_get_dn (
+			s_pkcs11h_crypto_engine.global_data,
+			certificate_id->certificate_blob,
+			certificate_id->certificate_blob_size,
+			certificate_id->displayName,
+			sizeof (certificate_id->displayName)
+		)
+	) {
+		certificate_id->displayName[0] = '\x0';
+	}
 
 	if (strlen (certificate_id->displayName) == 0) {
 		strncpy (
@@ -5563,7 +5577,7 @@ _pkcs11h_certificate_resetSession (
 			}
 			else {
 				certificate->session->pin_expire_time = (
-					PKCS11H_TIME (NULL) +
+					s_pkcs11h_sys_engine.time (NULL) +
 					(time_t)certificate->pin_cache_period
 				);
 				certificate->session->pin_cache_period = certificate->pin_cache_period;
@@ -7819,13 +7833,17 @@ _pkcs11h_locate_getCertificateIdBySubject (
 			);
 		}
 
-		if (rv == CKR_OK) {
-			rv = _pkcs11h_certificate_getDN (
+		if (
+			rv == CKR_OK &&
+			!s_pkcs11h_crypto_engine.certificate_get_dn (
+				s_pkcs11h_crypto_engine.global_data,
 				attrs[1].pValue,
 				attrs[1].ulValueLen,
 				current_subject,
 				sizeof (current_subject)
-			);
+			)
+		) {
+			rv = CKR_FUNCTION_FAILED;
 		}
 
 		if (
@@ -8793,11 +8811,6 @@ _pkcs11h_certificate_splitCertificateIdList (
 	typedef struct info_s {
 		struct info_s *next;
 		pkcs11h_certificate_id_t e;
-#if defined(USE_PKCS11H_OPENSSL)
-		X509 *x509;
-#elif defined(USE_PKCS11H_GNUTLS)
-		gnutls_x509_crt_t cert;
-#endif
 		PKCS11H_BOOL is_issuer;
 	} *info_t;
 
@@ -8836,55 +8849,13 @@ _pkcs11h_certificate_splitCertificateIdList (
 		) {
 			info_t new_info = NULL;
 
-			if (
-				rv == CKR_OK &&
-				(rv = _pkcs11h_mem_malloc ((void *)&new_info, sizeof (struct info_s))) == CKR_OK &&
-				entry->certificate_id->certificate_blob != NULL
-			) {
-#if defined(USE_PKCS11H_OPENSSL)
-				pkcs11_openssl_d2i_t d2i = (pkcs11_openssl_d2i_t)entry->certificate_id->certificate_blob;
-#endif
+			if (rv == CKR_OK) {
+				rv = _pkcs11h_mem_malloc ((void *)&new_info, sizeof (struct info_s));
+			}
 
+			if (rv == CKR_OK) {
 				new_info->next = head;
 				new_info->e = entry->certificate_id;
-#if defined(USE_PKCS11H_OPENSSL)
-				new_info->x509 = X509_new ();
-				if (
-					new_info->x509 != NULL &&
-					!d2i_X509 (
-						&new_info->x509,
-						&d2i,
-						entry->certificate_id->certificate_blob_size
-					)
-				) {
-					X509_free (new_info->x509);
-					new_info->x509 = NULL;
-				}
-#elif defined(USE_PKCS11H_GNUTLS)
-				if (gnutls_x509_crt_init (&new_info->cert) != GNUTLS_E_SUCCESS) {
-					/* gnutls sets output */
-					new_info->cert = NULL;
-				}
-				else {
-					gnutls_datum_t datum = {
-						entry->certificate_id->certificate_blob,
-						entry->certificate_id->certificate_blob_size
-					};
-
-					if (
-						gnutls_x509_crt_import (
-							new_info->cert,
-							&datum,
-							GNUTLS_X509_FMT_DER
-						) != GNUTLS_E_SUCCESS
-					) {
-						gnutls_x509_crt_deinit (new_info->cert);
-						new_info->cert = NULL;
-					}
-				}
-#else
-#error Invalid configuration.
-#endif
 				head = new_info;
 				new_info = NULL;
 			}
@@ -8899,9 +8870,6 @@ _pkcs11h_certificate_splitCertificateIdList (
 			info = info->next
 		) {
 			info_t info2 = NULL;
-#if defined(USE_PKCS11H_OPENSSL)
-			EVP_PKEY *pub = X509_get_pubkey (info->x509);
-#endif
 
 			for (
 				info2 = head;
@@ -8909,48 +8877,16 @@ _pkcs11h_certificate_splitCertificateIdList (
 				info2 = info2->next
 			) {
 				if (info != info2) {
-#if defined(USE_PKCS11H_OPENSSL)
-					if (
-						info->x509 != NULL &&
-						info2->x509 != NULL &&
-						!X509_NAME_cmp (
-							X509_get_subject_name (info->x509),
-							X509_get_issuer_name (info2->x509)
-						) &&
-						X509_verify (info2->x509, pub) == 1
-					) {
-						info->is_issuer = TRUE;
-					}
-#elif defined(USE_PKCS11H_GNUTLS)
-					unsigned result;
-
-					if (
-						info->cert != NULL &&
-						info2->cert != NULL &&
-						gnutls_x509_crt_verify (
-							info2->cert,
-							&info->cert,
-							1,
-							0,
-							&result
-						) &&
-						(result & GNUTLS_CERT_INVALID) == 0
-					) {
-						info->is_issuer = TRUE;
-					}
-#else
-#error Invalid configuration.
-#endif
+					info->is_issuer = !s_pkcs11h_crypto_engine.certificate_is_issuer (
+						s_pkcs11h_crypto_engine.global_data,
+						info->e->certificate_blob,
+						info->e->certificate_blob_size,
+						info2->e->certificate_blob,
+						info2->e->certificate_blob_size
+					);
 				}
 
 			}
-
-#if defined(USE_PKCS11H_OPENSSL)
-			if (pub != NULL) {
-				EVP_PKEY_free (pub);
-				pub = NULL;
-			}
-#endif
 		}
 	}
 
@@ -9008,20 +8944,6 @@ _pkcs11h_certificate_splitCertificateIdList (
 		while (head != NULL) {
 			info_t entry = head;
 			head = head->next;
-
-#if defined(USE_PKCS11H_OPENSSL)
-			if (entry->x509 != NULL) {
-				X509_free (entry->x509);
-				entry->x509 = NULL;
-			}
-#elif defined(USE_PKCS11H_GNUTLS)
-			if (entry->cert != NULL) {
-				gnutls_x509_crt_deinit (entry->cert);
-				entry->cert = NULL;
-			}
-#else
-#error Invalid configuration.
-#endif
 
 			_pkcs11h_mem_free ((void *)&entry);
 		}
@@ -10990,78 +10912,40 @@ pkcs11h_standalone_dump_objects (
 					}
 
 					if (attrs_value != NULL) {
-#if defined(USE_PKCS11H_OPENSSL)
-						X509 *x509 = NULL;
-						BIO *bioSerial = NULL;
-#elif defined(USE_PKCS11H_GNUTLS)
-						gnutls_x509_crt_t cert = NULL;
-#endif
-
-						_pkcs11h_certificate_getDN (
-							attrs_value,
-							attrs_value_size,
-							subject,
-							sizeof (subject)
-						);
-						notAfter = _pkcs11h_certificate_getExpiration (
-							attrs_value,
-							attrs_value_size
-						);
-#if defined(USE_PKCS11H_OPENSSL)
-						if ((x509 = X509_new ()) == NULL) {
-							my_output (global_data, "Cannot create x509 context\n");
-						}
-						else {
-							pkcs11_openssl_d2i_t d2i1 = (pkcs11_openssl_d2i_t)attrs_value;
-							if (d2i_X509 (&x509, &d2i1, attrs_value_size)) {
-								if ((bioSerial = BIO_new (BIO_s_mem ())) == NULL) {
-									my_output (global_data, "Cannot create BIO context\n");
-								}
-								else {
-									int n;
-
-									i2a_ASN1_INTEGER(bioSerial, X509_get_serialNumber (x509));
-									n = BIO_read (bioSerial, serialNumber, sizeof (serialNumber)-1);
-									if (n<0) {
-										serialNumber[0] = '\0';
-									}
-									else {
-										serialNumber[n] = '\0';
-									}
-								}
-							}
+						if (
+							!s_pkcs11h_crypto_engine.certificate_get_dn (
+								s_pkcs11h_crypto_engine.global_data,
+								attrs_value,
+								attrs_value_size,
+								subject,
+								sizeof (subject)
+							)
+						) {
+							subject[0] = '\x0';
 						}
 
+						if (
+							!s_pkcs11h_crypto_engine.certificate_get_expiration (
+								s_pkcs11h_crypto_engine.global_data,
+								attrs_value,
+								attrs_value_size,
+								&notAfter
+							)
+						) {
+							notAfter = (time_t)0;
+						}
 
-						if (bioSerial != NULL) {
-							BIO_free_all (bioSerial);
-							bioSerial = NULL;
+						if (
+							!s_pkcs11h_crypto_engine.certificate_get_serial (
+								s_pkcs11h_crypto_engine.global_data,
+								attrs_value,
+								attrs_value_size,
+								serialNumber,
+								sizeof (serialNumber)
+							)
+						) {
+							serialNumber[0] = '\x0';
 						}
-						if (x509 != NULL) {
-							X509_free (x509);
-							x509 = NULL;
-						}
-#elif defined(USE_PKCS11H_GNUTLS)
-						if (gnutls_x509_crt_init (&cert) == GNUTLS_E_SUCCESS) {
-							gnutls_datum_t datum = {attrs_value, attrs_value_size};
-
-							if (gnutls_x509_crt_import (cert, &datum, GNUTLS_X509_FMT_DER) == GNUTLS_E_SUCCESS) {
-								unsigned char ser[1024];
-								size_t ser_size = sizeof (ser);
-								if (gnutls_x509_crt_get_serial (cert, ser, &ser_size) == GNUTLS_E_SUCCESS) {
-									_pkcs11h_util_binaryToHex (
-										serialNumber,
-										sizeof (serialNumber),
-										ser,
-										ser_size
-									);
-								}
-							}
-							gnutls_x509_crt_deinit (cert);
-						}
-#else
-#error Invalid configuration.
-#endif
 					}
 
 					my_output (
@@ -11083,7 +10967,10 @@ pkcs11h_standalone_dump_objects (
 						asctime (localtime (&notAfter))
 					);
 
-					_pkcs11h_mem_free ((void *)&attrs_label);
+					if (attrs_label != NULL) {
+						_pkcs11h_mem_free ((void *)&attrs_label);
+						attrs_label = NULL;
+					}
 
 					_pkcs11h_session_freeObjectAttributes (
 						attrs_cert,
@@ -11158,7 +11045,10 @@ pkcs11h_standalone_dump_objects (
 						sign_recover ? "TRUE" : "FALSE"
 					);
 
-					_pkcs11h_mem_free ((void *)&attrs_label);
+					if (attrs_label != NULL) {
+						_pkcs11h_mem_free ((void *)&attrs_label);
+						attrs_label = NULL;
+					}
 
 					_pkcs11h_session_freeObjectAttributes (
 						attrs_key_common,
@@ -11320,6 +11210,489 @@ pkcs11h_standalone_dump_objects (
 }
 
 #endif				/* ENABLE_PKCS11H_STANDALONE */
+
+/*======================================================================*
+ * CRYPTO ENGINES
+ *======================================================================*/
+
+#if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
+
+static
+int
+_pkcs11h_crypto_openssl_initialize (
+	IN void * const global_data
+) {
+	OpenSSL_add_all_digests ();
+
+	return TRUE;
+}
+
+static
+int
+_pkcs11h_crypto_openssl_uninitialize (
+	IN void * const global_data
+) {
+	return TRUE;
+}
+
+static
+int
+_pkcs11h_crypto_openssl_certificate_get_expiration (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT time_t * const expiration
+) {
+	X509 *x509 = NULL;
+
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	PKCS11H_ASSERT (blob!=NULL);
+	PKCS11H_ASSERT (expiration!=NULL);
+
+	*expiration = (time_t)0;
+
+	x509 = X509_new ();
+
+	if (x509 != NULL) {
+		pkcs11_openssl_d2i_t d2i = (pkcs11_openssl_d2i_t)blob;
+
+		if (
+			d2i_X509 (&x509, &d2i, blob_size)
+		) {
+			ASN1_TIME *notBefore = X509_get_notBefore (x509);
+			ASN1_TIME *notAfter = X509_get_notAfter (x509);
+
+			if (
+				notBefore != NULL &&
+				notAfter != NULL &&
+				X509_cmp_current_time (notBefore) <= 0 &&
+				X509_cmp_current_time (notAfter) >= 0 &&
+				notAfter->length >= 12
+			) {
+				struct tm tm1;
+				time_t now = time (NULL);
+
+				memset (&tm1, 0, sizeof (tm1));
+				tm1.tm_year = (notAfter->data[ 0] - '0') * 10 + (notAfter->data[ 1] - '0') + 100;
+				tm1.tm_mon  = (notAfter->data[ 2] - '0') * 10 + (notAfter->data[ 3] - '0') - 1;
+				tm1.tm_mday = (notAfter->data[ 4] - '0') * 10 + (notAfter->data[ 5] - '0');
+				tm1.tm_hour = (notAfter->data[ 6] - '0') * 10 + (notAfter->data[ 7] - '0');
+				tm1.tm_min  = (notAfter->data[ 8] - '0') * 10 + (notAfter->data[ 9] - '0');
+				tm1.tm_sec  = (notAfter->data[10] - '0') * 10 + (notAfter->data[11] - '0');
+
+				tm1.tm_sec += (int)(mktime (localtime (&now)) - mktime (gmtime (&now)));
+
+				*expiration = mktime (&tm1);
+			}
+		}
+
+		X509_free (x509);
+		x509 = NULL;
+	}
+
+	return *expiration != (time_t)0;
+}
+
+static
+int
+_pkcs11h_crypto_openssl_certificate_get_dn (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT char * const dn,
+	IN const size_t dn_max
+) {
+	X509 *x509 = NULL;
+	pkcs11_openssl_d2i_t d2i1;
+
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	PKCS11H_ASSERT (blob!=NULL);
+	PKCS11H_ASSERT (dn!=NULL);
+	PKCS11H_ASSERT (dn_max>0);
+
+	dn[0] = '\x0';
+
+	if (blob_size > 0) {
+		if ((x509 = X509_new ()) != NULL) {
+			d2i1 = (pkcs11_openssl_d2i_t)blob;
+			if (d2i_X509 (&x509, &d2i1, blob_size)) {
+				X509_NAME_oneline (
+					X509_get_subject_name (x509),
+					dn,
+					dn_max
+				);
+			}
+
+			X509_free (x509);
+			x509 = NULL;
+		}
+	}
+
+	return dn[0] != '\x0';
+}
+
+static
+int
+_pkcs11h_crypto_openssl_certificate_get_serial (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT char * const serial,
+	IN const size_t serial_max
+) {
+	X509 *x509 = NULL;
+	BIO *bioSerial = NULL;
+
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	PKCS11H_ASSERT (blob!=NULL);
+	PKCS11H_ASSERT (serial!=NULL);
+	PKCS11H_ASSERT (serial_max>0);
+
+	serial[0] = '\x0';
+
+	if ((x509 = X509_new ()) != NULL) {
+		pkcs11_openssl_d2i_t d2i1 = (pkcs11_openssl_d2i_t)blob;
+		if (d2i_X509 (&x509, &d2i1, blob_size)) {
+			if ((bioSerial = BIO_new (BIO_s_mem ())) != NULL) {
+				int n;
+
+				i2a_ASN1_INTEGER(bioSerial, X509_get_serialNumber (x509));
+				n = BIO_read (bioSerial, serial, serial_max-1);
+				if (n<0) {
+					serial[0] = '\0';
+				}
+				else {
+					serial[n] = '\0';
+				}
+
+				BIO_free_all (bioSerial);
+				bioSerial = NULL;
+			}
+		}
+
+		X509_free (x509);
+		x509 = NULL;
+	}
+
+	return serial[0] != '\x0';
+}
+
+static
+int
+_pkcs11h_crypto_openssl_certificate_is_issuer (
+	IN void * const global_data,
+	IN const unsigned char * const signer_blob,
+	IN const size_t signer_blob_size,
+	IN const unsigned char * const cert_blob,
+	IN const size_t cert_blob_size
+) {
+	X509 *x509_signer = NULL;
+	X509 *x509_cert = NULL;
+	EVP_PKEY *pub_signer = NULL;
+	pkcs11_openssl_d2i_t d2i;
+	PKCS11H_BOOL is_issuer = FALSE;
+
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	PKCS11H_ASSERT (signer_blob!=NULL);
+	PKCS11H_ASSERT (cert_blob!=NULL);
+
+
+	if ((x509_signer = X509_new ()) == NULL) {
+	}
+	if ((x509_cert = X509_new ()) == NULL) {
+	}
+
+	d2i = (pkcs11_openssl_d2i_t)signer_blob;
+	if (
+		x509_signer != NULL &&
+		!d2i_X509 (
+			&x509_signer,
+			&d2i,
+			signer_blob_size
+		)
+	) {
+	}
+
+	d2i = (pkcs11_openssl_d2i_t)cert_blob;
+	if (
+		x509_cert != NULL &&
+		!d2i_X509 (
+			&x509_cert,
+			&d2i,
+			cert_blob_size
+		)
+	) {
+	}
+
+	if (x509_signer != NULL) {
+		pub_signer = X509_get_pubkey (x509_signer);
+	}
+
+	if (
+		x509_signer != NULL &&
+		x509_cert != NULL &&
+		!X509_NAME_cmp (
+			X509_get_subject_name (x509_signer),
+			X509_get_issuer_name (x509_cert)
+		) &&
+		X509_verify (x509_cert, pub_signer) == 1
+	) {
+		is_issuer = TRUE;
+	}
+
+	if (pub_signer != NULL) {
+		EVP_PKEY_free (pub_signer);
+		pub_signer = NULL;
+	}
+	if (x509_signer != NULL) {
+		X509_free (x509_signer);
+		x509_signer = NULL;
+	}
+	if (x509_cert != NULL) {
+		X509_free (x509_cert);
+		x509_cert = NULL;
+	}
+
+	return is_issuer;
+}
+
+#endif				/* ENABLE_PKCS11H_ENGINE_OPENSSL */
+
+#if defined(ENABLE_PKCS11H_ENGINE_GNUTLS)
+
+static
+int
+_pkcs11h_crypto_gnutls_initialize (
+	IN void * const global_data
+) {
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	if (gnutls_global_init () != GNUTLS_E_SUCCESS) {
+		return FALSE;
+	}
+	else {
+		return TRUE;
+	}
+}
+
+static
+int
+_pkcs11h_crypto_gnutls_uninitialize (
+	IN void * const global_data
+) {
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	gnutls_global_deinit ();
+
+	return TRUE;
+}
+
+static
+int
+_pkcs11h_crypto_gnutls_certificate_get_expiration (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT time_t * const expiration
+) {
+	gnutls_x509_crt_t cert = NULL;
+
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	PKCS11H_ASSERT (blob!=NULL);
+	PKCS11H_ASSERT (expiration!=NULL);
+
+	*expiration = (time_t)0;
+
+	if (gnutls_x509_crt_init (&cert) == GNUTLS_E_SUCCESS) {
+		gnutls_datum_t datum = {(unsigned char *)blob, blob_size};
+
+		if (gnutls_x509_crt_import (cert, &datum, GNUTLS_X509_FMT_DER) == GNUTLS_E_SUCCESS) {
+
+			time_t activation_time = gnutls_x509_crt_get_activation_time (cert);
+			time_t expiration_time = gnutls_x509_crt_get_expiration_time (cert);
+			time_t now = time (NULL);
+
+			if (
+				now >= activation_time &&
+				now <= expiration_time
+			) {
+				*expiration = expiration_time;
+			}
+		}
+		gnutls_x509_crt_deinit (cert);
+	}
+
+	return *expiration != (time_t)0;
+}
+
+static
+int
+_pkcs11h_crypto_gnutls_certificate_get_dn (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT char * const dn,
+	IN const size_t dn_max
+) {
+	gnutls_x509_crt_t cert = NULL;
+
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	PKCS11H_ASSERT (blob!=NULL);
+	PKCS11H_ASSERT (dn!=NULL);
+	PKCS11H_ASSERT (dn_max>0);
+
+	dn[0] = '\x0';
+
+	if (gnutls_x509_crt_init (&cert) == GNUTLS_E_SUCCESS) {
+		gnutls_datum_t datum = {(unsigned char *)blob, blob_size};
+
+		if (gnutls_x509_crt_import (cert, &datum, GNUTLS_X509_FMT_DER) == GNUTLS_E_SUCCESS) {
+			size_t s = dn_max;
+			if (
+				gnutls_x509_crt_get_dn (
+					cert,
+					dn,
+					&s
+				) != GNUTLS_E_SUCCESS
+			) {
+				/* gnutls sets output parameters */
+				dn[0] = '\x0';
+			}
+		}
+		gnutls_x509_crt_deinit (cert);
+	}
+
+	return dn[0] != '\x0';
+}
+
+static
+int
+_pkcs11h_crypto_gnutls_certificate_get_serial (
+	IN void * const global_data,
+	IN const unsigned char * const blob,
+	IN const size_t blob_size,
+	OUT char * const serial,
+	IN const size_t serial_max
+) {
+	gnutls_x509_crt_t cert = NULL;
+
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	PKCS11H_ASSERT (blob!=NULL);
+	PKCS11H_ASSERT (serial!=NULL);
+	PKCS11H_ASSERT (serial_max>0);
+
+	serial[0] = '\x0';
+
+	if (gnutls_x509_crt_init (&cert) == GNUTLS_E_SUCCESS) {
+		gnutls_datum_t datum = {(unsigned char *)blob, blob_size};
+
+		if (gnutls_x509_crt_import (cert, &datum, GNUTLS_X509_FMT_DER) == GNUTLS_E_SUCCESS) {
+			unsigned char ser[1024];
+			size_t ser_size = sizeof (ser);
+			if (gnutls_x509_crt_get_serial (cert, ser, &ser_size) == GNUTLS_E_SUCCESS) {
+				_pkcs11h_util_binaryToHex (
+					serial,
+					serial_max,
+					ser,
+					ser_size
+				);
+			}
+		}
+		gnutls_x509_crt_deinit (cert);
+	}
+
+	return serial[0] != '\x0';
+}
+
+static
+int
+_pkcs11h_crypto_gnutls_certificate_is_issuer (
+	IN void * const global_data,
+	IN const unsigned char * const signer_blob,
+	IN const size_t signer_blob_size,
+	IN const unsigned char * const cert_blob,
+	IN const size_t cert_blob_size
+) {
+	gnutls_x509_crt_t cert_issuer = NULL;
+	gnutls_x509_crt_t cert_cert = NULL;
+	gnutls_datum_t datum;
+	PKCS11H_BOOL is_issuer = FALSE;
+	unsigned int result = 0;
+
+	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
+	PKCS11H_ASSERT (signer_blob!=NULL);
+	PKCS11H_ASSERT (cert_blob!=NULL);
+
+	if (gnutls_x509_crt_init (&cert_issuer) != GNUTLS_E_SUCCESS) {
+		/* gnutls sets output */
+		cert_issuer = NULL;
+	}
+	if (gnutls_x509_crt_init (&cert_cert) != GNUTLS_E_SUCCESS) {
+		/* gnutls sets output */
+		cert_cert = NULL;
+	}
+
+	datum.data = (unsigned char *)signer_blob;
+	datum.size = signer_blob_size;
+
+	if (
+		cert_issuer != NULL &&
+		gnutls_x509_crt_import (
+			cert_issuer,
+			&datum,
+			GNUTLS_X509_FMT_DER
+		) != GNUTLS_E_SUCCESS
+	) {
+		gnutls_x509_crt_deinit (cert_issuer);
+		cert_issuer = NULL;
+	}
+
+	datum.data = (unsigned char *)cert_blob;
+	datum.size = cert_blob_size;
+
+	if (
+		cert_cert != NULL &&
+		gnutls_x509_crt_import (
+			cert_cert,
+			&datum,
+			GNUTLS_X509_FMT_DER
+		) != GNUTLS_E_SUCCESS
+	) {
+		gnutls_x509_crt_deinit (cert_cert);
+		cert_cert = NULL;
+	}
+
+	if (
+		cert_issuer != NULL &&
+		cert_cert != NULL &&
+		gnutls_x509_crt_verify (
+			cert_cert,
+			&cert_issuer,
+			1,
+			0,
+			&result
+		) &&
+		(result & GNUTLS_CERT_INVALID) == 0
+	) {
+		is_issuer = TRUE;
+	}
+
+	if (cert_cert != NULL) {
+		gnutls_x509_crt_deinit (cert_cert);
+		cert_cert = NULL;
+	}
+
+	if (cert_issuer != NULL) {
+		gnutls_x509_crt_deinit (cert_issuer);
+		cert_issuer = NULL;
+	}
+
+	return is_issuer;
+}
+
+#endif				/* ENABLE_PKCS11H_ENGINE_GNUTLS */
+
+/*======================================================================*
+ * FIXUPS
+ *======================================================================*/
 
 #ifdef BROKEN_OPENSSL_ENGINE
 static void broken_openssl_init() __attribute__ ((constructor));

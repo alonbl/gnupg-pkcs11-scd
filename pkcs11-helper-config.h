@@ -66,11 +66,11 @@ typedef int PKCS11H_BOOL;
 #define OUT
 #endif
 
-#if defined(USE_OPENSSL)
-#define  USE_PKCS11H_OPENSSL
+#if defined(ENABLE_OPENSSL)
+#define ENABLE_PKCS11H_ENGINE_OPENSSL
 #endif
-#if defined(USE_GNUTLS)
-#define USE_PKCS11H_GNUTLS
+#if defined(ENABLE_GNUTLS)
+#define ENABLE_PKCS11H_ENGINE_GNUTLS
 #endif
 
 #define ENABLE_PKCS11H_DEBUG
@@ -93,15 +93,12 @@ typedef int PKCS11H_BOOL;
 */
 
 #define PKCS11H_ASSERT		assert
-#define PKCS11H_TIME		time
-#define PKCS11H_MALLOC		malloc
-#define PKCS11H_FREE		free
 
-#if defined(USE_PKCS11H_OPENSSL)
+#if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
 #include "openssl/x509.h"
 #endif
 
-#if defined(USE_PKCS11H_GNUTLS)
+#if defined(ENABLE_PKCS11H_ENGINE_GNUTLS)
 #include "gnutls/x509.h"
 #endif
 

@@ -65,10 +65,6 @@ extern "C" {
 
 #include "pkcs11-helper-config.h"
 
-#if !defined(USE_PKCS11H_OPENSSL) && !defined(USE_PKCS11H_GNUTLS)
-#error PKCS#11: USE_PKCS11H_OPENSSL or USE_PKCS11H_GNUTLS must be defined
-#endif
-
 #if defined(ENABLE_PKCS11H_SLOTEVENT) && !defined(ENABLE_PKCS11H_THREADING)
 #error PKCS#11: ENABLE_PKCS11H_SLOTEVENT requires ENABLE_PKCS11H_THREADING
 #endif
@@ -112,6 +108,50 @@ typedef void (*pkcs11h_output_print_t)(
     __attribute__ ((format (printf, 2, 3)))
 #endif
  ;
+
+typedef struct pkcs11h_sys_engine_s {
+	void *(*malloc) (size_t size);
+	void (*free) (void *ptr);
+	time_t (*time) (time_t *t);
+} pkcs11h_sys_engine_t;
+
+typedef struct pkcs11h_crypto_engine_s {
+	void *global_data;
+
+	int (*initialize) (
+		IN void * const global_data
+	);
+	int (*uninitialize) (
+		IN void * const global_data
+	);
+	int (*certificate_get_expiration) (
+		IN void * const global_data,
+		IN const unsigned char * const blob,
+		IN const size_t blob_size,
+		OUT time_t * const expiration
+	);
+	int (*certificate_get_dn) (
+		IN void * const global_data,
+		IN const unsigned char * const blob,
+		IN const size_t blob_size,
+		OUT char * const dn,
+		IN const size_t dn_max
+	);
+	int (*certificate_get_serial) (
+		IN void * const global_data,
+		IN const unsigned char * const blob,
+		IN const size_t blob_size,
+		OUT char * const serial,
+		IN const size_t serial_max
+	);
+	int (*certificate_is_issuer) (
+		IN void * const global_data,
+		IN const unsigned char * const signer_blob,
+		IN const size_t signer_blob_size,
+		IN const unsigned char * const cert_blob,
+		IN const size_t cert_blob_size
+	);
+} pkcs11h_crypto_engine_t;
 
 struct pkcs11h_token_id_s;
 typedef struct pkcs11h_token_id_s *pkcs11h_token_id_t;
@@ -245,6 +285,28 @@ typedef struct pkcs11h_openssl_session_s *pkcs11h_openssl_session_t;
 const char *
 pkcs11h_getMessage (
 	IN const CK_RV rv
+);
+
+/*
+ * pkcs11h_set_sys_engine - Set system engine to be used.
+ *
+ * Must be called before pkcs11h_initialize.
+ * Default is libc functions.
+ */
+CK_RV
+pkcs11h_set_sys_engine (
+	IN const pkcs11h_sys_engine_t * const engine
+);
+
+/*
+ * pkcs11h_set_crypto_engine - Set crypto engine to be used.
+ *
+ * Must be called before pkcs11h_initialize.
+ * Default is provided at configuration time.
+ */
+CK_RV
+pkcs11h_set_crypto_engine (
+	IN const pkcs11h_crypto_engine_t * const engine
 );
 
 /*

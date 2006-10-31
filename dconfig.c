@@ -74,7 +74,7 @@ dconfig_read (const char * const _file, dconfig_data * const config) {
 #if defined(HAVE_W32_SYSTEM)
 	char file[1024];
 #else
-	char *file = _file;
+	const char *file = _file;
 #endif
 	char line[1024];
 	FILE *fp = NULL;
