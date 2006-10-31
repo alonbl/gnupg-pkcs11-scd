@@ -54,35 +54,37 @@ case "${host}" in
 esac
 
 AC_ARG_ENABLE(pedantic,
-	[  --enable-pedantic       Enable pedantic compiler warnings, will not generate a working executable (debugging option)],
+	[  --enable-pedantic                 Enable pedantic compiler warnings, will not generate a working executable (debugging option)],
 	[PEDANTIC="${enableval}"],
 	[PEDANTIC="no"]
 )
 
 AC_ARG_WITH(openssl,
-	[  --with-openssl          Use OpenSSL],
-	[USE_OPENSSL="yes"]
+	[  --without-openssl                 Disable OpenSSL linkage],
+	[WITH_OPENSSL="${withval}"],
+	[WITH_OPENSSL="yes"]
 )
 
 AC_ARG_WITH(gnutls,
-	[  --with-gnutls           Use GNUTLS],
-	[USE_GNUTLS="yes"]
+	[  --without-gnutls                  Disable GNUTLS linkage (OpenSSL will be used if both enabled)],
+	[WITH_GNUTLS="${withval}"],
+	[WITH_GNUTLS="yes"]
 )
 
 AC_ARG_WITH(system-config,
-	[  --with-system-config=FILE        Define gnupg system wide config],
+	[  --with-system-config=FILE         Define gnupg system wide config],
 	[SYSTEM_CONFIG="${withval}"],
 	[test "${HAVE_W32_SYSTEM}" = "yes" && SYSTEM_CONFIG="%SystemRoot%\\\\${PACKAGE}.conf" || SYSTEM_CONFIG="/etc/${PACKAGE}.conf"]
 )
 
 AC_ARG_WITH(gnupg-home,
-	[  --with-gnupg-home=DIR            Define gnupg home],
+	[  --with-gnupg-home=DIR             Define gnupg home],
 	[GNUPG_HOME="${withval}"],
 	[test "${HAVE_W32_SYSTEM}" = "yes" && GNUPG_HOME="~\\\\.gnupg" || GNUPG_HOME="~/.gnupg"]
 )
 
 AC_ARG_WITH(libgpg-error-prefix,
-	[  --with-libgpg-error-prefix=DIR   Define libgpgp-error prefix],
+	[  --with-libgpg-error-prefix=DIR    Define libgpgp-error prefix],
 	[LIBGPG_ERROR_PREFIX="${withval}"],
 	[LIBGPG_ERROR_PREFIX="/usr" ]
 )
@@ -100,7 +102,7 @@ AC_ARG_WITH(libgcrypt-prefix,
 )
 
 AC_ARG_WITH(mem-check,
-	[  --with-mem-check=TYPE  Build with debug memory checking, TYPE = valgrind],
+	[  --with-mem-check=TYPE             Build with debug memory checking, TYPE = valgrind],
 	[MEMCHECK="$withval"]
 )
 
@@ -163,32 +165,27 @@ else
 fi
 
 AC_MSG_CHECKING([cryptographic library to use])
-if test "${USE_OPENSSL}" != "yes" -a "${USE_GNUTLS}" != "yes"; then
-	if test "${HAVE_OPENSSL}" = "yes"; then
-		USE_OPENSSL="yes"
-	elif test "${HAVE_GNUTLS}" = "yes"; then
-		USE_GNUTLS="yes"
-	else
-		AC_MSG_ERROR([Cannot locate OpenSSL or GNUTLS])
-	fi
+
+if test "${WITH_OPENSSL}" = "yes" -a "${HAVE_OPENSSL}" != "yes"; then
+	WITH_OPENSSL="no"
 fi
 
-if test "${USE_GNUTLS}" = "yes" -a "${HAVE_GNUTLS}" != "yes"; then
-	AC_MSG_ERROR([Cannot locate use GNUTLS since it was not located])
+if test "${WITH_GNUTLS}" = "yes" -a "${HAVE_GNUTLS}" != "yes"; then
+	WITH_GNUTLS="no"
 fi
 
-if test "${USE_OPENSSL}" = "yes" -a "${HAVE_OPENSSL}" != "yes"; then
-	AC_MSG_ERROR([Cannot locate use OpenSSL since it was not located])
+if test "${WITH_OPENSSL}" = "no" -a "${WITH_GNUTLS}" = "no"; then
+	AC_MSG_ERROR([Cannot locate OpenSSL or GNUTLS])
 fi
 
-if test "${USE_OPENSSL}" == "yes"; then
+if test "${WITH_OPENSSL}" = "yes"; then
 	AC_MSG_RESULT([Using OpenSSL])
-	AC_DEFINE(USE_OPENSSL, 1, [Use OpenSSL library])
+	AC_DEFINE(ENABLE_OPENSSL, 1, [Use OpenSSL library])
 	CFLAGS="${CFLAGS} ${OPENSSL_CFLAGS}"
 	LIBS="${LIBS} ${OPENSSL_LIBS}"
 else
 	AC_MSG_RESULT([Using GNUTLS])
-	AC_DEFINE(USE_GNUTLS, 1, [Use GNUTLS library])
+	AC_DEFINE(ENABLE_GNUTLS, 1, [Use GNUTLS library])
 	CFLAGS="${CFLAGS} ${GNUTLS_CFLAGS}"
 	LIBS="${LIBS} ${GNUTLS_LIBS}"
 fi

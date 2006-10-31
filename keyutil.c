@@ -30,15 +30,15 @@
  */
 
 #include "common.h"
-#if defined(USE_GNUTLS)
+#if defined(ENABLE_GNUTLS)
 #include <gnutls/x509.h>
 #endif
-#if defined(USE_OPENSSL)
+#if defined(ENABLE_OPENSSL)
 #include <openssl/x509.h>
 #endif
 #include "encoding.h"
 
-#if defined(USE_OPENSSL)
+#if defined(ENABLE_OPENSSL)
 #if OPENSSL_VERSION_NUMBER < 0x00908000L
 typedef unsigned char *my_openssl_d2i_t;
 #else
@@ -62,7 +62,7 @@ keyutil_get_cert_sexp (
 	gcry_mpi_t n_mpi = NULL, e_mpi = NULL;
 	gcry_sexp_t sexp = NULL;
 
-#if defined(USE_GNUTLS)
+#if defined(ENABLE_GNUTLS)
 
 	gnutls_x509_crt_t cert = NULL;
 	gnutls_datum_t datum = {der, len};
@@ -102,7 +102,7 @@ keyutil_get_cert_sexp (
 		error = GPG_ERR_BAD_KEY;
 	}
 
-#elif defined(USE_OPENSSL)
+#elif defined(ENABLE_OPENSSL)
 
 	X509 *x509 = NULL;
 	EVP_PKEY *pubkey = NULL;
@@ -179,7 +179,7 @@ keyutil_get_cert_sexp (
 		e_mpi = NULL;
 	}
 
-#if defined(USE_GNUTLS)
+#if defined(ENABLE_GNUTLS)
 
 	if (m.data != NULL) {
 		gnutls_free (m.data);
@@ -196,7 +196,7 @@ keyutil_get_cert_sexp (
 		cert = NULL;
 	}
 
-#elif defined(USE_OPENSSL)
+#elif defined(ENABLE_OPENSSL)
 
 	if (x509 != NULL) {
 		X509_free (x509);
