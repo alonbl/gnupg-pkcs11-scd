@@ -2,6 +2,7 @@
 *.gz
 *.o
 *.html
+*.exe
 configure
 Makefile.in
 config.log
