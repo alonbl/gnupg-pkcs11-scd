@@ -471,6 +471,7 @@ _pkcs11h_util_binaryToHex (
 	IN const unsigned char * const source,
 	IN const size_t source_size
 );
+static
 CK_RV
 _pkcs11h_util_escapeString (
 	IN OUT char * const target,
@@ -2886,6 +2887,7 @@ _pkcs11h_util_binaryToHex (
 	return CKR_OK;
 }
 
+static
 CK_RV
 _pkcs11h_util_escapeString (
 	IN OUT char * const target,
@@ -10647,6 +10649,7 @@ _pkcs11h_standalone_dump_objects_pin_prompt (
 	}
 }
 
+static
 void
 _pkcs11h_standalone_dump_objects_hex (
 	IN const unsigned char * const p,
