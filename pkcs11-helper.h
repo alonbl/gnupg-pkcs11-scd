@@ -65,6 +65,22 @@ extern "C" {
 
 #include "pkcs11-helper-config.h"
 
+#define PKCS11H_VERSION	0x00010000
+
+#define PKCS11H_FEATURE_MASK_ENGINE_OPENSSL	(1<< 0)
+#define PKCS11H_FEATURE_MASK_ENGINE_GNUTLS	(1<< 1)
+#define PKCS11H_FEATURE_MASK_DEBUG		(1<< 2)
+#define PKCS11H_FEATURE_MASK_THREADING		(1<< 3)
+#define PKCS11H_FEATURE_MASK_TOKEN		(1<< 4)
+#define PKCS11H_FEATURE_MASK_DATA		(1<< 5)
+#define PKCS11H_FEATURE_MASK_CERTIFICATE	(1<< 6)
+#define PKCS11H_FEATURE_MASK_LOCATE		(1<< 7)
+#define PKCS11H_FEATURE_MASK_ENUM		(1<< 8)
+#define PKCS11H_FEATURE_MASK_SERIALIZATION	(1<< 9)
+#define PKCS11H_FEATURE_MASK_SLOTEVENT		(1<<10)
+#define PKCS11H_FEATURE_MASK_OPENSSL		(1<<11)
+#define PKCS11H_FEATURE_MASK_STANDALONE		(1<<12)
+
 #if defined(ENABLE_PKCS11H_SLOTEVENT) && !defined(ENABLE_PKCS11H_THREADING)
 #error PKCS#11: ENABLE_PKCS11H_SLOTEVENT requires ENABLE_PKCS11H_THREADING
 #endif
@@ -113,7 +129,7 @@ typedef struct pkcs11h_sys_engine_s {
 	void *(*malloc) (size_t size);
 	void (*free) (void *ptr);
 	time_t (*time) (time_t *t);
-} pkcs11h_sys_engine_t;
+} pkcs11h_engine_system_t;
 
 typedef struct pkcs11h_crypto_engine_s {
 	void *global_data;
@@ -151,7 +167,7 @@ typedef struct pkcs11h_crypto_engine_s {
 		IN const unsigned char * const cert_blob,
 		IN const size_t cert_blob_size
 	);
-} pkcs11h_crypto_engine_t;
+} pkcs11h_engine_crypto_t;
 
 struct pkcs11h_token_id_s;
 typedef struct pkcs11h_token_id_s *pkcs11h_token_id_t;
@@ -288,26 +304,38 @@ pkcs11h_getMessage (
 );
 
 /*
- * pkcs11h_set_sys_engine - Set system engine to be used.
+ * pkcs11h_engine_setSystem - Set system engine to be used.
  *
  * Must be called before pkcs11h_initialize.
  * Default is libc functions.
  */
 CK_RV
-pkcs11h_set_sys_engine (
-	IN const pkcs11h_sys_engine_t * const engine
+pkcs11h_engine_setSystem (
+	IN const pkcs11h_engine_system_t * const engine
 );
 
 /*
- * pkcs11h_set_crypto_engine - Set crypto engine to be used.
+ * pkcs11h_engine_setCrypto - Set crypto engine to be used.
  *
  * Must be called before pkcs11h_initialize.
  * Default is provided at configuration time.
  */
 CK_RV
-pkcs11h_set_crypto_engine (
-	IN const pkcs11h_crypto_engine_t * const engine
+pkcs11h_engine_setCrypto (
+	IN const pkcs11h_engine_crypto_t * const engine
 );
+
+/*
+ * pkcs11h_getVersion - Get version of library.
+ */
+unsigned int
+pkcs11h_getVersion ();
+
+/*
+ * pkcs11h_getFeatures - Get features of library.
+ */
+unsigned int
+pkcs11h_getFeatures ();
 
 /*
  * pkcs11h_initialize - Inititalize helper interface.
@@ -1340,20 +1368,48 @@ pkcs11h_openssl_session_getX509 (
  * STANDALONE INTERFACE
  *======================================================================*/
 
+/*
+ * pkcs11h_standalone_dump_slots - Dumps slots, suitabe for debugging.
+ *
+ * Parameters:
+ * 	my_output		- Output function.
+ * 	global_data		- Parameter to output function.
+ * 	provider		- Provider to load.
+ * 	prms[]			- If not null:
+ * 		0	slot type parameter name
+ * 		1	slot parameter name
+ */
 void
 pkcs11h_standalone_dump_slots (
 	IN const pkcs11h_output_print_t my_output,
 	IN void * const global_data,
-	IN const char * const provider
+	IN const char * const provider,
+	IN const char * const prms[]
 );
 
+/*
+ * pkcs11h_standalone_dump_objects - Dumps objects, suitabe for debugging.
+ *
+ * Parameters:
+ * 	my_output		- Output function.
+ * 	global_data		- Parameter to output function.
+ * 	provider		- Provider to load.
+ * 	slot			- slot to dump (number).
+ * 	pin			- PIN to use.
+ * 	prms[]			- If not null:
+ * 		0	slot type parameter name
+ * 		1	slot parameter name
+ * 		2	object type parameter name
+ * 		3	object parameter name
+ */
 void
 pkcs11h_standalone_dump_objects (
 	IN const pkcs11h_output_print_t my_output,
 	IN void * const global_data,
 	IN const char * const provider,
 	IN const char * const slot,
-	IN const char * const pin
+	IN const char * const pin,
+	IN const char * const prms[]
 );
 
 #endif				/* ENABLE_PKCS11H_STANDALONE */
