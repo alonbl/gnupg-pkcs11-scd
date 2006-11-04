@@ -88,11 +88,11 @@ typedef int PKCS11H_BOOL;
 #define PKCS11H_ASSERT		assert
 
 #if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
-#include "openssl/x509.h"
+#include <openssl/x509.h>
 #endif
 
 #if defined(ENABLE_PKCS11H_ENGINE_GNUTLS)
-#include "gnutls/x509.h"
+#include <gnutls/x509.h>
 #endif
 
 #if defined(WIN32) || defined(PKCS11H_USE_CYGWIN)
