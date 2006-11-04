@@ -70,6 +70,7 @@
  * 	- (alonbl) Added workaround for OpenSC cards, OpenSC bug#108, thanks to Kaupo Arulo.
  * 	- (alonbl) Added a methods to lock session between two sign/decrypt operations.
  * 	- (alonbl) Modified openssl interface.
+ * 	- (alonbl) Added engines for system and crypto to minimize dependencies.
  * 	- (alonbl) Release 01.02.
  *
  * 2006.06.26
@@ -980,14 +981,14 @@ static struct {
 static pkcs11h_data_t s_pkcs11h_data = NULL;
 static unsigned int s_pkcs11h_loglevel = PKCS11H_LOG_INFO;
 
-static pkcs11h_sys_engine_t s_pkcs11h_sys_engine = {
+static pkcs11h_engine_system_t s_pkcs11h_sys_engine = {
 	malloc,
 	free,
 	time
 };
 
 #if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
-static pkcs11h_crypto_engine_t s_pkcs11h_crypto_engine = {
+static pkcs11h_engine_crypto_t s_pkcs11h_crypto_engine = {
 	NULL,
 	_pkcs11h_crypto_openssl_initialize,
 	_pkcs11h_crypto_openssl_uninitialize,
@@ -997,7 +998,7 @@ static pkcs11h_crypto_engine_t s_pkcs11h_crypto_engine = {
 	_pkcs11h_crypto_openssl_certificate_is_issuer
 };
 #elif defined(ENABLE_PKCS11H_ENGINE_GNUTLS)
-static pkcs11h_crypto_engine_t s_pkcs11h_crypto_engine = {
+static pkcs11h_engine_crypto_t s_pkcs11h_crypto_engine = {
 	NULL,
 	_pkcs11h_crypto_gnutls_initialize,
 	_pkcs11h_crypto_gnutls_uninitialize,
@@ -1007,7 +1008,7 @@ static pkcs11h_crypto_engine_t s_pkcs11h_crypto_engine = {
 	_pkcs11h_crypto_gnutls_certificate_is_issuer
 };
 #else
-static pkcs11h_crypto_engine_t *s_pkcs11h_crypto_engine = {
+static pkcs11h_engine_crypto_t *s_pkcs11h_crypto_engine = {
 	NULL,
 	NULL,
 	NULL,
@@ -1118,25 +1119,77 @@ pkcs11h_getMessage (
 }
 
 CK_RV
-pkcs11h_set_crypto_engine (
-	IN const pkcs11h_crypto_engine_t * const engine
+pkcs11h_engine_setCrypto (
+	IN const pkcs11h_engine_crypto_t * const engine
 ) {
 	PKCS11H_ASSERT (engine!=NULL);
 
-	memmove (&s_pkcs11h_crypto_engine, engine, sizeof (pkcs11h_crypto_engine_t));
+	memmove (&s_pkcs11h_crypto_engine, engine, sizeof (pkcs11h_engine_crypto_t));
 
 	return CKR_OK;
 }
 
 CK_RV
-pkcs11h_set_sys_engine (
-	IN const pkcs11h_sys_engine_t * const engine
+pkcs11h_engine_setSystem (
+	IN const pkcs11h_engine_system_t * const engine
 ) {
 	PKCS11H_ASSERT (engine!=NULL);
 
-	memmove (&s_pkcs11h_sys_engine, engine, sizeof (pkcs11h_sys_engine_t));
+	memmove (&s_pkcs11h_sys_engine, engine, sizeof (pkcs11h_engine_system_t));
 
 	return CKR_OK;
+}
+
+unsigned int
+pkcs11h_getVersion () {
+	return PKCS11H_VERSION;
+}
+
+unsigned int
+pkcs11h_getFeatures () {
+	unsigned int features = (
+#if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
+		PKCS11H_FEATURE_MASK_ENGINE_OPENSSL |
+#endif
+#if defined(ENABLE_PKCS11H_ENGINE_GNUTLS)
+		PKCS11H_FEATURE_MASK_ENGINE_GNUTLS |
+#endif
+#if defined(ENABLE_PKCS11H_DEBUG)
+		PKCS11H_FEATURE_MASK_DEBUG |
+#endif
+#if defined(ENABLE_PKCS11H_THREADING)
+		PKCS11H_FEATURE_MASK_THREADING |
+#endif
+#if defined(ENABLE_PKCS11H_TOKEN)
+		PKCS11H_FEATURE_MASK_TOKEN |
+#endif
+#if defined(ENABLE_PKCS11H_DATA)
+		PKCS11H_FEATURE_MASK_DATA |
+#endif
+#if defined(ENABLE_PKCS11H_CERTIFICATE)
+		PKCS11H_FEATURE_MASK_CERTIFICATE |
+#endif
+#if defined(ENABLE_PKCS11H_LOCATE)
+		PKCS11H_FEATURE_MASK_LOCATE |
+#endif
+#if defined(ENABLE_PKCS11H_ENUM)
+		PKCS11H_FEATURE_MASK_ENUM |
+#endif
+#if defined(ENABLE_PKCS11H_SERIALIZATION)
+		PKCS11H_FEATURE_MASK_SERIALIZATION |
+#endif
+#if defined(ENABLE_PKCS11H_SLOTEVENT)
+		PKCS11H_FEATURE_MASK_SLOTEVENT |
+#endif
+#if defined(ENABLE_PKCS11H_OPENSSL)
+		PKCS11H_FEATURE_MASK_OPENSSL |
+#endif
+#if defined(ENABLE_PKCS11H_STANDALONE)
+		PKCS11H_FEATURE_MASK_STANDALONE |
+#endif
+		0
+	);
+	return features;
 }
 
 CK_RV
@@ -10418,7 +10471,8 @@ void
 pkcs11h_standalone_dump_slots (
 	IN const pkcs11h_output_print_t my_output,
 	IN void * const global_data,
-	IN const char * const provider
+	IN const char * const provider,
+	IN const char * const prms[]
 ) {
 	CK_RV rv = CKR_OK;
 
@@ -10518,17 +10572,17 @@ pkcs11h_standalone_dump_slots (
 				"The following slots are available for use with this provider.\n"
 			);
 
-#if defined(PKCS11H_PRM_SLOT_TYPE)
-			my_output (
-				global_data,
-				(
-					"Each slot shown below may be used as a parameter to a\n"
-					"%s and %s options.\n"
-				),
-				PKCS11H_PRM_SLOT_TYPE,
-				PKCS11H_PRM_SLOT_ID
-			);
-#endif
+			if (prms != NULL) {
+				my_output (
+					global_data,
+					(
+						"Each slot shown below may be used as a parameter to a\n"
+						"%s and %s options.\n"
+					),
+					prms[0],
+					prms[1]
+				);
+			}
 
 			my_output (
 				global_data,
@@ -10640,7 +10694,8 @@ pkcs11h_standalone_dump_objects (
 	IN void * const global_data,
 	IN const char * const provider,
 	IN const char * const slot,
-	IN const char * const pin
+	IN const char * const pin,
+	IN const char * const prms[]
 ) {
 	CK_SLOT_ID s;
 	CK_RV rv = CKR_OK;
@@ -10758,19 +10813,19 @@ pkcs11h_standalone_dump_objects (
 				(unsigned)info.flags
 			);
 
-#if defined(PKCS11H_PRM_SLOT_TYPE)
-			my_output (
-				global_data,
-				(
-					"You can access this token using\n"
-					"%s \"label\" %s \"%s\" options.\n"
-					"\n"
-				),
-				PKCS11H_PRM_SLOT_TYPE,
-				PKCS11H_PRM_SLOT_ID,
-				label
-			);
-#endif
+			if (prms!=NULL) {
+				my_output (
+					global_data,
+					(
+						"You can access this token using\n"
+						"%s \"label\" %s \"%s\" options.\n"
+						"\n"
+					),
+					prms[0],
+					prms[1],
+					label
+				);
+			}
 
 			if (
 				rv == CKR_OK &&
@@ -10819,17 +10874,17 @@ pkcs11h_standalone_dump_objects (
 			"The following objects are available for use with this token.\n"
 		);
 
-#if defined(PKCS11H_PRM_OBJ_TYPE)
-		my_output (
-			global_data,
-			(
-				"Each object shown below may be used as a parameter to\n"
-				"%s and %s options.\n"
-			),
-			PKCS11H_PRM_OBJ_TYPE,
-			PKCS11H_PRM_OBJ_ID
-		);
-#endif
+		if (prms != NULL) {
+			my_output (
+				global_data,
+				(
+					"Each object shown below may be used as a parameter to\n"
+					"%s and %s options.\n"
+				),
+				prms[2],
+				prms[3]
+			);
+		}
 
 		my_output (
 			global_data,

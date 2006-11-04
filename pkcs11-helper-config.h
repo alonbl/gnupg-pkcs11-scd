@@ -85,13 +85,6 @@ typedef int PKCS11H_BOOL;
 #undef  ENABLE_PKCS11H_OPENSSL
 #undef  ENABLE_PKCS11H_STANDALONE
 
-/*
-#define PKCS11H_PRM_SLOT_TYPE	"--pkcs11-slot-type"
-#define PKCS11H_PRM_SLOT_ID	"--pkcs11-slot"
-#define PKCS11H_PRM_OBJ_TYPE	"--pkcs11-id-type"
-#define PKCS11H_PRM_OBJ_ID	"--pkcs11-id"
-*/
-
 #define PKCS11H_ASSERT		assert
 
 #if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
