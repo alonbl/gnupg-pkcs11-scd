@@ -1009,7 +1009,7 @@ static pkcs11h_engine_crypto_t s_pkcs11h_crypto_engine = {
 	_pkcs11h_crypto_gnutls_certificate_is_issuer
 };
 #else
-static pkcs11h_engine_crypto_t *s_pkcs11h_crypto_engine = {
+static pkcs11h_engine_crypto_t s_pkcs11h_crypto_engine = {
 	NULL,
 	NULL,
 	NULL,
