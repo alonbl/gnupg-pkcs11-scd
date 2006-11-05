@@ -39,6 +39,7 @@ AC_CONFIG_SRCDIR([common.h])
 AC_CANONICAL_HOST
 AC_PROG_CC
 AC_PROG_INSTALL
+PKG_PROG_PKG_CONFIG
 
 HAVE_W32_SYSTEM="no"
 case "${host}" in
@@ -145,24 +146,12 @@ else
 	LIBS="${LIBS} `\"${LIBGCRYPT_PREFIX}/bin/libgcrypt-config\" --libs`"
 fi
 
-PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7])
+PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7], [HAVE_OPENSSL="yes"], [HAVE_OPENSSL="no"])
 if test "${HAVE_OPENSSL}" = "no"; then
-	PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.7])
+	PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.7], [HAVE_OPENSSL="yes"], [HAVE_OPENSSL="no"])
 fi
 
-PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4])
-
-if test -n "${OPENSSL_LIBS}"; then
-	HAVE_OPENSSL="yes"
-else
-	HAVE_OPENSSL="no"
-fi
-
-if test -n "${GNUTLS_LIBS}"; then
-	HAVE_GNUTLS="yes"
-else
-	HAVE_GNUTLS="no"
-fi
+PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4], [HAVE_GNUTLS="yes"], [HAVE_GNUTLS="no"])
 
 AC_MSG_CHECKING([cryptographic library to use])
 
