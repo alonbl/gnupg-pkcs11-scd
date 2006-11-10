@@ -868,6 +868,7 @@ _pkcs11h_openssl_get_pkcs11h_certificate (
  *======================================================================*/
 
 #if defined(ENABLE_PKCS11H_ENGINE_OPENSSL)
+
 static
 int
 _pkcs11h_crypto_openssl_initialize (
@@ -908,14 +909,16 @@ static
 int
 _pkcs11h_crypto_openssl_certificate_is_issuer (
 	IN void * const global_data,
-	IN const unsigned char * const signer_blob,
-	IN const size_t signer_blob_size,
+	IN const unsigned char * const issuer_blob,
+	IN const size_t issuer_blob_size,
 	IN const unsigned char * const cert_blob,
 	IN const size_t cert_blob_size
 );
-#endif
+
+#endif				/* ENABLE_PKCS11H_ENGINE_OPENSSL */
 
 #if defined(ENABLE_PKCS11H_ENGINE_GNUTLS)
+
 static
 int
 _pkcs11h_crypto_gnutls_initialize (
@@ -956,12 +959,13 @@ static
 int
 _pkcs11h_crypto_gnutls_certificate_is_issuer (
 	IN void * const global_data,
-	IN const unsigned char * const signer_blob,
-	IN const size_t signer_blob_size,
+	IN const unsigned char * const issuer_blob,
+	IN const size_t issuer_blob_size,
 	IN const unsigned char * const cert_blob,
 	IN const size_t cert_blob_size
 );
-#endif
+
+#endif				/* ENABLE_PKCS11H_ENGINE_GNUTLS */
 
 /*==========================================
  * Static data
@@ -3829,7 +3833,7 @@ _pkcs11h_session_reset (
 			}
 		}
 
-		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MAST_ALLOW_CARD_PROMPT) == 0) {
+		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MASK_ALLOW_CARD_PROMPT) == 0) {
 			rv = CKR_TOKEN_NOT_PRESENT;
 		}
 
@@ -7584,7 +7588,7 @@ pkcs11h_locate_token (
 			rv = CKR_OK;
 		}
 
-		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MAST_ALLOW_CARD_PROMPT) == 0) {
+		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MASK_ALLOW_CARD_PROMPT) == 0) {
 			rv = CKR_TOKEN_NOT_PRESENT;
 		}
 
@@ -8932,7 +8936,7 @@ _pkcs11h_certificate_splitCertificateIdList (
 				info2 = info2->next
 			) {
 				if (info != info2) {
-					info->is_issuer = !s_pkcs11h_crypto_engine.certificate_is_issuer (
+					info->is_issuer = s_pkcs11h_crypto_engine.certificate_is_issuer (
 						s_pkcs11h_crypto_engine.global_data,
 						info->e->certificate_blob,
 						info->e->certificate_blob_size,
@@ -11439,72 +11443,89 @@ static
 int
 _pkcs11h_crypto_openssl_certificate_is_issuer (
 	IN void * const global_data,
-	IN const unsigned char * const signer_blob,
-	IN const size_t signer_blob_size,
+	IN const unsigned char * const issuer_blob,
+	IN const size_t issuer_blob_size,
 	IN const unsigned char * const cert_blob,
 	IN const size_t cert_blob_size
 ) {
-	X509 *x509_signer = NULL;
+	X509 *x509_issuer = NULL;
 	X509 *x509_cert = NULL;
-	EVP_PKEY *pub_signer = NULL;
+	EVP_PKEY *pub_issuer = NULL;
 	pkcs11_openssl_d2i_t d2i;
 	PKCS11H_BOOL is_issuer = FALSE;
+	PKCS11H_BOOL ok = TRUE;
 
 	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
-	PKCS11H_ASSERT (signer_blob!=NULL);
+	PKCS11H_ASSERT (issuer_blob!=NULL);
 	PKCS11H_ASSERT (cert_blob!=NULL);
 
-
-	if ((x509_signer = X509_new ()) == NULL) {
-	}
-	if ((x509_cert = X509_new ()) == NULL) {
-	}
-
-	d2i = (pkcs11_openssl_d2i_t)signer_blob;
 	if (
-		x509_signer != NULL &&
+		ok &&
+		(x509_issuer = X509_new ()) == NULL
+	) {
+		ok = FALSE;
+	}
+
+	if (
+		ok &&
+		(x509_cert = X509_new ()) == NULL
+	) {
+		ok = FALSE;
+	}
+
+	if (ok && (x509_issuer == NULL || x509_cert == NULL)) {
+		ok = FALSE;
+	}
+
+	d2i = (pkcs11_openssl_d2i_t)issuer_blob;
+	if (
+		ok &&
 		!d2i_X509 (
-			&x509_signer,
+			&x509_issuer,
 			&d2i,
-			signer_blob_size
+			issuer_blob_size
 		)
 	) {
+		ok = FALSE;
 	}
 
 	d2i = (pkcs11_openssl_d2i_t)cert_blob;
 	if (
-		x509_cert != NULL &&
+		ok &&
 		!d2i_X509 (
 			&x509_cert,
 			&d2i,
 			cert_blob_size
 		)
 	) {
-	}
-
-	if (x509_signer != NULL) {
-		pub_signer = X509_get_pubkey (x509_signer);
+		ok = FALSE;
 	}
 
 	if (
-		x509_signer != NULL &&
-		x509_cert != NULL &&
+		ok &&
+		(pub_issuer = X509_get_pubkey (x509_issuer)) == NULL
+	) {
+		ok = FALSE;
+	}
+
+	if (
+		ok &&
 		!X509_NAME_cmp (
-			X509_get_subject_name (x509_signer),
+			X509_get_subject_name (x509_issuer),
 			X509_get_issuer_name (x509_cert)
 		) &&
-		X509_verify (x509_cert, pub_signer) == 1
+		X509_verify (x509_cert, pub_issuer) == 1
 	) {
 		is_issuer = TRUE;
 	}
 
-	if (pub_signer != NULL) {
-		EVP_PKEY_free (pub_signer);
-		pub_signer = NULL;
+	if (pub_issuer != NULL) {
+		EVP_PKEY_free (pub_issuer);
+		pub_issuer = NULL;
 	}
-	if (x509_signer != NULL) {
-		X509_free (x509_signer);
-		x509_signer = NULL;
+	if (x509_issuer != NULL) {
+		X509_free (x509_issuer);
+		x509_issuer = NULL;
 	}
 	if (x509_cert != NULL) {
 		X509_free (x509_cert);
@@ -11664,8 +11685,8 @@ static
 int
 _pkcs11h_crypto_gnutls_certificate_is_issuer (
 	IN void * const global_data,
-	IN const unsigned char * const signer_blob,
-	IN const size_t signer_blob_size,
+	IN const unsigned char * const issuer_blob,
+	IN const size_t issuer_blob_size,
 	IN const unsigned char * const cert_blob,
 	IN const size_t cert_blob_size
 ) {
@@ -11673,54 +11694,54 @@ _pkcs11h_crypto_gnutls_certificate_is_issuer (
 	gnutls_x509_crt_t cert_cert = NULL;
 	gnutls_datum_t datum;
 	PKCS11H_BOOL is_issuer = FALSE;
+	PKCS11H_BOOL ok = TRUE;
 	unsigned int result = 0;
 
 	/*PKCS11H_ASSERT (global_data!=NULL); NOT NEEDED*/
-	PKCS11H_ASSERT (signer_blob!=NULL);
+	PKCS11H_ASSERT (issuer_blob!=NULL);
 	PKCS11H_ASSERT (cert_blob!=NULL);
 
-	if (gnutls_x509_crt_init (&cert_issuer) != GNUTLS_E_SUCCESS) {
+	if (ok && gnutls_x509_crt_init (&cert_issuer) != GNUTLS_E_SUCCESS) {
 		/* gnutls sets output */
 		cert_issuer = NULL;
+		ok = FALSE;
 	}
-	if (gnutls_x509_crt_init (&cert_cert) != GNUTLS_E_SUCCESS) {
+	if (ok && gnutls_x509_crt_init (&cert_cert) != GNUTLS_E_SUCCESS) {
 		/* gnutls sets output */
 		cert_cert = NULL;
+		ok = FALSE;
 	}
 
-	datum.data = (unsigned char *)signer_blob;
-	datum.size = signer_blob_size;
+	datum.data = (unsigned char *)issuer_blob;
+	datum.size = issuer_blob_size;
 
 	if (
-		cert_issuer != NULL &&
+		ok &&
 		gnutls_x509_crt_import (
 			cert_issuer,
 			&datum,
 			GNUTLS_X509_FMT_DER
 		) != GNUTLS_E_SUCCESS
 	) {
-		gnutls_x509_crt_deinit (cert_issuer);
-		cert_issuer = NULL;
+		ok = FALSE;
 	}
 
 	datum.data = (unsigned char *)cert_blob;
 	datum.size = cert_blob_size;
 
 	if (
-		cert_cert != NULL &&
+		ok &&
 		gnutls_x509_crt_import (
 			cert_cert,
 			&datum,
 			GNUTLS_X509_FMT_DER
 		) != GNUTLS_E_SUCCESS
 	) {
-		gnutls_x509_crt_deinit (cert_cert);
-		cert_cert = NULL;
+		ok = FALSE;
 	}
 
 	if (
-		cert_issuer != NULL &&
-		cert_cert != NULL &&
+		ok &&
 		gnutls_x509_crt_verify (
 			cert_cert,
 			&cert_issuer,
