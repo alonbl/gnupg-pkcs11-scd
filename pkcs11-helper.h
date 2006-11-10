@@ -162,8 +162,8 @@ typedef struct pkcs11h_crypto_engine_s {
 	);
 	int (*certificate_is_issuer) (
 		IN void * const global_data,
-		IN const unsigned char * const signer_blob,
-		IN const size_t signer_blob_size,
+		IN const unsigned char * const issuer_blob,
+		IN const size_t issuer_blob_size,
 		IN const unsigned char * const cert_blob,
 		IN const size_t cert_blob_size
 	);
