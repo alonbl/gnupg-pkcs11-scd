@@ -9665,7 +9665,7 @@ _pkcs11h_slotevent_manager (
 			current_provider != NULL;
 			current_provider = current_provider->next
 		) {
-			if (!current_provider->enabled) {
+			if (current_provider->enabled) {
 				if (current_provider->slotevent_thread == PKCS11H_THREAD_NULL) {
 					_pkcs11h_threading_threadStart (
 						&current_provider->slotevent_thread,
