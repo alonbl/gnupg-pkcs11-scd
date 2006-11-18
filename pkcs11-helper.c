@@ -3833,7 +3833,7 @@ _pkcs11h_session_reset (
 			}
 		}
 
-		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MASK_ALLOW_CARD_PROMPT) == 0) {
+		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MASK_ALLOW_TOKEN_PROMPT) == 0) {
 			rv = CKR_TOKEN_NOT_PRESENT;
 		}
 
@@ -7588,7 +7588,7 @@ pkcs11h_locate_token (
 			rv = CKR_OK;
 		}
 
-		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MASK_ALLOW_CARD_PROMPT) == 0) {
+		if (rv == CKR_OK && !found && (mask_prompt & PKCS11H_PROMPT_MASK_ALLOW_TOKEN_PROMPT) == 0) {
 			rv = CKR_TOKEN_NOT_PRESENT;
 		}
 
