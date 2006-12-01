@@ -3,34 +3,33 @@
  * Copyright (c) 2006 Alon Bar-Lev <alon.barlev@gmail.com>
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without modifi-
- * cation, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- *   o  Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
+ *     o Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *     o Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     o Neither the name of the <ORGANIZATION> nor the names of its
+ *       contributors may be used to endorse or promote products derived from
+ *       this software without specific prior written permission.
  *
- *   o  Redistributions in binary form must reproduce the above copyright no-
- *      tice, this list of conditions and the following disclaimer in the do-
- *      cumentation and/or other materials provided with the distribution.
- *
- *   o  The names of the contributors may not be used to endorse or promote
- *      products derived from this software without specific prior written
- *      permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LI-
- * ABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUEN-
- * TIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEV-
- * ER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI-
- * LITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
- * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "common.h"
-#include "pkcs11-helper.h"
+#include <pkcs11-helper-1.0/pkcs11h-core.h>
 #include "dconfig.h"
 
 static
@@ -162,27 +161,10 @@ dconfig_read (const char * const _file, dconfig_data * const config) {
 					else if (!strcmp (p, "allow-protected-auth")) {
 						config->providers[entry].allow_protected = 1;
 					}
-					else if (prefix_is (p, "sign-mode ")) {
+					else if (prefix_is (p, "private-mask ")) {
 						char *p2 = strchr (p, ' ') + 1;
 						trim (p2);
-
-						if (!strcmp (p2, "auto")) {
-							config->providers[entry].sign_mode = 0;
-						}
-						else if (!strcmp (p2, "sign")) {
-							config->providers[entry].sign_mode = PKCS11H_SIGNMODE_MASK_SIGN;
-						}
-						else if (!strcmp (p2, "recover")) {
-							config->providers[entry].sign_mode = PKCS11H_SIGNMODE_MASK_RECOVER;
-						}
-						else if (!strcmp (p2, "any")) {
-							config->providers[entry].sign_mode = (
-								PKCS11H_SIGNMODE_MASK_SIGN |
-								PKCS11H_SIGNMODE_MASK_RECOVER
-							);
-						}
-						else {
-						}
+						sscanf (p2, "%x", &config->providers[entry].private_mask);
 					}
 					else if (!strcmp (p, "cert-private")) {
 						config->providers[entry].cert_is_private = 1;
@@ -221,7 +203,7 @@ dconfig_print (const dconfig_data * const config) {
 
 	for (entry = 0;entry < DCONFIG_MAX_PROVIDERS;entry++) {
 		if (config->providers[entry].name != NULL) {
-			common_log (LOG_DEBUG, "config: provider: name=%s, library=%s, allow_protected=%d, cert_is_private=%d, sign_mode=%08x", config->providers[entry].name, config->providers[entry].library, config->providers[entry].allow_protected, config->providers[entry].cert_is_private, config->providers[entry].sign_mode);
+			common_log (LOG_DEBUG, "config: provider: name=%s, library=%s, allow_protected=%d, cert_is_private=%d, private_mask=%08x", config->providers[entry].name, config->providers[entry].library, config->providers[entry].allow_protected, config->providers[entry].cert_is_private, config->providers[entry].private_mask);
 		}
 	}
 }
