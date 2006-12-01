@@ -3,30 +3,29 @@
  * Copyright (c) 2006 Alon Bar-Lev <alon.barlev@gmail.com>
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without modifi-
- * cation, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- *   o  Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
+ *     o Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *     o Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     o Neither the name of the <ORGANIZATION> nor the names of its
+ *       contributors may be used to endorse or promote products derived from
+ *       this software without specific prior written permission.
  *
- *   o  Redistributions in binary form must reproduce the above copyright no-
- *      tice, this list of conditions and the following disclaimer in the do-
- *      cumentation and/or other materials provided with the distribution.
- *
- *   o  The names of the contributors may not be used to endorse or promote
- *      products derived from this software without specific prior written
- *      permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LI-
- * ABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUEN-
- * TIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEV-
- * ER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI-
- * LITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
- * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -46,7 +45,7 @@
 #include <signal.h>
 #include <getopt.h>
 #include <errno.h>
-#include "pkcs11-helper.h"
+#include <pkcs11-helper-1.0/pkcs11h-core.h>
 #if !defined(HAVE_W32_SYSTEM)
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -84,7 +83,7 @@ static int s_parent_pid = -1;
 #endif
 
 const char *
-scdaemon_get_socket_name () {
+scdaemon_get_socket_name (void) {
 	return s_socket_name;
 }
 
@@ -213,7 +212,7 @@ server_socket_close (const int fd) {
 
 static
 void
-server_socket_create_name () {
+server_socket_create_name (void) {
 
 	if ((s_socket_dir = strdup (SOCKET_DIR_TEMPLATE)) == NULL) {
 		common_log (LOG_FATAL, "strdup");
@@ -233,7 +232,7 @@ server_socket_create_name () {
 
 static
 int
-server_socket_create () {
+server_socket_create (void) {
 	struct sockaddr_un serv_addr;
 	int fd = -1;
 	int rc = 0;
@@ -445,6 +444,7 @@ pkcs11_token_prompt_hook (
 	int ret = TRUE;
 
 	(void)global_data;
+	(void)retry;
 
 	if (ret) {
 		snprintf (
@@ -594,7 +594,7 @@ static void usage (const char * const argv0)
 	exit(1);
 }
 
-char *get_home_dir () {
+static char *get_home_dir (void) {
 #if defined(HAVE_W32_SYSTEM)
 	static const char * GPG_HOME_KEY = "Software\\GNU\\GnuPG";
 	const char *HOME_ENV = getenv ("USERPROFILE");
@@ -968,7 +968,7 @@ int main (int argc, char *argv[])
 					config.providers[i].name,
 					config.providers[i].library,
 					config.providers[i].allow_protected,
-					config.providers[i].sign_mode,
+					config.providers[i].private_mask,
 					PKCS11H_SLOTEVENT_METHOD_POLL,
 					0,
 					config.providers[i].cert_is_private

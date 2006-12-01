@@ -4,6 +4,18 @@ Copyright (c) 2006 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
+2006-??-?? -- Version 0.03
+
+* Fixed some Intel C compiler warnings.
+
+* pkcs11-helper is now external dependency.
+
+* Decrypt support wrap now, thanks for Christoph Neerfeld
+  help.
+
+* Configuration file sign-mode was renamed to
+  private-mask.
+
 2006-10-20 -- Version 0.02
 
 * Added more characters to serialization exclude chars.

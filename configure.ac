@@ -3,34 +3,33 @@
 # Copyright (c) 2006 Alon Bar-Lev <alon.barlev@gmail.com>
 # All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without modifi-
-# cation, are permitted provided that the following conditions are met:
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
-#   o  Redistributions of source code must retain the above copyright notice,
-#      this list of conditions and the following disclaimer.
+#     o Redistributions of source code must retain the above copyright notice,
+#       this list of conditions and the following disclaimer.
+#     o Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     o Neither the name of the <ORGANIZATION> nor the names of its
+#       contributors may be used to endorse or promote products derived from
+#       this software without specific prior written permission.
 #
-#   o  Redistributions in binary form must reproduce the above copyright no-
-#      tice, this list of conditions and the following disclaimer in the do-
-#      cumentation and/or other materials provided with the distribution.
-#
-#   o  The names of the contributors may not be used to endorse or promote
-#      products derived from this software without specific prior written
-#      permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LI-
-# ABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUEN-
-# TIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEV-
-# ER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI-
-# LITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
-# THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 #
 
-AC_PREREQ(2.59)
-AC_INIT(gnupg-pkcs11-scd, 0.02)
+AC_PREREQ(2.60)
+AC_INIT(gnupg-pkcs11-scd, 0.03)
 AM_INIT_AUTOMAKE(gnupg-pkcs11-scd, [$PACKAGE_VERSION])
 AM_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([common.h])
@@ -42,13 +41,22 @@ AC_PROG_INSTALL
 PKG_PROG_PKG_CONFIG
 
 HAVE_W32_SYSTEM="no"
+CYGWIN="no"
 case "${host}" in
 	*-mingw32*)
     		AC_DEFINE(HAVE_W32_SYSTEM,1,[Defined if we run on a W32 API based system])
 		HAVE_W32_SYSTEM="yes"
 	;;
 	*-cygwin*)
-		AC_DEFINE(HAVE_CYGWIN, 1, [Define if you are on Cygwin])
+		AC_MSG_CHECKING([cygwin mode to use])
+		CYGWIN="yes"
+		if test "${CYGWIN_NATIVE}" = "yes"; then
+			AC_MSG_RESULT([Using native win32])
+			CFLAGS="${CFLAGS} -mno-cygwin"
+			HAVE_W32_SYSTEM="yes"
+		else
+			AC_MSG_RESULT([Using cygwin])
+		fi
 	;;
 	*)
 	;;
@@ -107,6 +115,11 @@ AC_ARG_WITH(mem-check,
 	[MEMCHECK="$withval"]
 )
 
+if test "${HAVE_W32_SYSTEM}" = "yes"; then
+	AC_CHECK_PROGS([MAN2HTML], [man2html])
+	test -z "${MAN2HTML}" && AC_MSG_ERROR([man2html is required for win32])
+fi
+
 AC_FUNC_MKTIME
 AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
@@ -152,6 +165,11 @@ if test "${HAVE_OPENSSL}" = "no"; then
 fi
 
 PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4], [HAVE_GNUTLS="yes"], [HAVE_GNUTLS="no"])
+
+PKG_CHECK_MODULES([PKCS11_HELPER], [libpkcs11-helper-1 >= 1.02],, [AC_MSG_ERROR([Cannot locate pkcs11-helper])])
+PKCS11_HELPER_1_CHECK_FEATURES([threading token certificate engine_crypto])
+CFLAGS="$CFLAGS ${PKCS11_HELPER_CFLAGS}"
+LIBS="${LIBS} ${PKCS11_HELPER_LIBS}"
 
 AC_MSG_CHECKING([cryptographic library to use])
 

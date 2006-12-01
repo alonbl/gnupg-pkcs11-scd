@@ -26,15 +26,15 @@ providers p1
 #	Authentication is required before certificates can be accessed. Most
 #	configurations store certificates as public, so there is no need to use this
 #	option.
-# sign-mode
-#	Signature mode. Use this only when you have problem singning. Valid values
-#	are:
-#
-#	auto - Determine automatically.
-#	sign - Force sign.
-#	recover - Force sign with recovery.
-#	any - Try both.
+# private-mask
+#	Private key mask mode. Use this only when you have problem using
+#	private key operations. The value is hex encoded mask number.
+#	0	Determine automatically.
+#	1	Force sign.
+#	2	Force sign with recovery.
+#	4	Force decrypt.
+#	8	Force decrypt with unwrap.
 provider-p1-library /usr/lib/pkcs11/p1.so
 #provider-p1-allow-protected-auth
 #provider-p1-cert-private
-#provider-p1-sign-mode recover
+#provider-p1-private-mask 0
