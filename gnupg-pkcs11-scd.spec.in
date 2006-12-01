@@ -1,0 +1,59 @@
+%define         name    @PACKAGE@
+%define         version @VERSION@
+%define         release 1
+%define         prefix  /usr
+
+Summary:        GnuPG-compatible smart-card daemon with PKCS#11 support
+Name:           %{name}
+Version:        %{version}
+Release:        %{release}%{dist}
+License:        BSD
+Vendor:         gnupg-pkcs11.sourceforge.net
+Packager:       Eddy Nigg <eddy_nigg@startcom.org>
+Group:          Applications/System
+Url:            http://gnupg-pkcs11.sourceforge.net
+Source:         http://sourceforge.net/%{name}/%{name}-%{version}.tar.bz2
+BuildRoot:      /var/tmp/%{name}-%{version}-%{release}
+BuildRequires:  openssl-devel >= 0.9.7a
+BuildRequires:  pkcs11-helper-devel >= 1.02
+Requires:       openssl >= 0.9.7a
+Requires:       pkcs11-helper >= 1.02
+Provides:       %{name} = %{version}
+
+%description
+gnupg-pkcs11-scd is a drop-in replacement for the smart-card daemon (scd) shipped with the
+next-generation GnuPG (gnupg-2). The daemon interfaces to smart-cards
+by using RSA Security Inc. PKCS#11 Cryptographic Token Interface (Cryptoki).
+
+%prep
+%setup -q
+
+%build
+%configure -q \
+        --disable-rpath \
+%ifarch x86_64
+%{__perl} -pi -e "s:= /usr/lib64/pkgconfig:= \$(DESTDIR)/usr/lib64/pkgconfig:g" Makefile
+%else
+%{__perl} -pi -e "s:= /usr/lib/pkgconfig:= \$(DESTDIR)/usr/lib/pkgconfig:g" Makefile
+%endif
+
+make %{?_smp_mflags}
+
+%install
+if [ -d $RPM_BUILD_ROOT ]; then rm -rf $RPM_BUILD_ROOT; fi
+
+%makeinstall
+
+%clean
+if [ -d $RPM_BUILD_ROOT ]; then rm -rf $RPM_BUILD_ROOT; fi
+
+%files
+%defattr(-,root,root)
+%{_bindir}/*
+%{_mandir}/*
+%{_docdir}/%{name}-%{version}/COPYING.*
+%{_docdir}/%{name}-%{version}/README
+
+%changelog
+* Fri Dec 01 2006 Alon Bar-Lev <alon.barlev@gmail.com>
+- Written based on pkcs11-helper by Eddy Nigg <eddy_nigg@startcom.org>

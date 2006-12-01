@@ -51,7 +51,7 @@ gnupg_pkcs11_scd_SOURCES= \
 
 if HAVE_W32_SYSTEM
 dist_man_MANS=
-EXTRA_DIST=gnupg-pkcs11-scd.1
+EXTRA_DIST=gnupg-pkcs11-scd.1 gnupg-pkcs11-scd.spec
 nodist_html_DATA=gnupg-pkcs11-scd.1.html
 
 gnupg-pkcs11-scd.1.html: gnupg-pkcs11-scd.1
