@@ -10,8 +10,8 @@ $Id$
 
 * pkcs11-helper is now external dependency.
 
-* Decrypt support wrap now, thanks for Christoph Neerfeld
-  help.
+* Decrypt support unwrap now, thanks for Christoph
+  Neerfeld help.
 
 * Configuration file sign-mode was renamed to
   private-mask.
