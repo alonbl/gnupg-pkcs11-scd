@@ -79,3 +79,23 @@ Cross-MinGW32
 				PKCS11_HELPER_FEATURES="threading token certificate engine_crypto"
 			make install DESTDIR="${w32root}"
 
+Native-Cygwin
+	Notes:
+		Same as Cross-MinGW32
+
+	Dependencies:
+		Same as Cross-MinGW32
+
+	Build:
+		w32root=/tmp/gpg-win32
+		./configure --prefix=/ --with-cygwin-native \
+			--with-libgpg-error-prefix=${w32root} \
+			--with-libassuan-prefix=${w32root} \
+			--with-libgcrypt-prefix=${w32root} \
+			PKG_CONFIG=true \
+			OPENSSL_CFLAGS="-I${w32root}/include" \
+			OPENSSL_LIBS="-L${w32root}/lib -lcrypto" \
+			PKCS11_HELPER_CFLAGS="-I${w32root}/include" \
+			PKCS11_HELPER_LIBS="-L${w32root}/lib -llibpkcs11-helper" \
+			PKCS11_HELPER_FEATURES="threading token certificate engine_crypto"
+		make install DESTDIR="${w32root}"
