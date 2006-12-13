@@ -197,12 +197,12 @@ else
 	LIBS="${LIBS} ${GNUTLS_LIBS}"
 fi
 
-if test "${HAVE_W32_SYSTEM}" = yes; then
+if test "${HAVE_W32_SYSTEM}" = "yes"; then
     AC_DEFINE(CONFIG_PATH_SEPARATOR, ['\\'], [System path separator])
 else
     AC_DEFINE(CONFIG_PATH_SEPARATOR, ['/'], [System path separator])
 fi
-AM_CONDITIONAL(HAVE_W32_SYSTEM, test "${HAVE_W32_SYSTEM}" = yes)
+AM_CONDITIONAL(HAVE_W32_SYSTEM, test "${HAVE_W32_SYSTEM}" = "yes")
 
 # Checks for header files.
 AC_HEADER_STDC
