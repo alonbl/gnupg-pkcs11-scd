@@ -235,31 +235,34 @@ int
 server_socket_create (void) {
 	struct sockaddr_un serv_addr;
 	int fd = -1;
-	int rc = 0;
+	int rc = -1;
 
-	if (rc == 0) {
-		memset (&serv_addr, 0, sizeof (serv_addr));
-		serv_addr.sun_family = AF_UNIX;
-		assert (strlen (s_socket_name) + 1 < sizeof (serv_addr.sun_path));
-		strcpy (serv_addr.sun_path, s_socket_name);
-	}
+	memset (&serv_addr, 0, sizeof (serv_addr));
+	serv_addr.sun_family = AF_UNIX;
+	assert (strlen (s_socket_name) + 1 < sizeof (serv_addr.sun_path));
+	strcpy (serv_addr.sun_path, s_socket_name);
 
-	if (rc == 0 && (fd = socket (AF_UNIX, SOCK_STREAM, 0)) == -1) {
+	if ((fd = socket (AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		common_log (LOG_ERROR, "Cannot create  socket", s_socket_name);
-		rc = -1;
+		goto cleanup;
 	}
 
-	if (rc == 0 && (rc = bind (fd, (struct sockaddr*)&serv_addr, sizeof (serv_addr))) == -1) {
+	if ((rc = bind (fd, (struct sockaddr*)&serv_addr, sizeof (serv_addr))) == -1) {
 		common_log (LOG_ERROR, "Cannot bing to  socket '%s'", s_socket_name);
+		goto cleanup;
 	}
 
-	if (rc == 0 && (rc = listen (fd, SOMAXCONN)) == -1) {
+	if ((rc = listen (fd, SOMAXCONN)) == -1) {
 		common_log (LOG_ERROR, "Cannot listen to socket '%s'", s_socket_name);
+		goto cleanup;
 	}
 
-	if (rc == -1) {
-		server_socket_close (fd);
+	rc = 0;
 
+cleanup:
+
+	if (rc != 0) {
+		server_socket_close (fd);
 		common_log (LOG_FATAL, "Cannot handle socket");
 	}
 
@@ -441,28 +444,30 @@ pkcs11_token_prompt_hook (
 	size_t user_read_len = 0;
 	assuan_context_t ctx = user_data;
 	int rc;
-	int ret = TRUE;
+	int ret = FALSE;
 
 	(void)global_data;
 	(void)retry;
 
-	if (ret) {
-		snprintf (
-			cmd,
-			sizeof(cmd),
-			"NEEDPIN Please insert token '%s' !!!DO NOT ENTER PIN HERE!!!!",
-			token->display
-		);
-	}
+	snprintf (
+		cmd,
+		sizeof(cmd),
+		"NEEDPIN Please insert token '%s' !!!DO NOT ENTER PIN HERE!!!!",
+		token->display
+	);
 
-	if(ret && (rc = assuan_inquire (ctx, cmd, &user_read, &user_read_len, 1024))) {
-		common_log (LOG_WARNING,"Token inquire error: %d", rc);
-		ret = FALSE;
+	if ((rc = assuan_inquire (ctx, cmd, &user_read, &user_read_len, 1024))) {
+		common_log (LOG_WARNING, "Token inquire error: %d", rc);
+		goto cleanup;
 	}
 
 	if (!strcmp ((char *)user_read, "cancel")) {
-		ret = FALSE;
+		goto cleanup;
 	}
+
+	ret = TRUE;
+
+cleanup:
 
 	if (user_read != NULL) {
 		memset (user_read, 0, strlen ((char *)user_read));
@@ -488,32 +493,32 @@ pkcs11_pin_prompt_hook (
 	unsigned char *pin_read = NULL;
 	size_t pin_len;
 	int rc;
-	int ret = TRUE;
+	int ret = FALSE;
 
 	(void)global_data;
 
-	if (ret) {
-		snprintf (
-			cmd,
-			sizeof(cmd),
-			"NEEDPIN PIN required for token '%s' (try %u)",
-			token->display,
-			retry
-		);
-	}
+	snprintf (
+		cmd,
+		sizeof(cmd),
+		"NEEDPIN PIN required for token '%s' (try %u)",
+		token->display,
+		retry
+	);
 
-	if(ret && (rc = assuan_inquire (ctx, cmd, &pin_read, &pin_len, 1024))) {
+	if ((rc = assuan_inquire (ctx, cmd, &pin_read, &pin_len, 1024))) {
 		common_log (LOG_WARNING,"PIN inquire error: %d", rc);
-		ret = FALSE;
+		goto cleanup;
 	}
 
-	if (ret && (pin_len==0 || (pin_len+1 > max_pin))) {
-		ret = FALSE;
+	if (pin_len==0 || (pin_len+1 > max_pin)) {
+		goto cleanup;
 	}
 
-	if (ret) {
-		strcpy (pin, (char *)pin_read);
-	}
+	strcpy (pin, (char *)pin_read);
+
+	ret = TRUE;
+
+cleanup:
 
 	if (pin_read != NULL) {
 		memset (pin_read, 0, strlen ((char *)pin_read));
@@ -948,7 +953,7 @@ int main (int argc, char *argv[])
 	}
 #endif
 
-	if((rv = pkcs11h_initialize ()) != CKR_OK) {
+	if ((rv = pkcs11h_initialize ()) != CKR_OK) {
 		common_log (LOG_FATAL, "Cannot initialize PKCS#11: %s", pkcs11h_getMessage (rv));
 	}
 

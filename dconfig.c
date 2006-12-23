@@ -77,23 +77,23 @@ dconfig_read (const char * const _file, dconfig_data * const config) {
 #endif
 	char line[1024];
 	FILE *fp = NULL;
-	int ok = 1;
+	int ok = 0;
 
 	memset (config, 0, sizeof (dconfig_data));
 	config->pin_cache = PKCS11H_PIN_CACHE_INFINITE;
 
 #if defined(HAVE_W32_SYSTEM)
 	if (!ExpandEnvironmentStrings (_file, file, sizeof (file))) {
-		ok = 0;
+		goto cleanup;
 	}
 #endif
 
-	if (ok && (fp = fopen (file, "r")) == NULL) {
-		ok = 0;
+	if ((fp = fopen (file, "r")) == NULL) {
 		common_log (LOG_ERROR, "Cannot open configuration file '%s'", file);
+		goto cleanup;
 	}
 
-	while (ok && fgets (line, sizeof (line), fp) != NULL) {
+	while (fgets (line, sizeof (line), fp) != NULL) {
 		trim (line);
 		
 		if (!strcmp (line, "")) {
@@ -170,17 +170,21 @@ dconfig_read (const char * const _file, dconfig_data * const config) {
 						config->providers[entry].cert_is_private = 1;
 					}
 					else {
-						ok = 0;
 						common_log (LOG_ERROR, "Invalid certificate attribute '%s'", p);
+						goto cleanup;
 					}
 				}
 			}
 		}
 		else {
-			ok = 0;
 			common_log (LOG_ERROR, "Invalid option '%s'", line);
+			goto cleanup;
 		}
 	}
+
+	ok = 1;
+
+cleanup:
 
 	if (fp != NULL) {
 		fclose (fp);

@@ -58,7 +58,7 @@ keyutil_get_cert_sexp (
 	size_t len,
 	gcry_sexp_t *p_sexp
 ) {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	gcry_mpi_t n_mpi = NULL, e_mpi = NULL;
 	gcry_sexp_t sexp = NULL;
 
@@ -68,38 +68,30 @@ keyutil_get_cert_sexp (
 	gnutls_datum_t datum = {der, len};
 	gnutls_datum_t m, e;
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		gnutls_x509_crt_init (&cert) != GNUTLS_E_SUCCESS
-	) {
+	if (gnutls_x509_crt_init (&cert) != GNUTLS_E_SUCCESS) {
 		cert = NULL;
 		error = GPG_ERR_ENOMEM;
+		goto cleanup;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		gnutls_x509_crt_import (cert, &datum, GNUTLS_X509_FMT_DER) != GNUTLS_E_SUCCESS
-	) {
+	if (gnutls_x509_crt_import (cert, &datum, GNUTLS_X509_FMT_DER) != GNUTLS_E_SUCCESS) {
 		error = GPG_ERR_BAD_CERT;
+		goto cleanup;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		gnutls_x509_crt_get_pk_rsa_raw (cert, &m, &e) != GNUTLS_E_SUCCESS
-	) {
+	if (gnutls_x509_crt_get_pk_rsa_raw (cert, &m, &e) != GNUTLS_E_SUCCESS) {
 		error = GPG_ERR_BAD_KEY;
 		m.data = NULL;
 		e.data = NULL;
+		goto cleanup;
 	}
 
 	if (
-		error == GPG_ERR_NO_ERROR &&
-		( 
-			gcry_mpi_scan(&n_mpi, GCRYMPI_FMT_USG, m.data, m.size, NULL) ||
-			gcry_mpi_scan(&e_mpi, GCRYMPI_FMT_USG, e.data, e.size, NULL)
-		)
+		gcry_mpi_scan(&n_mpi, GCRYMPI_FMT_USG, m.data, m.size, NULL) ||
+		gcry_mpi_scan(&e_mpi, GCRYMPI_FMT_USG, e.data, e.size, NULL)
 	) {
 		error = GPG_ERR_BAD_KEY;
+		goto cleanup;
 	}
 
 #elif defined(ENABLE_OPENSSL)
@@ -108,52 +100,42 @@ keyutil_get_cert_sexp (
 	EVP_PKEY *pubkey = NULL;
 	char *n_hex = NULL, *e_hex = NULL;
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		!d2i_X509 (&x509, (my_openssl_d2i_t *)&der, len)
-	) {
+	if (!d2i_X509 (&x509, (my_openssl_d2i_t *)&der, len)) {
 		error = GPG_ERR_BAD_CERT;
+		goto cleanup;
 	}
  
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(pubkey = X509_get_pubkey (x509)) == NULL
-	) {
-		return GPG_ERR_BAD_CERT;
+	if ((pubkey = X509_get_pubkey (x509)) == NULL) {
+		error= GPG_ERR_BAD_CERT;
+		goto cleanup;
 	}
  
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		pubkey->type != EVP_PKEY_RSA
-	) {
+	if (pubkey->type != EVP_PKEY_RSA) {
 		error = GPG_ERR_WRONG_PUBKEY_ALGO;
+		goto cleanup;
 	}
 	
-	if (error == GPG_ERR_NO_ERROR) {
-		n_hex = BN_bn2hex(pubkey->pkey.rsa->n);
-		e_hex = BN_bn2hex(pubkey->pkey.rsa->e);
+	n_hex = BN_bn2hex(pubkey->pkey.rsa->n);
+	e_hex = BN_bn2hex(pubkey->pkey.rsa->e);
 		
-		if(n_hex == NULL || e_hex == NULL) {
-			error = GPG_ERR_BAD_KEY;
-		}
+	if(n_hex == NULL || e_hex == NULL) {
+		error = GPG_ERR_BAD_KEY;
+		goto cleanup;
 	}
  
 	if (
-		error == GPG_ERR_NO_ERROR &&
-		( 
-			gcry_mpi_scan(&n_mpi, GCRYMPI_FMT_HEX, n_hex, 0, NULL) ||
-			gcry_mpi_scan(&e_mpi, GCRYMPI_FMT_HEX, e_hex, 0, NULL)
-		)
+		gcry_mpi_scan(&n_mpi, GCRYMPI_FMT_HEX, n_hex, 0, NULL) ||
+		gcry_mpi_scan(&e_mpi, GCRYMPI_FMT_HEX, e_hex, 0, NULL)
 	) {
 		error = GPG_ERR_BAD_KEY;
+		goto cleanup;
 	}
 #else
 #error Invalid configuration.
 #endif
 
 	if (
-		error == GPG_ERR_NO_ERROR &&
-		gcry_sexp_build(
+		gcry_sexp_build (
 			&sexp,
 			NULL,
 			"(public-key (rsa (n %m) (e %m)))",
@@ -162,12 +144,14 @@ keyutil_get_cert_sexp (
 		)
 	) {
 		error = GPG_ERR_BAD_KEY;
+		goto cleanup;
 	}
 
-	if (error == GPG_ERR_NO_ERROR) {
-		*p_sexp = sexp;
-		sexp = NULL;
-	}
+	*p_sexp = sexp;
+	sexp = NULL;
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 	if (n_mpi != NULL) {
 		gcry_mpi_release(n_mpi);

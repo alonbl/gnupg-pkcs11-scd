@@ -95,12 +95,17 @@ encoding_bin2hex (
 }
 
 /* p_str must by dynamic allocated */
-void
+int
 encoding_strappend (
 	char * * const p_str,
 	char *s
 ) {
-	*p_str = (char *)realloc (*p_str, strlen (*p_str)+strlen(s)+1);
+	char *p = (char *)realloc (*p_str, strlen (*p_str)+strlen(s)+1);
+	if (p == NULL) {
+		return 0;
+	}
+	*p_str = p;
 	strcat (*p_str, s);
+	return 1;
 }
 

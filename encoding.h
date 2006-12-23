@@ -42,7 +42,7 @@ encoding_bin2hex (
 	const unsigned char * const source,
 	const size_t source_size
 );
-void
+int
 encoding_strappend (
 	char * * const p_str,
 	char *s

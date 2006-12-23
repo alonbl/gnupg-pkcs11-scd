@@ -54,7 +54,7 @@ get_cert_blob (
 	unsigned char **p_blob,
 	size_t *p_blob_size
 ) {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_t cert = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
@@ -62,8 +62,8 @@ get_cert_blob (
 	*p_blob = NULL;
 	*p_blob_size = 0;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+	if (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_create (
 				cert_id,
 				ctx,
@@ -71,41 +71,42 @@ get_cert_blob (
 				PKCS11H_PIN_CACHE_INFINITE,
 				&cert
 			)
-		);
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+		)) != GPG_ERR_NO_ERROR ||
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_getCertificateBlob (
 				cert,
 				NULL,
 				&blob_size
 			)
-		);
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if ((blob = (unsigned char *)malloc (blob_size)) == NULL) {
+		error = GPG_ERR_ENOMEM;
+		goto cleanup;
 	}
 
 	if (
-		error == GPG_ERR_NO_ERROR &&
-		(blob = (unsigned char *)malloc (blob_size)) == NULL
-	) {
-		error = GPG_ERR_ENOMEM;
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_getCertificateBlob (
 				cert,
 				blob,
 				&blob_size
 			)
-		);
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
 
-	if (error == GPG_ERR_NO_ERROR) {
-		*p_blob = blob;
-		*p_blob_size = blob_size;
-		blob = NULL;
-	}
+	*p_blob = blob;
+	*p_blob_size = blob_size;
+	blob = NULL;
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 	if (cert != NULL) {
 		pkcs11h_certificate_freeCertificate (cert);
@@ -127,25 +128,26 @@ get_cert_sexp (
 	pkcs11h_certificate_id_t cert_id,
 	gcry_sexp_t *p_sexp
 ) {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	gcry_sexp_t sexp = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
 
 	*p_sexp = NULL;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = get_cert_blob (ctx, cert_id, &blob, &blob_size);
+	if (
+		(error = get_cert_blob (ctx, cert_id, &blob, &blob_size)) != GPG_ERR_NO_ERROR ||
+		(error = keyutil_get_cert_sexp (blob, blob_size, &sexp)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = keyutil_get_cert_sexp (blob, blob_size, &sexp);
-	}
+	*p_sexp = sexp;
+	sexp = NULL;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		*p_sexp = sexp;
-		sexp = NULL;
-	}
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 	if (sexp != NULL) {
 		gcry_sexp_release(sexp);
@@ -170,17 +172,19 @@ get_cert_sexp (
    assumed that we're in posession of private key, so the type is set to 101
    (trusted).  The certificate ID is percent-plus escaped displayName.
 */
-static int send_certificate_list (
+static
+int
+send_certificate_list (
 	assuan_context_t ctx,
 	pkcs11h_certificate_id_list_t head,	/* list head */
 	int is_issuer				/* true if issuer certificate */
 ) {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_list_t curr_cert;
 	
 	for (
 		curr_cert = head;
-		error == GPG_ERR_NO_ERROR && curr_cert != NULL;
+		curr_cert != NULL;
 		curr_cert = curr_cert->next
 	) {
 		char *certid = NULL;
@@ -189,66 +193,93 @@ static int send_certificate_list (
 		gcry_sexp_t sexp = NULL;
 		size_t ser_len;
 
-		if (error == GPG_ERR_NO_ERROR) {
-			error = get_cert_sexp (ctx, curr_cert->certificate_id, &sexp);
+		if ((error = get_cert_sexp (ctx, curr_cert->certificate_id, &sexp)) != GPG_ERR_NO_ERROR) {
+			goto retry;
+		}
+
+		if ((key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL) {
+			error = GPG_ERR_ENOMEM;
+			goto retry;
 		}
 
 		if (
-			error == GPG_ERR_NO_ERROR &&
-			(key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL
-		) {
-			error = GPG_ERR_ENOMEM;
-		}
-
-		if (error == GPG_ERR_NO_ERROR) {
-			error = common_map_pkcs11_error (
+			(error = common_map_pkcs11_error (
 				pkcs11h_certificate_serializeCertificateId (
 					NULL,
 					&ser_len,
 					curr_cert->certificate_id
 				)
-			);
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto retry;
+		}
+
+		if ((certid = (char *)malloc (ser_len)) == NULL	) {
+			error = GPG_ERR_ENOMEM;
+			goto retry;
 		}
 
 		if (
-			error == GPG_ERR_NO_ERROR &&
-			(certid = (char *)malloc (ser_len)) == NULL
-		) {
-			error = GPG_ERR_ENOMEM;
-		}
-
-		if (error == GPG_ERR_NO_ERROR) {
-			error = common_map_pkcs11_error (
+			(error = common_map_pkcs11_error (
 				pkcs11h_certificate_serializeCertificateId (
 					certid,
 					&ser_len,
 					curr_cert->certificate_id
 				)
-			);
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto retry;
+		}
+
+		if ((info_cert = strdup (is_issuer ? "102 " : "101 ")) == NULL) {
+			error = GPG_ERR_ENOMEM;
+			goto retry;
+		}
+
+		if (!encoding_strappend (&info_cert, certid)) {
+			error = GPG_ERR_ENOMEM;
+			goto retry;
 		}
 
 		if (
-			error == GPG_ERR_NO_ERROR &&
-			(info_cert = strdup (is_issuer ? "102 " : "101 ")) == NULL
+			(error = common_map_assuan_error (
+				assuan_write_status (
+					ctx,
+					"CERTINFO",
+					info_cert
+				)
+			)) != GPG_ERR_NO_ERROR
 		) {
-			error = GPG_ERR_ENOMEM;
-		}
-
-		if (error == GPG_ERR_NO_ERROR) {
-			encoding_strappend (&info_cert, certid);
-		}
-
-		if (error == GPG_ERR_NO_ERROR) {
-			error = common_map_assuan_error (assuan_write_status(ctx, "CERTINFO", info_cert));
+			goto retry;
 		}
 
 		/* send keypairinfo if not issuer certificate */
-		if(error == GPG_ERR_NO_ERROR && !is_issuer) {
-			encoding_strappend (&key_hexgrip, " ");
-			encoding_strappend (&key_hexgrip, certid);
-			error = common_map_assuan_error (assuan_write_status (ctx, "KEYPAIRINFO", key_hexgrip));
+		if(!is_issuer) {
+			if (
+				!encoding_strappend (&key_hexgrip, " ") ||
+				!encoding_strappend (&key_hexgrip, certid)
+			) {
+				error = GPG_ERR_ENOMEM;
+				goto retry;
+			}
+
+			if (
+				(error = common_map_assuan_error (
+					assuan_write_status (
+						ctx,
+						"KEYPAIRINFO",
+						key_hexgrip
+					)
+				)) != GPG_ERR_NO_ERROR
+			) {
+				goto retry;
+			}
 		}
-		
+
+		error = GPG_ERR_NO_ERROR;
+
+	retry:
+
 		if (info_cert != NULL) {
 			free (info_cert);
 			info_cert = NULL;
@@ -263,7 +294,15 @@ static int send_certificate_list (
 			free (key_hexgrip);
 			key_hexgrip = NULL;
 		}
+
+		if (error != GPG_ERR_NO_ERROR) {
+			goto cleanup;
+		}
 	}
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 	return error;
 }
@@ -289,7 +328,7 @@ void cmd_free_data (assuan_context_t ctx) {
 */
 int cmd_serialno (assuan_context_t ctx, char *line)
 {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 #if defined(COMMENT)
 	pkcs11h_token_id_list_t list = NULL;
 	pkcs11h_token_id_list_t i;
@@ -299,7 +338,7 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 
 	/*
 	 * @ALON
-	 * I am amazied!!!!
+	 * I am amazed!!!!
 	 *
 	 * gpg-agent does not support more than one serial number!!!
 	 * it does not matter anyhow, since we go by certificate_id
@@ -314,28 +353,35 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 		 * followed by " 0"
 		 */
 		if (
-			error == GPG_ERR_NO_ERROR &&
 			(serial_and_stamp = encoding_bin2hex (
 				(unsigned char *)ser_token,
 				strlen (ser_token)
 			)) == NULL
 		) {
 			error = GPG_ERR_GENERAL;
+			goto cleanup;
 		}
 
-		if (error == GPG_ERR_NO_ERROR) {
-			encoding_strappend (&serial_and_stamp, " 0");
+		if (!encoding_strappend (&serial_and_stamp, " 0")) {
+			error = GPG_ERR_ENOMEM;
+			goto cleanup;
 		}
 
-		if (error == GPG_ERR_NO_ERROR) {
-			error = common_map_assuan_error (
+		if (
+			(error = common_map_assuan_error (
 				assuan_write_status(
 					ctx,
 					"SERIALNO",
 					serial_and_stamp
 				)
-			);
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
 		}
+
+		error = GPG_ERR_NO_ERROR;
+
+	cleanup:
 
 		if (serial_and_stamp != NULL) {
 			free (serial_and_stamp);
@@ -344,52 +390,54 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 	}
 
 #if defined(COMMENT)
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+	if (
+		(error = common_map_pkcs11_error (
 			pkcs11h_token_enumTokenIds (
 				PKCS11H_ENUM_METHOD_RELOAD,
 				&list
 			)
-		);
-	}
-
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		list == NULL
+		)) != GPG_ERR_NO_ERROR
 	) {
-		error = GPG_ERR_CARD_NOT_PRESENT;
+		goto cleanup;
 	}
 
-	for (i=list;error == GPG_ERR_NO_ERROR && i!=NULL;i=i->next) {
+	if (list == NULL) {
+		error = GPG_ERR_CARD_NOT_PRESENT;
+		goto cleanup;
+	}
+
+	for (i=list;i!=NULL;i=i->next) {
 		char *serial_and_stamp = NULL;
 		char *ser_token = NULL;
 		size_t ser_len;
 
-		if (error == GPG_ERR_NO_ERROR) {
-			error = common_map_pkcs11_error (
+		if (
+			(error = common_map_pkcs11_error (
 				pkcs11h_token_serializeTokenId (
 					NULL,
 					&ser_len,
 					i->token_id
 				)
-			);
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto retry;
+		}
+
+		if ((ser_token = (char *)malloc (ser_len)) == NULL) {
+			error = GPG_ERR_ENOMEM;
+			goto retry;
 		}
 
 		if (
-			error == GPG_ERR_NO_ERROR &&
-			(ser_token = (char *)malloc (ser_len)) == NULL
-		) {
-			error = GPG_ERR_ENOMEM;
-		}
-
-		if (error == GPG_ERR_NO_ERROR) {
-			error = common_map_pkcs11_error (
+			(error = common_map_pkcs11_error (
 				pkcs11h_token_serializeTokenId (
 					ser_token,
 					&ser_len,
 					i->token_id
 				)
-			);
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto retry;
 		}
 
 		/*
@@ -397,28 +445,35 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 		 * followed by " 0"
 		 */
 		if (
-			error == GPG_ERR_NO_ERROR &&
 			(serial_and_stamp = encoding_bin2hex (
 				(unsigned char *)ser_token,
 				strlen (ser_token)
 			)) == NULL
 		) {
 			error = GPG_ERR_GENERAL;
+			goto retry;
 		}
 
-		if (error == GPG_ERR_NO_ERROR) {
-			encoding_strappend (&serial_and_stamp, " 0");
+		if (!encoding_strappend (&serial_and_stamp, " 0")) {
+			error = GPG_ERR_ENOMEM;
+			goto retry;
 		}
 
-		if (error == GPG_ERR_NO_ERROR) {
-			error = common_map_assuan_error (
+		if (
+			(error = common_map_assuan_error (
 				assuan_write_status(
 					ctx,
 					"SERIALNO",
 					serial_and_stamp
 				)
-			);
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto retry;
 		}
+
+		error = GPG_ERR_NO_ERROR;
+	
+	cleanup:
 
 		if (serial_and_stamp != NULL) {
 			free (serial_and_stamp);
@@ -430,6 +485,10 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 			ser_token = NULL;
 		}
 	}
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 	if (list != NULL) {
 		pkcs11h_token_freeTokenIdList (list);
@@ -443,14 +502,14 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 /** TODO: handle --force option! */
 int cmd_learn (assuan_context_t ctx, char *line)
 {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
 	pkcs11h_certificate_id_list_t issuer_certificates = NULL;
 
 	(void)line;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+	if (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_enumCertificateIds (
 				PKCS11H_ENUM_METHOD_CACHE_EXIST,
 				ctx,
@@ -458,20 +517,35 @@ int cmd_learn (assuan_context_t ctx, char *line)
 				&issuer_certificates,
 				&user_certificates
 			)
-		);
+		)) != GPG_ERR_NO_ERROR ||
+		(error = common_map_assuan_error (
+			assuan_write_status (
+				ctx,
+				"APPTYPE",
+				"PKCS11"
+			)
+		)) != GPG_ERR_NO_ERROR ||
+		(error = common_map_assuan_error (
+			send_certificate_list (
+				ctx,
+				user_certificates,
+				0
+			)
+		)) != GPG_ERR_NO_ERROR ||
+		(error = common_map_assuan_error (
+			send_certificate_list (
+				ctx,
+				issuer_certificates,
+				1
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_assuan_error (assuan_write_status(ctx, "APPTYPE", "PKCS11"));
-	}
+	error = GPG_ERR_NO_ERROR;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_assuan_error (send_certificate_list (ctx, user_certificates, 0));
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_assuan_error (send_certificate_list (ctx, issuer_certificates, 1));
-	}
+cleanup:
 
 	if (issuer_certificates != NULL) {
 		pkcs11h_certificate_freeCertificateIdList (issuer_certificates);
@@ -492,25 +566,27 @@ int cmd_learn (assuan_context_t ctx, char *line)
 */
 int cmd_readcert (assuan_context_t ctx, char *line)
 {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
 	pkcs11h_certificate_t cert = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+	if (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
-		);
+		)) != GPG_ERR_NO_ERROR ||
+		(error = get_cert_blob (ctx, cert_id, &blob, &blob_size)) != GPG_ERR_NO_ERROR ||
+		(error = common_map_assuan_error (
+			assuan_send_data (ctx, blob, blob_size)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = get_cert_blob (ctx, cert_id, &blob, &blob_size);
-	}
+	error = GPG_ERR_NO_ERROR;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_assuan_error (assuan_send_data(ctx, blob, blob_size));
-	}
+cleanup:
 
 	if (cert != NULL) {
 		pkcs11h_certificate_freeCertificate (cert);
@@ -533,52 +609,51 @@ int cmd_readcert (assuan_context_t ctx, char *line)
 /** Read key given cert id in line. */
 int cmd_readkey (assuan_context_t ctx, char *line)
 {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
 	gcry_sexp_t sexp = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+	if (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
-		);
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = get_cert_sexp (ctx, cert_id, &sexp);
-	}
-
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(blob_size = gcry_sexp_sprint (sexp, GCRYSEXP_FMT_CANON, NULL, 0)) == 0
+		)) != GPG_ERR_NO_ERROR ||
+		(error = get_cert_sexp (ctx, cert_id, &sexp)) != GPG_ERR_NO_ERROR
 	) {
+		goto cleanup;
+	}
+
+	if ((blob_size = gcry_sexp_sprint (sexp, GCRYSEXP_FMT_CANON, NULL, 0)) == 0) {
 		error = GPG_ERR_BAD_KEY;
+		goto cleanup;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(blob = (unsigned char *)malloc (blob_size)) == NULL
-	) {
+	if ((blob = (unsigned char *)malloc (blob_size)) == NULL) {
 		error = GPG_ERR_ENOMEM;
+		goto cleanup;
+	}
+
+	if (gcry_sexp_sprint (sexp, GCRYSEXP_FMT_CANON, blob, blob_size) == 0) {
+		error = GPG_ERR_BAD_KEY;
+		goto cleanup;
 	}
 
 	if (
-		error == GPG_ERR_NO_ERROR &&
-		gcry_sexp_sprint (sexp, GCRYSEXP_FMT_CANON, blob, blob_size) == 0
-	) {
-		error = GPG_ERR_BAD_KEY;
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_assuan_error (
+		(error = common_map_assuan_error (
 			assuan_send_data(
 				ctx,
 				blob,
 				gcry_sexp_canon_len (blob, 0, NULL, NULL)
 			)
-		);
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
+	
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 	if (sexp != NULL) {
 		gcry_sexp_release(sexp);
@@ -601,41 +676,35 @@ int cmd_readkey (assuan_context_t ctx, char *line)
 /** Store hex-encoded data from line to be signed/decrypted. */
 int cmd_setdata (assuan_context_t ctx, char *line)
 {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	cmd_data_t *data = NULL;
 
 	cmd_free_data (ctx);
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(strlen (line) % 2) != 0
-	) {
+	if ((strlen (line) % 2) != 0) {
 		error = GPG_ERR_INV_DATA;
+		goto cleanup;
 	}
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		(data = (cmd_data_t *)malloc (sizeof (cmd_data_t))) == NULL
-	) {
+	if ((data = (cmd_data_t *)malloc (sizeof (cmd_data_t))) == NULL) {
 		error = GPG_ERR_ENOMEM;
+		goto cleanup;
 	}
 
-	if (error == GPG_ERR_NO_ERROR) {
-		data->data = NULL;
-		data->size = 0;
-	}
+	data->data = NULL;
+	data->size = 0;
 
-	if (
-		error == GPG_ERR_NO_ERROR &&
-		!encoding_hex2bin (line, &data->data, &data->size)
-	) {
+	if (!encoding_hex2bin (line, &data->data, &data->size)) {
 		error = GPG_ERR_INV_DATA;
+		goto cleanup;
 	}
 
-	if (error == GPG_ERR_NO_ERROR) {
-		assuan_set_pointer (ctx, data);
-		data = NULL;
-	}
+	assuan_set_pointer (ctx, data);
+	data = NULL;
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 	if (data != NULL) {
 		_cmd_free_data (data);
@@ -657,7 +726,7 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 		0x02, 0x01, 0x05, 0x00, 0x04, 0x14
 	};
 
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
 	pkcs11h_certificate_t cert = NULL;
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
@@ -672,63 +741,54 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 		data->data == NULL
 	) {
 		error = GPG_ERR_INV_DATA;
+		goto cleanup;
 	}
 
 	/*
 	 * sender prefixed data with algorithm OID
 	 */
-	if (error == GPG_ERR_NO_ERROR) {
+	if (
+		data->size == 20 + sizeof (sha1_oid) ||
+		data->size == 20 + sizeof (rmd160_oid)
+	) {
 		if (
-			data->size == 20 + sizeof (sha1_oid) ||
-			data->size == 20 + sizeof (rmd160_oid)
+			memcmp (data->data, sha1_oid, sizeof (sha1_oid)) &&
+			memcmp (data->data, rmd160_oid, sizeof (rmd160_oid))
 		) {
-			if (
-				memcmp (data->data, sha1_oid, sizeof (sha1_oid)) &&
-				memcmp (data->data, rmd160_oid, sizeof (rmd160_oid))
-			) {
-				error = GPG_ERR_UNSUPPORTED_ALGORITHM;
-			}
-		}
-		else {
-			/*
-			 * unknown hash algorithm;
-			 * gnupg's scdaemon forces to SHA1
-			 */
-
-			need_free__data = 1;
-
-			if (
-				error == GPG_ERR_NO_ERROR &&
-				(_data = (cmd_data_t *)malloc (sizeof (cmd_data_t))) == NULL
-			) {
-				error = GPG_ERR_ENOMEM;
-			}
-
-			if (
-				error == GPG_ERR_NO_ERROR &&
-				(_data->data = (unsigned char *)malloc (data->size + sizeof (sha1_oid))) == NULL
-			) {
-				error = GPG_ERR_ENOMEM;
-			}
-
-			if (error == GPG_ERR_NO_ERROR) {
-				_data->size = 0;
-				memmove (_data->data+_data->size, sha1_oid, sizeof (sha1_oid));
-				_data->size += sizeof (sha1_oid);
-				memmove (_data->data+_data->size, data->data, data->size);
-				_data->size += data->size;
-			}
+			error = GPG_ERR_UNSUPPORTED_ALGORITHM;
+			goto cleanup;
 		}
 	}
+	else {
+		/*
+		 * unknown hash algorithm;
+		 * gnupg's scdaemon forces to SHA1
+		 */
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+		need_free__data = 1;
+
+		if ((_data = (cmd_data_t *)malloc (sizeof (cmd_data_t))) == NULL) {
+			error = GPG_ERR_ENOMEM;
+			goto cleanup;
+		}
+
+		if ((_data->data = (unsigned char *)malloc (data->size + sizeof (sha1_oid))) == NULL) {
+			error = GPG_ERR_ENOMEM;
+			goto cleanup;
+		}
+
+		_data->size = 0;
+		memmove (_data->data+_data->size, sha1_oid, sizeof (sha1_oid));
+		_data->size += sizeof (sha1_oid);
+		memmove (_data->data+_data->size, data->data, data->size);
+		_data->size += data->size;
+	}
+
+	if (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
-		);
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+		)) != GPG_ERR_NO_ERROR ||
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_create (
 				cert_id,
 				ctx,
@@ -736,20 +796,22 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 				PKCS11H_PIN_CACHE_INFINITE,
 				&cert
 			)
-		);
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
 
 	if (
-		error == GPG_ERR_NO_ERROR &&
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_lockSession (cert)
-		)) == GPG_ERR_NO_ERROR
+		)) != GPG_ERR_NO_ERROR
 	) {
-		session_locked = 1;
+		goto cleanup;
 	}
+	session_locked = 1;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+	if (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_signAny (
 				cert,
 				CKM_RSA_PKCS,
@@ -758,18 +820,18 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 				NULL,
 				&sig_len
 			)
-		);
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if ((sig = (unsigned char *)malloc (sig_len)) == NULL) {
+		error = GPG_ERR_ENOMEM;
+		goto cleanup;
 	}
 
 	if (
-		error == GPG_ERR_NO_ERROR &&
-		(sig = (unsigned char *)malloc (sig_len)) == NULL
-	) {
-		error = GPG_ERR_ENOMEM;
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_signAny (
 				cert,
 				CKM_RSA_PKCS,
@@ -778,16 +840,19 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 				sig,
 				&sig_len
 			)
-		);
+		)) != GPG_ERR_NO_ERROR ||
+		(error = common_map_assuan_error (assuan_send_data(ctx, sig, sig_len))) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 	if (session_locked) {
 		pkcs11h_certificate_releaseSession (cert);
 		session_locked = 0;
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_assuan_error (assuan_send_data(ctx, sig, sig_len));
 	}
 
 	if (cert != NULL) {
@@ -816,7 +881,7 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 /** Decrypt data (set by SETDATA) with certificate id in line. */
 int cmd_pkdecrypt (assuan_context_t ctx, char *line)
 {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
 	pkcs11h_certificate_t cert = NULL;
 	unsigned char *ptext = NULL;
@@ -829,16 +894,14 @@ int cmd_pkdecrypt (assuan_context_t ctx, char *line)
 		data->data == NULL
 	) {
 		error = GPG_ERR_INV_DATA;
+		goto cleanup;
 	}
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+	if (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
-		);
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+		)) != GPG_ERR_NO_ERROR ||
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_create (
 				cert_id,
 				ctx,
@@ -846,20 +909,22 @@ int cmd_pkdecrypt (assuan_context_t ctx, char *line)
 				PKCS11H_PIN_CACHE_INFINITE,
 				&cert
 			)
-		);
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
 
 	if (
-		error == GPG_ERR_NO_ERROR &&
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_lockSession (cert)
-		)) == GPG_ERR_NO_ERROR
+		)) != GPG_ERR_NO_ERROR
 	) {
-		session_locked = 1;
+		goto cleanup;
 	}
+	session_locked = 1;
 
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+	if (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_decryptAny (
 				cert,
 				CKM_RSA_PKCS, 
@@ -868,18 +933,18 @@ int cmd_pkdecrypt (assuan_context_t ctx, char *line)
 				NULL,
 				&ptext_len
 			)
-		);
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if ((ptext = (unsigned char *)malloc (ptext_len)) == NULL) {
+		error = GPG_ERR_ENOMEM;
+		goto cleanup;
 	}
 
 	if (
-		error == GPG_ERR_NO_ERROR &&
-		(ptext = (unsigned char *)malloc (ptext_len)) == NULL
-	) {
-		error = GPG_ERR_ENOMEM;
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_pkcs11_error (
+		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_decryptAny (
 				cert,
 				CKM_RSA_PKCS, 
@@ -888,16 +953,21 @@ int cmd_pkdecrypt (assuan_context_t ctx, char *line)
 				ptext,
 				&ptext_len
 			)
-		);
+		)) != GPG_ERR_NO_ERROR ||
+		(error = common_map_assuan_error (
+			assuan_send_data(ctx, ptext, ptext_len))
+		) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 	if (session_locked) {
 		pkcs11h_certificate_releaseSession (cert);
 		session_locked = 0;
-	}
-
-	if (error == GPG_ERR_NO_ERROR) {
-		error = common_map_assuan_error (assuan_send_data(ctx, ptext, ptext_len));
 	}
 
 	if (cert != NULL) {
@@ -941,7 +1011,7 @@ int cmd_checkpin (assuan_context_t ctx, char *line)
 
 int cmd_getinfo (assuan_context_t ctx, char *line)
 {
-	gpg_err_code_t error = GPG_ERR_NO_ERROR;
+	gpg_err_code_t error = GPG_ERR_GENERAL;
 
 	if (!strcmp (line, "socket_name")) {
 		const char *s = scdaemon_get_socket_name ();
