@@ -38,7 +38,7 @@ Cross-MinGW32
 		man2html
 		pkcs11-helper
 			http://www.opensc-project.org
-		OpenSSL>=0.9.7
+		OpenSSL>=0.9.9
 			http://www.openssl.org
 		libgpg-error>=1.3
 			http://www.gnupg.org
@@ -51,7 +51,7 @@ Cross-MinGW32
 		w32root=/tmp/gpg-win32
 
 		OpenSSL
-			./Configure --prefix=//  mingw-cross
+			./Configure --prefix=// --cross-compiler-prefix=mingw32- shared mingw
 			make install INSTALL_PREFIX="${w32root}"
 
 		libgpg-error
