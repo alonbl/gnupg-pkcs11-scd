@@ -32,14 +32,10 @@
 # INSTALL targets:
 AUTOMAKE_OPTIONS=foreign dist-bzip2
 
-docdir=$(datadir)/doc/@PACKAGE@-@PACKAGE_VERSION@
-exampledir=$(docdir)
-htmldir=$(docdir)
-
 EXTRA_DIST=gnupg-pkcs11-scd.spec
 bin_PROGRAMS=gnupg-pkcs11-scd
-doc_DATA=README COPYING
-dist_example_DATA=gnupg-pkcs11-scd.conf.example
+mydoc_DATA=README COPYING
+dist_mydoc_DATA=gnupg-pkcs11-scd.conf.example
 
 gnupg_pkcs11_scd_SOURCES= \
 	common.h \
@@ -53,7 +49,7 @@ gnupg_pkcs11_scd_SOURCES= \
 if HAVE_W32_SYSTEM
 dist_man_MANS=
 EXTRA_DIST+=gnupg-pkcs11-scd.1
-nodist_html_DATA=gnupg-pkcs11-scd.1.html
+nodist_myhtml_DATA=gnupg-pkcs11-scd.1.html
 
 gnupg-pkcs11-scd.1.html: gnupg-pkcs11-scd.1
 	$(MAN2HTML) < gnupg-pkcs11-scd.1 > gnupg-pkcs11-scd.1.html
