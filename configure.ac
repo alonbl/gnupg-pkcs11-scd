@@ -29,7 +29,7 @@
 #
 
 AC_PREREQ(2.60)
-AC_INIT(gnupg-pkcs11-scd, 0.03)
+AC_INIT(gnupg-pkcs11-scd, 0.04-beta1)
 AM_INIT_AUTOMAKE(gnupg-pkcs11-scd, [$PACKAGE_VERSION])
 AM_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([common.h])
@@ -252,6 +252,10 @@ fi
 AC_DEFINE_UNQUOTED([CONFIG_GPG_HOME], ["${GNUPG_HOME}"], [gnupg home])
 AC_DEFINE_UNQUOTED([CONFIG_SYSTEM_CONFIG], ["${SYSTEM_CONFIG}"], [system config])
 
+mydocdir="\$(docdir)-\$(PACKAGE_VERSION)"
+myhtmldir="\$(htmldir)-\$(PACKAGE_VERSION)"
+AC_SUBST([mydocdir])
+AC_SUBST([myhtmldir])
 AC_CONFIG_FILES([
 	Makefile
 	gnupg-pkcs11-scd.spec
