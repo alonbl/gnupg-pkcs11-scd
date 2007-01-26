@@ -28,9 +28,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-AC_PREREQ(2.60)
-AC_INIT(gnupg-pkcs11-scd, 0.04-beta1)
-AM_INIT_AUTOMAKE(gnupg-pkcs11-scd, [$PACKAGE_VERSION])
+AC_PREREQ([2.60])
+AC_INIT([gnupg-pkcs11-scd], [0.04_beta1])
+AM_INIT_AUTOMAKE([gnupg-pkcs11-scd], [${PACKAGE_VERSION}])
 AM_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([common.h])
 
@@ -44,7 +44,7 @@ HAVE_W32_SYSTEM="no"
 CYGWIN="no"
 case "${host}" in
 	*-mingw32*)
-    		AC_DEFINE(HAVE_W32_SYSTEM,1,[Defined if we run on a W32 API based system])
+    		AC_DEFINE([HAVE_W32_SYSTEM], [1], [Defined if we run on a W32 API based system])
 		HAVE_W32_SYSTEM="yes"
 	;;
 	*-cygwin*)
@@ -64,20 +64,20 @@ esac
 
 AC_ARG_ENABLE(pedantic,
 	[  --enable-pedantic                 Enable pedantic compiler warnings, will not generate a working executable (debugging option)],
-	[PEDANTIC="${enableval}"],
-	[PEDANTIC="no"]
+	,
+	[enable_pedantic="no"]
 )
 
 AC_ARG_WITH(openssl,
 	[  --without-openssl                 Disable OpenSSL linkage],
-	[WITH_OPENSSL="${withval}"],
-	[WITH_OPENSSL="yes"]
+	,
+	[with_openssl="yes"]
 )
 
 AC_ARG_WITH(gnutls,
 	[  --without-gnutls                  Disable GNUTLS linkage (OpenSSL will be used if both enabled)],
-	[WITH_GNUTLS="${withval}"],
-	[WITH_GNUTLS="yes"]
+	,
+	[with_gnutls="yes"]
 )
 
 AC_ARG_WITH(system-config,
@@ -94,25 +94,24 @@ AC_ARG_WITH(gnupg-home,
 
 AC_ARG_WITH(libgpg-error-prefix,
 	[  --with-libgpg-error-prefix=DIR    Define libgpgp-error prefix],
-	[LIBGPG_ERROR_PREFIX="${withval}"],
-	[LIBGPG_ERROR_PREFIX="/usr" ]
+	,
+	[with_libgpg_error_prefix="/usr" ]
 )
 
 AC_ARG_WITH(libassuan-prefix,
 	[  --with-libassuan-prefix=DIR       Define libassuan prefix],
-	[LIBASSUAN_PREFIX="${withval}"],
-	[LIBASSUAN_PREFIX="/usr" ]
+	,
+	[with_libassuan_prefix="/usr" ]
 )
 
 AC_ARG_WITH(libgcrypt-prefix,
 	[  --with-libgcrypt-prefix=DIR       Define libgcrypt prefix],
-	[LIBGCRYPT_PREFIX="${withval}"],
-	[LIBGCRYPT_PREFIX="/usr" ]
+	,
+	[with_libgcrypt_prefix="/usr" ]
 )
 
 AC_ARG_WITH(mem-check,
-	[  --with-mem-check=TYPE             Build with debug memory checking, TYPE = valgrind],
-	[MEMCHECK="$withval"]
+	[  --with-mem-check=TYPE             Build with debug memory checking, TYPE = valgrind]
 )
 
 if test "${HAVE_W32_SYSTEM}" = "yes"; then
@@ -133,30 +132,30 @@ AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([pthread], [pthread_create])
 
 AC_MSG_CHECKING([for libgpg-error])
-if ! test -x "${LIBGPG_ERROR_PREFIX}/bin/gpg-error-config"; then
+if ! test -x "${with_libgpg_error_prefix}/bin/gpg-error-config"; then
 	AC_MSG_ERROR([Cannot locate libgpg-error])
 else
 	AC_MSG_RESULT([found])
-	CFLAGS="${CFLAGS} `\"${LIBGPG_ERROR_PREFIX}/bin/gpg-error-config\" --cflags`"
-	LIBS="${LIBS} `\"${LIBGPG_ERROR_PREFIX}/bin/gpg-error-config\" --libs`"
+	CFLAGS="${CFLAGS} `\"${with_libgpg_error_prefix}/bin/gpg-error-config\" --cflags`"
+	LIBS="${LIBS} `\"${with_libgpg_error_prefix}/bin/gpg-error-config\" --libs`"
 fi
 
 AC_MSG_CHECKING([for libassuan])
-if ! test -x "${LIBASSUAN_PREFIX}/bin/libassuan-config"; then
+if ! test -x "${with_libassuan_prefix}/bin/libassuan-config"; then
 	AC_MSG_ERROR([Cannot locate libassuan])
 else
 	AC_MSG_RESULT([found])
-	CFLAGS="${CFLAGS} `\"${LIBASSUAN_PREFIX}/bin/libassuan-config\" --cflags`"
-	LIBS="${LIBS} `\"${LIBASSUAN_PREFIX}/bin/libassuan-config\" --libs`"
+	CFLAGS="${CFLAGS} `\"${with_libassuan_prefix}/bin/libassuan-config\" --cflags`"
+	LIBS="${LIBS} `\"${with_libassuan_prefix}/bin/libassuan-config\" --libs`"
 fi
 
 AC_MSG_CHECKING([for libgcrypt])
-if ! test -x "${LIBGCRYPT_PREFIX}/bin/libgcrypt-config"; then
+if ! test -x "${with_libgcrypt_prefix}/bin/libgcrypt-config"; then
 	AC_MSG_ERROR([Cannot locate libgcrypt])
 else
 	AC_MSG_RESULT([found])
-	CFLAGS="${CFLAGS} `\"${LIBGCRYPT_PREFIX}/bin/libgcrypt-config\" --cflags`"
-	LIBS="${LIBS} `\"${LIBGCRYPT_PREFIX}/bin/libgcrypt-config\" --libs`"
+	CFLAGS="${CFLAGS} `\"${with_libgcrypt_prefix}/bin/libgcrypt-config\" --cflags`"
+	LIBS="${LIBS} `\"${with_libgcrypt_prefix}/bin/libgcrypt-config\" --libs`"
 fi
 
 PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7], [HAVE_OPENSSL="yes"], [HAVE_OPENSSL="no"])
@@ -173,36 +172,36 @@ LIBS="${LIBS} ${PKCS11_HELPER_LIBS}"
 
 AC_MSG_CHECKING([cryptographic library to use])
 
-if test "${WITH_OPENSSL}" = "yes" -a "${HAVE_OPENSSL}" != "yes"; then
-	WITH_OPENSSL="no"
+if test "${with_openssl}" = "yes" -a "${HAVE_OPENSSL}" != "yes"; then
+	with_openssl="no"
 fi
 
-if test "${WITH_GNUTLS}" = "yes" -a "${HAVE_GNUTLS}" != "yes"; then
-	WITH_GNUTLS="no"
+if test "${with_gnutls}" = "yes" -a "${HAVE_GNUTLS}" != "yes"; then
+	with_gnutls="no"
 fi
 
-if test "${WITH_OPENSSL}" = "no" -a "${WITH_GNUTLS}" = "no"; then
+if test "${with_openssl}" = "no" -a "${with_gnutls}" = "no"; then
 	AC_MSG_ERROR([Cannot locate OpenSSL or GNUTLS])
 fi
 
-if test "${WITH_OPENSSL}" = "yes"; then
+if test "${with_openssl}" = "yes"; then
 	AC_MSG_RESULT([Using OpenSSL])
-	AC_DEFINE(ENABLE_OPENSSL, 1, [Use OpenSSL library])
+	AC_DEFINE([ENABLE_OPENSSL], [1], [Use OpenSSL library])
 	CFLAGS="${CFLAGS} ${OPENSSL_CFLAGS}"
 	LIBS="${LIBS} ${OPENSSL_LIBS}"
 else
 	AC_MSG_RESULT([Using GNUTLS])
-	AC_DEFINE(ENABLE_GNUTLS, 1, [Use GNUTLS library])
+	AC_DEFINE([ENABLE_GNUTLS], [1], [Use GNUTLS library])
 	CFLAGS="${CFLAGS} ${GNUTLS_CFLAGS}"
 	LIBS="${LIBS} ${GNUTLS_LIBS}"
 fi
 
 if test "${HAVE_W32_SYSTEM}" = "yes"; then
-    AC_DEFINE(CONFIG_PATH_SEPARATOR, ['\\'], [System path separator])
+    AC_DEFINE([CONFIG_PATH_SEPARATOR], ['\\'], [System path separator])
 else
-    AC_DEFINE(CONFIG_PATH_SEPARATOR, ['/'], [System path separator])
+    AC_DEFINE([CONFIG_PATH_SEPARATOR], ['/'], [System path separator])
 fi
-AM_CONDITIONAL(HAVE_W32_SYSTEM, test "${HAVE_W32_SYSTEM}" = "yes")
+AM_CONDITIONAL([HAVE_W32_SYSTEM], [test "${HAVE_W32_SYSTEM}" = "yes"])
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -228,20 +227,20 @@ AC_CHECK_HEADERS([ \
 	unistd.h \
 ])
 
-if test "$MEMCHECK" = "valgrind"; then
+if test "$with_mem_check" = "valgrind"; then
 	AC_CHECKING([for valgrind tool and Header files])
 	PKG_CHECK_MODULES([VALGRIND], [valgrind >= 3.0.0], [HAVE_VALGRIND=yes], [HAVE_VALGRIND=no])
 	if test "${HAVE_VALGRIND}" != "yes"; then
 		AC_MSG_ERROR([valgrind was not found])
 	fi
-	AC_DEFINE(USE_VALGRIND, 1, [Use valgrind memory debugging library])
+	AC_DEFINE([USE_VALGRIND], [1], [Use valgrind memory debugging library])
 	CFLAGS="${CFLAGS} ${VALGRIND_CFLAGS} -g -fno-inline"
 #	LIBS="${VALGRIND_LIBS} ${LIBS}"
 fi
 
 CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wsign-compare -Wno-unused-parameter -Wno-unused-function"
 
-if test "$PEDANTIC" = "yes"; then
+if test "$enable_pedantic" = "yes"; then
 	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_POSIX_SOURCE -D_POSIX_C_SOURCE -D_SVID_SOURCE"
 fi
 
