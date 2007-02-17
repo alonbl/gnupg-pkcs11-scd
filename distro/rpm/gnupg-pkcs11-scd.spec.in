@@ -49,7 +49,7 @@ if [ -d $RPM_BUILD_ROOT ]; then rm -rf $RPM_BUILD_ROOT; fi
 %defattr(-,root,root)
 %{_bindir}/*
 %{_mandir}/*
-%{_docdir}/%{name}-%{version}/*
+%{_docdir}/%{name}/*
 
 %changelog
 * Mon Jan 15 2007 Eddy Nigg <eddy_nigg@startcom.org>
