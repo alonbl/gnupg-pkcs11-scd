@@ -39,6 +39,7 @@ AC_CANONICAL_HOST
 AC_PROG_CC
 AC_PROG_INSTALL
 PKG_PROG_PKG_CONFIG
+AC_CHECK_PROGS([M4], [m4])
 
 HAVE_W32_SYSTEM="no"
 CYGWIN="no"
@@ -251,12 +252,11 @@ fi
 AC_DEFINE_UNQUOTED([CONFIG_GPG_HOME], ["${GNUPG_HOME}"], [gnupg home])
 AC_DEFINE_UNQUOTED([CONFIG_SYSTEM_CONFIG], ["${SYSTEM_CONFIG}"], [system config])
 
-mydocdir="\$(docdir)-\$(PACKAGE_VERSION)"
-myhtmldir="\$(htmldir)-\$(PACKAGE_VERSION)"
-AC_SUBST([mydocdir])
-AC_SUBST([myhtmldir])
 AC_CONFIG_FILES([
 	Makefile
-	gnupg-pkcs11-scd.spec
+	distro/Makefile
+	distro/debian/Makefile
+	distro/rpm/Makefile
+	distro/rpm/gnupg-pkcs11-scd.spec
 ])
 AC_OUTPUT

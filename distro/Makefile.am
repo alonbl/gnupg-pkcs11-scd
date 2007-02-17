@@ -28,36 +28,4 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-# This option prevents autoreconf from overriding our COPYING and
-# INSTALL targets:
-AUTOMAKE_OPTIONS=foreign dist-bzip2
-
-SUBDIRS=distro
-
-bin_PROGRAMS=gnupg-pkcs11-scd
-doc_DATA=README COPYING
-dist_doc_DATA=gnupg-pkcs11-scd.conf.example
-
-gnupg_pkcs11_scd_SOURCES= \
-	common.h \
-	scdaemon.h scdaemon.c \
-	common.h common.c \
-	command.h command.c \
-	encoding.h encoding.c \
-	keyutil.h keyutil.c \
-	dconfig.h dconfig.c
-
-if HAVE_W32_SYSTEM
-dist_man_MANS=
-EXTRA_DIST=gnupg-pkcs11-scd.1
-nodist_html_DATA=gnupg-pkcs11-scd.1.html
-
-gnupg-pkcs11-scd.1.html: gnupg-pkcs11-scd.1
-	$(MAN2HTML) < gnupg-pkcs11-scd.1 > gnupg-pkcs11-scd.1.html
-else
-dist_man_MANS=gnupg-pkcs11-scd.1
-endif
-
-clean-generic:
-	-rm -f *.html
-
+SUBDIRS=debian rpm
