@@ -1,0 +1,5 @@
+gnupg-pkcs11-scd (0.03-1.0saw0) unstable; urgency=low
+
+  * Initial release.
+
+ -- Sandro Wefel (testlaeufer) <sandro.wefel@informatik.uni-halle.de>  Mon, 29 Jan 2007 16:56:30 +0100

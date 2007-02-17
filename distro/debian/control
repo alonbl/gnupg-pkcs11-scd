@@ -1,0 +1,12 @@
+Source: gnupg-pkcs11-scd
+Priority: extra
+Maintainer: S. Wefel <wefel@informatik.uni-halle.de>
+Build-Depends: cdbs (>= 0.4.27-1), debhelper (>= 5), autotools-dev, libssl-dev, pkg-config, pkcs11-helper-dev
+Standards-Version: 3.7.2
+Section: utils
+
+Package: gnupg-pkcs11-scd
+Section: utils
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description:  Enable PKCS#11 based cryptographic devices in GnuPG.

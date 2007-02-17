@@ -1,0 +1,12 @@
+gnupg-pkcs11-scd for Debian
+---------------------------
+
+To build gnupg-pkcs11-scd follow these steps
+
+1) unpack the tarball
+2) cd gnupg-pkcs11-scd-<version>
+3) ln -s distro/debian 
+4) invoke your build tool, e.g. 
+    dpkg-buildpackage -r fakeroot
+
+ -- S. Wefel <wefel@informatik.uni-halle.de>  Mon, 29 Jan 2007 16:56:30 +0100
