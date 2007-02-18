@@ -2,7 +2,3 @@
 
 include /usr/share/cdbs/1/class/autotools.mk
 include /usr/share/cdbs/1/rules/debhelper.mk
-
-DEB_INSTALL_DOCS_ALL := README AUTHORS THANKS
-
-DEB_DH_INSTALL_ARGS := --sourcedir=debian/tmp

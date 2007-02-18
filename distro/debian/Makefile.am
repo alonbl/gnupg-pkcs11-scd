@@ -38,8 +38,7 @@ EXTRA_DIST= \
 	copyright.m4 \
 	copyright \
 	rules \
-	watch \
-	gnupg-pkcs11-scd.install
+	watch
 
 copyright:	copyright.m4
 	$(M4) $< > $@
