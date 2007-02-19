@@ -9,7 +9,8 @@ Package: gnupg-pkcs11-scd
 Section: utils
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: gnupg2 (> 2.0.0-2), gpgsm
 Description:  Enable PKCS#11 based cryptographic devices in GnuPG.
- gnupg-pkcs11 is a project to implement a BSD-licensed smart-card 
+ gnupg-pkcs11 is a project to implement a BSD-licensed smart-card
  daemon to enable the use of PKCS#11 tokens with GnuPG.
 
