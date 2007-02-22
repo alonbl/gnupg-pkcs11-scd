@@ -8,7 +8,9 @@ $Id$
 
 * Build system fixups.
 
-* RPM spec is available.
+* RPM packaging is available, thank to Eddy Nigg.
+
+* Debian packaging is available, thank to Sandro Wefel.
 
 2007-01-05 -- Version 0.03
 
