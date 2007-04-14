@@ -668,7 +668,7 @@ int main (int argc, char *argv[])
 		OPT_MUTLI_SERVER,
 		OPT_DAEMON,
 		OPT_VERBOSE,
-		OPT_QUITE,
+		OPT_QUIET,
 		OPT_SH,
 		OPT_CSH,
 		OPT_OPTIONS,
@@ -683,7 +683,7 @@ int main (int argc, char *argv[])
 		{ "multi-server", no_argument, NULL, OPT_MUTLI_SERVER },
 		{ "daemon", no_argument, NULL, OPT_DAEMON },
 		{ "verbose", no_argument, NULL, OPT_VERBOSE },
-		{ "quite", no_argument, NULL, OPT_QUITE },
+		{ "quiet", no_argument, NULL, OPT_QUIET },
 		{ "sh", no_argument, NULL, OPT_SH },
 		{ "csh", no_argument, NULL, OPT_CSH },
 		{ "options", required_argument, NULL, OPT_OPTIONS },
@@ -705,7 +705,7 @@ int main (int argc, char *argv[])
 	} run_mode = RUN_MODE_NONE;
 	int env_is_csh = 0;
 	int log_verbose = 0;
-	int log_quite = 0;
+	int log_quiet = 0;
 	int no_detach = 0;
 	char *config_file = NULL;
 	char *log_file = NULL;
@@ -748,9 +748,9 @@ int main (int argc, char *argv[])
 			case 'v':
 				log_verbose = 1;
 			break;
-			case OPT_QUITE:
+			case OPT_QUIET:
 			case 'q':
-				log_quite = 1;
+				log_quiet = 1;
 			break;
 			case OPT_SH:
 			case 's':
