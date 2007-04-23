@@ -12,7 +12,8 @@ $Id$
 
 * Debian packaging is available, thank to Sandro Wefel.
 
-* Initial support for OpenPGP smartcard emulation.
+* Hacks to support for OpenPGP smartcard emulation,
+  please refer the man page.
 
 2007-01-05 -- Version 0.03
 

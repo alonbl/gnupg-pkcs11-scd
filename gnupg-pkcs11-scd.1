@@ -74,7 +74,7 @@ Read options from
 .Ar file .
 Some of the configuration options can only be set in the configuration
 file (see the
-.Sx EXAMPLES
+.Sx CONFIGURATION
 section).
 .It --no-detach
 Do not detach from console (useful for debugging purposes).
@@ -118,7 +118,7 @@ When unavailable token is requested,
 .Nm gnupg-pkcs11-scd
 will use NEEDPIN callback in order to ask for the requested token.
 When and if gpg-agent will support more than one serial number or NEEDTOKEN
-callback, this behaviour will be modified.
+callback, this behavior will be modified.
 .Sh ENVIRONMENT
 .Bl -tag -width "USERPROFILE" -compact
 .It HOME
@@ -130,7 +130,7 @@ Used instead of
 Used only on Win32 to locate the home directory.
 .El
 .Pp
-Additionaly, the \\\\Software\\\\GNU\\\\GnuPG\\\\HomeDir registry key is used on
+Additionally, the \\\\Software\\\\GNU\\\\GnuPG\\\\HomeDir registry key is used on
 Win32 to locate the default GNUPGHOME.
 .Sh FILES
 Files affecting the operation of
@@ -145,7 +145,7 @@ uses this as a default system wide configuration file.
 .It Pa ~/.gnupg/gpg-agent.conf
 Default configuration file for gpg-agent.
 .El
-.Sh EXAMPLES
+.Sh CONFIGURATION
 To tell gpg-agent to use another smart-card daemon, the following needs to
 be put in
 .Pa ~/.gnupg/gpg-agent.conf :
@@ -220,13 +220,17 @@ Force decrypt.
 Force decrypt with unwrap.
 .El
 .It emulate-openpgp
-Emulate OpenPGP card. Unfortunately, the OpenPGP card cannot be used for gpgsm.
-So you probably need two gpg-agents running two gnupg-pkcs11-scd processes with
-different configuration.
-
+Emulate OpenPGP card. Unfortunately, gnupg cannot handle the OpenPGP card with certificates.
+So you need to turn this on in order to learn card keys.
+.Pp
 In OpenPGP card emulation we cannot guess which key should match a type, so you have
 to specify the SHA1 of the key explicitly.
-
+.Pp
+In order to determine which key is which, use the following command:
+.Dl gpg-agent --server gpg-connect-agent
+Enter "SCD LEARN" and look for "KEY-FRIEDNLY" responses, the first field is the hash, the second
+is the subject name.
+.Pp
 You still have to store a certificate (may be self-signed) that corresponds to the keypair.
 .It openpgp-sign
 Hex string (Upper letter, no space) SHA1 of signing public key.
@@ -235,8 +239,8 @@ Hex string (Upper letter, no space) SHA1 of encryption public key.
 .It openpgp-auth
 Hex string (Upper letter, no space) SHA1 of authentication public key.
 .El
-.Pp
-Typical steps to set up a card:
+.Sh GNUPG INTEGRATION
+Typical steps to set up a card for gpgsm usage:
 .Bl -enum
 .It
 Import the CA certificate of your issuer:
@@ -248,6 +252,30 @@ Instruct GnuPG to discover all useful certificates on the card:
 .El
 .Pp
 Signing, verification, etc. work as usual with gpgsm.
+.Pp
+Typical steps to set up a card for gpg usage:
+.Bl -enum
+.It
+Configure gnupg-pkcs11-scd for opengpg emulation, specify the public key hashes
+to be used for signature, encryption and authentication.
+.It
+Instruct GnuPG to discover all useful information of card:
+.Dl gpg --card-status
+You should see valid card status.
+.It
+Now, you should virtual generate keys, the keys are not actually generated, but returned
+to gpg to be registered.
+.Dl gpg --card-edit
+.Dl admin
+.Dl generate (DO NOT BACKUP KEYS)
+.It
+Disable the opengpg emulation.
+.El
+.Pp
+Now you can use the same card with your gpg and gpgsm keys. We don't know if this is a
+bug or feature in gnupg, but we glad that it works.
+.Pp
+Signing, verification, etc. work as usual with gpg.
 .Sh SECURITY CONSIDERATIONS
 All communication between components is currently unprotected and in plain
 text (that's how the Assuan protocol operates). It is trivial to trace (using
@@ -267,6 +295,10 @@ displayed on the screen (most notably, the PIN).
 .Rs
 .%T "GnuPG Home Page"
 .%O http://www.gnupg.org
+.Re
+.Rs
+.%T "gnupg-pkcs11 Home Page"
+.%O http://gnupg-pkcs11.sourceforge.net
 .Re
 .Sh AUTHORS AND COPYRIGHT
 Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
