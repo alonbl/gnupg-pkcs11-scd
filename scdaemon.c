@@ -135,7 +135,7 @@ register_commands (const assuan_context_t ctx)
 		}
 	} 
 
-	assuan_set_hello_line(ctx, "PKCS#11 smart-card server for GnuPG ready");
+	assuan_set_hello_line (ctx, "PKCS#11 smart-card server for GnuPG ready");
 	/*assuan_register_reset_notify(ctx, reset_notify);*/
 	/*assuan_register_option_handler(ctx, option_handler);*/
 	return 0;
@@ -171,7 +171,9 @@ command_handler (const int fd, dconfig_data_t *config)
 		common_log (LOG_FATAL,"failed to register assuan commands: %s", assuan_strerror (ret));
 	}
 
-	assuan_set_log_stream (ctx, assuan_get_assuan_log_stream ());
+	if (config->verbose) {
+		assuan_set_log_stream (ctx, assuan_get_assuan_log_stream ());
+	}
 	assuan_set_pointer (ctx, &data);
 
 	while (1) {
