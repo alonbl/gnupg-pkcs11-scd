@@ -39,6 +39,11 @@ typedef struct {
 	int verbose;
 	int pin_cache;
 
+	int emulate_openpgp;
+	char *openpgp_sign;
+	char *openpgp_encr;
+	char *openpgp_auth;
+
 	struct {
 		char *name;
 		char *library;
@@ -46,13 +51,13 @@ typedef struct {
 		int cert_is_private;
 		unsigned private_mask;
 	} providers[DCONFIG_MAX_PROVIDERS];
-} dconfig_data;
+} dconfig_data_t;
 
 int
-dconfig_read (const char * const file, dconfig_data * const config);
+dconfig_read (const char * const file, dconfig_data_t * const config);
 void
-dconfig_print (const dconfig_data * const config);
+dconfig_print (const dconfig_data_t * const config);
 void
-dconfig_free (dconfig_data * const config);
+dconfig_free (dconfig_data_t * const config);
 
 #endif

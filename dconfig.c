@@ -69,7 +69,7 @@ prefix_is (const char * const s, const char * const p) {
 }
 
 int
-dconfig_read (const char * const _file, dconfig_data * const config) {
+dconfig_read (const char * const _file, dconfig_data_t * const config) {
 #if defined(HAVE_W32_SYSTEM)
 	char file[1024];
 #else
@@ -79,7 +79,7 @@ dconfig_read (const char * const _file, dconfig_data * const config) {
 	FILE *fp = NULL;
 	int ok = 0;
 
-	memset (config, 0, sizeof (dconfig_data));
+	memset (config, 0, sizeof (dconfig_data_t));
 	config->pin_cache = PKCS11H_PIN_CACHE_INFINITE;
 
 #if defined(HAVE_W32_SYSTEM)
@@ -133,6 +133,24 @@ dconfig_read (const char * const _file, dconfig_data * const config) {
 		}
 		else if (prefix_is (line, "pin-cache ")) {
 			config->pin_cache = atoi (strchr (line, ' '));
+		}
+		else if (prefix_is (line, "emulate-openpgp")) {
+			config->emulate_openpgp = 1;
+		}
+		else if (prefix_is (line, "openpgp-sign")) {
+			char *p = strchr (line, ' ');
+			trim (p);
+			config->openpgp_sign = strdup (p);
+		}
+		else if (prefix_is (line, "openpgp-encr")) {
+			char *p = strchr (line, ' ');
+			trim (p);
+			config->openpgp_encr = strdup (p);
+		}
+		else if (prefix_is (line, "openpgp-auth")) {
+			char *p = strchr (line, ' ');
+			trim (p);
+			config->openpgp_auth = strdup (p);
 		}
 		else if (prefix_is (line, "provider-")) {
 			char *name = strchr (line, '-')+1;
@@ -199,7 +217,7 @@ cleanup:
 }
 
 void
-dconfig_print (const dconfig_data * const config) {
+dconfig_print (const dconfig_data_t * const config) {
 	int entry;
 
 	common_log (LOG_DEBUG, "config: debug=%d, verbose=%d", config->debug, config->verbose);
@@ -213,7 +231,7 @@ dconfig_print (const dconfig_data * const config) {
 }
 
 void
-dconfig_free (dconfig_data * const config) {
+dconfig_free (dconfig_data_t * const config) {
 #define f(x) do { \
 	if (x != NULL) { \
 		free (x); \
@@ -224,6 +242,9 @@ dconfig_free (dconfig_data * const config) {
 	int i;
 
 	f (config->log_file);
+	f (config->openpgp_sign);
+	f (config->openpgp_encr);
+	f (config->openpgp_auth);
 
 	for (i=0;i<DCONFIG_MAX_PROVIDERS;i++) {
 		f (config->providers->name); 

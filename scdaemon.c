@@ -68,6 +68,7 @@ typedef struct thread_list_s {
 	int fd;
 	pthread_t thread;
 	int stopped;
+	dconfig_data_t *config;
 } *thread_list_t;
 #endif
 
@@ -106,17 +107,18 @@ register_commands (const assuan_context_t ctx)
 		{ "PKDECRYPT",	cmd_pkdecrypt },
 		{ "INPUT",	NULL }, 
 		{ "OUTPUT",	NULL }, 
-		{ "GETATTR",	NULL },
-		{ "SETATTR",	NULL },
+		{ "GETATTR",	cmd_getattr },
+		{ "SETATTR",	cmd_setattr },
 		{ "WRITEKEY",	NULL },
-		{ "GENKEY",	NULL },
+		{ "GENKEY",	cmd_genkey },
 		{ "RANDOM",	NULL },
 		{ "PASSWD",	NULL },
-		{ "CHECKPIN",	NULL },
+		{ "CHECKPIN",	cmd_null },
 		{ "LOCK",	NULL },
 		{ "UNLOCK",	NULL },
 		{ "GETINFO",	cmd_getinfo },
 		{ "RESTART",	cmd_restart },
+		{ "CHV-STATUS-1", cmd_null },
 		{ NULL, NULL }
 	};
 	int i, ret;
@@ -145,10 +147,14 @@ register_commands (const assuan_context_t ctx)
 */
 static
 void
-command_handler (const int fd)
+command_handler (const int fd, dconfig_data_t *config)
 {
 	assuan_context_t ctx = NULL;
+	cmd_data_t data;
 	int ret;
+
+	memset (&data, 0, sizeof (data));
+	data.config = config;
 
 	if(fd < 0) {
 		int fds[2] = {0, 1};
@@ -166,7 +172,7 @@ command_handler (const int fd)
 	}
 
 	assuan_set_log_stream (ctx, assuan_get_assuan_log_stream ());
-	assuan_set_pointer (ctx, NULL);
+	assuan_set_pointer (ctx, &data);
 
 	while (1) {
 		if ((ret = assuan_accept (ctx)) == -1) {
@@ -277,7 +283,7 @@ _server_socket_command_handler (void *arg) {
 	thread_list_t entry = (thread_list_t)arg;
 	accept_command_t clean = ACCEPT_THREAD_CLEAN;
 
-	command_handler (entry->fd);
+	command_handler (entry->fd, entry->config);
 	entry->stopped = 1;
 
 	write (s_fd_accept_terminate[1], &clean, sizeof (clean));
@@ -288,10 +294,15 @@ _server_socket_command_handler (void *arg) {
 static
 void *
 _server_socket_accept (void *arg) {
-	int fd = (int)arg;
+	thread_list_t _entry = (thread_list_t)arg;
+	dconfig_data_t *config = _entry->config;
+	int fd = _entry->fd;
+	thread_list_t thread_list_head = NULL;
 	int rc = 0;
 
-	thread_list_t thread_list_head = NULL;
+	free (_entry);
+	_entry = NULL;
+
 	if (pipe (s_fd_accept_terminate) == -1) {
 		common_log (LOG_FATAL, "pipe failed");
 	}
@@ -367,6 +378,7 @@ _server_socket_accept (void *arg) {
 					memset (entry, 0, sizeof (struct thread_list_s));
 					entry->next = thread_list_head;
 					entry->fd = fd2;
+					entry->config = config;
 					thread_list_head = entry;
 
 					if (
@@ -400,8 +412,12 @@ _server_socket_accept (void *arg) {
 
 static
 void
-server_socket_accept (const int fd, pthread_t *thread) {
-	if (pthread_create (thread, NULL, _server_socket_accept, (void *)fd)) {
+server_socket_accept (const int fd, pthread_t *thread, dconfig_data_t *config) {
+	thread_list_t entry = malloc (sizeof (struct thread_list_s));
+	memset (entry, 0, sizeof (struct thread_list_s));
+	entry->fd = fd;
+	entry->config = config;
+	if (pthread_create (thread, NULL, _server_socket_accept, (void *)entry)) {
 		common_log (LOG_FATAL, "pthread failed");
 	}
 }
@@ -715,7 +731,7 @@ int main (int argc, char *argv[])
 	int i;
 	CK_RV rv;
 
-	dconfig_data config;
+	dconfig_data_t config;
 
 	const char * CONFIG_SUFFIX = ".conf";
 	char *default_config_file = NULL;
@@ -992,7 +1008,7 @@ int main (int argc, char *argv[])
 	}
 
 #if defined(HAVE_W32_SYSTEM)
-	command_handler (-1);
+	command_handler (-1, &config);
 #else
 {
 	pthread_t accept_thread = 0;
@@ -1001,7 +1017,7 @@ int main (int argc, char *argv[])
 	if (run_mode == RUN_MODE_DAEMON || run_mode == RUN_MODE_MULTI_SERVER) {
 		accept_socket = server_socket_create ();
 
-		server_socket_accept (accept_socket, &accept_thread);
+		server_socket_accept (accept_socket, &accept_thread, &config);
 	}
 
 	if (run_mode == RUN_MODE_DAEMON) {
@@ -1018,7 +1034,7 @@ int main (int argc, char *argv[])
 		close (fds[1]);
 	}
 	else {
-		command_handler (-1);
+		command_handler (-1, &config);
 	}
 
 	if (run_mode == RUN_MODE_DAEMON || run_mode == RUN_MODE_MULTI_SERVER) {

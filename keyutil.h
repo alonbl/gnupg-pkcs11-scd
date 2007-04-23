@@ -32,6 +32,14 @@
 #define __KEYUTIL_H
 
 gpg_err_code_t
+keyutil_get_cert_mpi (
+	unsigned char *der,
+	size_t len,
+	gcry_mpi_t *p_n_mpi,
+	gcry_mpi_t *p_e_mpi
+);
+
+gpg_err_code_t
 keyutil_get_cert_sexp (
 	unsigned char *der,
 	size_t len,
