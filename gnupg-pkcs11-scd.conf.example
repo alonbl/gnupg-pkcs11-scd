@@ -7,7 +7,7 @@
 # Default is no debugging.
 #debug-all
 
-# Pin cache period in seconds; defaut is infinite.
+# Pin cache period in seconds; default is infinite.
 #pin-cache 20
 
 # Comma-separated list of available provider names. Then set
@@ -38,3 +38,8 @@ provider-p1-library /usr/lib/pkcs11/p1.so
 #provider-p1-allow-protected-auth
 #provider-p1-cert-private
 #provider-p1-private-mask 0
+
+#emulate-openpgpg
+#openpgp-sign 5C661B8C07CFD957F7D98D5B9A0F31D236BFAC2A
+#openpgp-encr D2DC0BD1EDD185969748B6025B452816F97CBA57
+#openpgp-auth A7B8C1A3A8F71FCEC018886F8767927B9C8D871F

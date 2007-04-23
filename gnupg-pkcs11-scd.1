@@ -173,7 +173,7 @@ file (lines beginning with # are comments):
 # Default is no debugging.
 #debug-all
 
-# Pin cache period in seconds; defaut is infinite.
+# Pin cache period in seconds; default is infinite.
 #pin-cache 20
 
 # Comma-separated list of available provider names. Then set
@@ -186,6 +186,11 @@ provider-p1-library /usr/lib/pkcs11/p1.so
 #provider-p1-allow-protected-auth
 #provider-p1-cert-private
 #provider-p1-private-mask 0
+
+#emulate-openpgpg
+#openpgp-sign 5C661B8C07CFD957F7D98D5B9A0F31D236BFAC2A
+#openpgp-encr D2DC0BD1EDD185969748B6025B452816F97CBA57
+#openpgp-auth A7B8C1A3A8F71FCEC018886F8767927B9C8D871F
 .Ed
 .Pp
 The following attributes can be set for each provider:
@@ -214,13 +219,28 @@ Force decrypt.
 .It 8
 Force decrypt with unwrap.
 .El
+.It emulate-openpgp
+Emulate OpenPGP card. Unfortunately, the OpenPGP card cannot be used for gpgsm.
+So you probably need two gpg-agents running two gnupg-pkcs11-scd processes with
+different configuration.
+
+In OpenPGP card emulation we cannot guess which key should match a type, so you have
+to specify the SHA1 of the key explicitly.
+
+You still have to store a certificate (may be self-signed) that corresponds to the keypair.
+.It openpgp-sign
+Hex string (Upper letter, no space) SHA1 of signing public key.
+.It openpgp-encr
+Hex string (Upper letter, no space) SHA1 of encryption public key.
+.It openpgp-auth
+Hex string (Upper letter, no space) SHA1 of authentication public key.
 .El
 .Pp
 Typical steps to set up a card:
 .Bl -enum
 .It
 Import the CA certificate of your issuer:
-.Dl gpgsm --import < ca-certficate
+.Dl gpgsm --import < ca-certificate
 You should also manually import all self-signed certificates.
 .It
 Instruct GnuPG to discover all useful certificates on the card:

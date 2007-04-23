@@ -31,12 +31,16 @@
 #ifndef __COMMAND_H
 #define __COMMAND_H
 
+#include "dconfig.h"
+
 typedef struct {
+	dconfig_data_t *config;
 	unsigned char *data;
 	size_t size;
 } cmd_data_t;
 
 void cmd_free_data (assuan_context_t ctx);
+int cmd_null (assuan_context_t ctx, char *line);
 int cmd_getinfo (assuan_context_t ctx, char *line);
 int cmd_serialno (assuan_context_t ctx, char *line);
 int cmd_learn (assuan_context_t ctx, char *line);
@@ -49,5 +53,8 @@ int cmd_random (assuan_context_t ctx, char *line);
 int cmd_checkpin (assuan_context_t ctx, char *line);
 int cmd_getinfo (assuan_context_t ctx, char *line);
 int cmd_restart (assuan_context_t ctx, char *line);
+int cmd_genkey (assuan_context_t ctx, char *line);
+int cmd_getattr (assuan_context_t ctx, char *line);
+int cmd_setattr (assuan_context_t ctx, char *line);
 
 #endif

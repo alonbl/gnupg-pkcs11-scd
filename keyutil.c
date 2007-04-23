@@ -46,21 +46,19 @@ typedef const unsigned char *my_openssl_d2i_t;
 #endif
 #endif
 
-/**
-   Convert X.509 RSA public key into gcrypt internal sexp form. Only RSA
-   public keys are accepted at the moment. The resul is stored in *sexp,
-   which must be freed (using ) when not needed anymore. *sexp must be
-   NULL on entry, since it is overwritten.
-*/
 gpg_err_code_t
-keyutil_get_cert_sexp (
+keyutil_get_cert_mpi (
 	unsigned char *der,
 	size_t len,
-	gcry_sexp_t *p_sexp
+	gcry_mpi_t *p_n_mpi,
+	gcry_mpi_t *p_e_mpi
 ) {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
-	gcry_mpi_t n_mpi = NULL, e_mpi = NULL;
-	gcry_sexp_t sexp = NULL;
+	gcry_mpi_t n_mpi = NULL;
+	gcry_mpi_t e_mpi = NULL;
+
+	*p_n_mpi = NULL;
+	*p_e_mpi = NULL;
 
 #if defined(ENABLE_GNUTLS)
 
@@ -115,8 +113,8 @@ keyutil_get_cert_sexp (
 		goto cleanup;
 	}
 	
-	n_hex = BN_bn2hex(pubkey->pkey.rsa->n);
-	e_hex = BN_bn2hex(pubkey->pkey.rsa->e);
+	n_hex = BN_bn2hex (pubkey->pkey.rsa->n);
+	e_hex = BN_bn2hex (pubkey->pkey.rsa->e);
 		
 	if(n_hex == NULL || e_hex == NULL) {
 		error = GPG_ERR_BAD_KEY;
@@ -124,8 +122,8 @@ keyutil_get_cert_sexp (
 	}
  
 	if (
-		gcry_mpi_scan(&n_mpi, GCRYMPI_FMT_HEX, n_hex, 0, NULL) ||
-		gcry_mpi_scan(&e_mpi, GCRYMPI_FMT_HEX, e_hex, 0, NULL)
+		gcry_mpi_scan (&n_mpi, GCRYMPI_FMT_HEX, n_hex, 0, NULL) ||
+		gcry_mpi_scan (&e_mpi, GCRYMPI_FMT_HEX, e_hex, 0, NULL)
 	) {
 		error = GPG_ERR_BAD_KEY;
 		goto cleanup;
@@ -134,27 +132,16 @@ keyutil_get_cert_sexp (
 #error Invalid configuration.
 #endif
 
-	if (
-		gcry_sexp_build (
-			&sexp,
-			NULL,
-			"(public-key (rsa (n %m) (e %m)))",
-			n_mpi,
-			e_mpi
-		)
-	) {
-		error = GPG_ERR_BAD_KEY;
-		goto cleanup;
-	}
-
-	*p_sexp = sexp;
-	sexp = NULL;
+	*p_n_mpi = n_mpi;
+	n_mpi = NULL;
+	*p_e_mpi = e_mpi;
+	e_mpi = NULL;
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
 
 	if (n_mpi != NULL) {
-		gcry_mpi_release(n_mpi);
+		gcry_mpi_release (n_mpi);
 		n_mpi = NULL;
 	}
 
@@ -206,8 +193,67 @@ cleanup:
 #error Invalid configuration.
 #endif
 
+	return error;
+}
+/**
+   Convert X.509 RSA public key into gcrypt internal sexp form. Only RSA
+   public keys are accepted at the moment. The resul is stored in *sexp,
+   which must be freed (using ) when not needed anymore. *sexp must be
+   NULL on entry, since it is overwritten.
+*/
+gpg_err_code_t
+keyutil_get_cert_sexp (
+	unsigned char *der,
+	size_t len,
+	gcry_sexp_t *p_sexp
+) {
+	gpg_err_code_t error = GPG_ERR_GENERAL;
+	gcry_mpi_t n_mpi = NULL;
+	gcry_mpi_t e_mpi = NULL;
+	gcry_sexp_t sexp = NULL;
+
+	if (
+		(error = keyutil_get_cert_mpi (
+			der,
+			len,
+			&n_mpi,
+			&e_mpi
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if (
+		gcry_sexp_build (
+			&sexp,
+			NULL,
+			"(public-key (rsa (n %m) (e %m)))",
+			n_mpi,
+			e_mpi
+		)
+	) {
+		error = GPG_ERR_BAD_KEY;
+		goto cleanup;
+	}
+
+	*p_sexp = sexp;
+	sexp = NULL;
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
+
+	if (n_mpi != NULL) {
+		gcry_mpi_release (n_mpi);
+		n_mpi = NULL;
+	}
+
+	if (e_mpi != NULL) {
+		gcry_mpi_release (e_mpi);
+		e_mpi = NULL;
+	}
+
 	if (sexp != NULL) {
-		gcry_sexp_release(sexp);
+		gcry_sexp_release (sexp);
 		sexp = NULL;
 	}
 
@@ -239,7 +285,7 @@ char *keyutil_get_cert_hexgrip (gcry_sexp_t sexp)
 	unsigned char grip[20];
 	
 	if (gcry_pk_get_keygrip (sexp, grip)) {
-		ret = encoding_bin2hex(grip, sizeof (grip));
+		ret = encoding_bin2hex (grip, sizeof (grip));
 	}
 
 	return ret;
