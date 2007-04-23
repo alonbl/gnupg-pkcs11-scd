@@ -56,16 +56,20 @@ keyutil_get_cert_mpi (
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	gcry_mpi_t n_mpi = NULL;
 	gcry_mpi_t e_mpi = NULL;
+#if defined(ENABLE_GNUTLS)
+	gnutls_x509_crt_t cert = NULL;
+	gnutls_datum_t datum = {der, len};
+	gnutls_datum_t m, e;
+#elif defined(ENABLE_OPENSSL)
+	X509 *x509 = NULL;
+	EVP_PKEY *pubkey = NULL;
+	char *n_hex = NULL, *e_hex = NULL;
+#endif
 
 	*p_n_mpi = NULL;
 	*p_e_mpi = NULL;
 
 #if defined(ENABLE_GNUTLS)
-
-	gnutls_x509_crt_t cert = NULL;
-	gnutls_datum_t datum = {der, len};
-	gnutls_datum_t m, e;
-
 	if (gnutls_x509_crt_init (&cert) != GNUTLS_E_SUCCESS) {
 		cert = NULL;
 		error = GPG_ERR_ENOMEM;
@@ -91,13 +95,7 @@ keyutil_get_cert_mpi (
 		error = GPG_ERR_BAD_KEY;
 		goto cleanup;
 	}
-
 #elif defined(ENABLE_OPENSSL)
-
-	X509 *x509 = NULL;
-	EVP_PKEY *pubkey = NULL;
-	char *n_hex = NULL, *e_hex = NULL;
-
 	if (!d2i_X509 (&x509, (my_openssl_d2i_t *)&der, len)) {
 		error = GPG_ERR_BAD_CERT;
 		goto cleanup;
