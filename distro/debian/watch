@@ -1,2 +1,2 @@
-# examine a webserver directory
+version=3
 http://downloads.sourceforge.net/gnupg-pkcs11/gnupg-pkcs11-scd-(.*).tar.bz2
