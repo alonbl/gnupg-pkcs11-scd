@@ -32,7 +32,7 @@ BUILT_SOURCES=copyright
 
 EXTRA_DIST= \
 	changelog \
-	README.Debian \
+	README.build \
 	compat \
 	control \
 	copyright.m4 \
