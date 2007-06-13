@@ -29,6 +29,11 @@ gnupg-pkcs11-scd License
 	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 	POSSIBILITY OF SUCH DAMAGE.
 
+pkcs11-helper License
+
+	Copyright (c) 2005-2007 Alon Bar-Lev <alon.barlev@gmail.com>
+	All rights reserved.
+
 m4 Macros License
 
 	autoconf/automake
