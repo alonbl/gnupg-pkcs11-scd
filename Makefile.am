@@ -58,6 +58,13 @@ else
 dist_man_MANS=gnupg-pkcs11-scd.1
 endif
 
+#
+# pkcs11-helper.spec must be on root for invalid RPM
+#
+dist-hook:
+	ln -s distro/rpm/gnupg-pkcs11-scd.spec $(distdir)/gnupg-pkcs11-scd.spec
+
 clean-generic:
+	-rm gnupg-pkcs11-scd.spec
 	-rm -f *.html
 
