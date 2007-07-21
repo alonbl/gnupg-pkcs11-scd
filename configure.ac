@@ -45,7 +45,7 @@ HAVE_W32_SYSTEM="no"
 CYGWIN="no"
 case "${host}" in
 	*-mingw32*)
-    		AC_DEFINE([HAVE_W32_SYSTEM], [1], [Defined if we run on a W32 API based system])
+		AC_DEFINE([HAVE_W32_SYSTEM], [1], [Defined if we run on a W32 API based system])
 		HAVE_W32_SYSTEM="yes"
 	;;
 	*-cygwin*)
@@ -63,56 +63,60 @@ case "${host}" in
 	;;
 esac
 
-AC_ARG_ENABLE(pedantic,
-	[  --enable-pedantic                 Enable pedantic compiler warnings, will not generate a working executable (debugging option)],
+AC_ARG_ENABLE(
+	[pedantic],
+	[AC_HELP_STRING([--enable-pedantic], [Enable pedantic compiler warnings, will not generate a working executable (debugging option)])],
 	,
 	[enable_pedantic="no"]
 )
 
-AC_ARG_WITH(openssl,
-	[  --without-openssl                 Disable OpenSSL linkage],
+AC_ARG_WITH(
+	[openssl],
+	[AC_HELP_STRING([--without-openssl], [Disable OpenSSL linkage)])],
 	,
 	[with_openssl="yes"]
 )
 
-AC_ARG_WITH(gnutls,
-	[  --without-gnutls                  Disable GNUTLS linkage (OpenSSL will be used if both enabled)],
+AC_ARG_WITH(
+	[gnutls],
+	[AC_HELP_STRING([--without-gnutls], [Disable GNUTLS linkage (OpenSSL will be used if both enabled)])],
 	,
 	[with_gnutls="yes"]
 )
 
-AC_ARG_WITH(system-config,
-	[  --with-system-config=FILE         Define gnupg system wide config],
+AC_ARG_WITH(
+	[system-config],
+	[AC_HELP_STRING([--with-system-config=FILE], [Define gnupg system wide config])],
 	[SYSTEM_CONFIG="${withval}"],
 	[test "${HAVE_W32_SYSTEM}" = "yes" && SYSTEM_CONFIG="%SystemRoot%\\\\${PACKAGE}.conf" || SYSTEM_CONFIG="/etc/${PACKAGE}.conf"]
 )
 
-AC_ARG_WITH(gnupg-home,
-	[  --with-gnupg-home=DIR             Define gnupg home],
+AC_ARG_WITH(
+	[gnupg-home],
+	[AC_HELP_STRING([--with-gnupg-home=DIR], [Define gnupg home])],
 	[GNUPG_HOME="${withval}"],
 	[test "${HAVE_W32_SYSTEM}" = "yes" && GNUPG_HOME="~\\\\.gnupg" || GNUPG_HOME="~/.gnupg"]
 )
 
-AC_ARG_WITH(libgpg-error-prefix,
-	[  --with-libgpg-error-prefix=DIR    Define libgpgp-error prefix],
+AC_ARG_WITH(
+	[libgpg-error-prefix],
+	[AC_HELP_STRING([--with-libgpg-error-prefix=DIR], [Define libgpgp-error prefix])],
 	,
 	[with_libgpg_error_prefix="/usr" ]
 )
 
-AC_ARG_WITH(libassuan-prefix,
-	[  --with-libassuan-prefix=DIR       Define libassuan prefix],
+AC_ARG_WITH(
+	[libassuan-prefix],
+	[AC_HELP_STRING([--with-libassuan-prefix=DIR], [Define libassuan prefix])],
 	,
 	[with_libassuan_prefix="/usr" ]
 )
 
-AC_ARG_WITH(libgcrypt-prefix,
-	[  --with-libgcrypt-prefix=DIR       Define libgcrypt prefix],
+AC_ARG_WITH(
+	[libgcrypt-prefix],
+	[AC_HELP_STRING([--with-libgcrypt-prefix=DIR], [Define libgcrypt prefix])],
 	,
 	[with_libgcrypt_prefix="/usr" ]
-)
-
-AC_ARG_WITH(mem-check,
-	[  --with-mem-check=TYPE             Build with debug memory checking, TYPE = valgrind]
 )
 
 if test "${HAVE_W32_SYSTEM}" = "yes"; then
@@ -198,9 +202,9 @@ else
 fi
 
 if test "${HAVE_W32_SYSTEM}" = "yes"; then
-    AC_DEFINE([CONFIG_PATH_SEPARATOR], ['\\'], [System path separator])
+	AC_DEFINE([CONFIG_PATH_SEPARATOR], ['\\'], [System path separator])
 else
-    AC_DEFINE([CONFIG_PATH_SEPARATOR], ['/'], [System path separator])
+	AC_DEFINE([CONFIG_PATH_SEPARATOR], ['/'], [System path separator])
 fi
 AM_CONDITIONAL([HAVE_W32_SYSTEM], [test "${HAVE_W32_SYSTEM}" = "yes"])
 
@@ -213,7 +217,7 @@ AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_HEADER_TIME
 AC_STRUCT_TM
-AC_CHECK_HEADERS([[ \
+AC_CHECK_HEADERS([ \
 	stdio.h \
 	stdlib.h \
 	stdargs.h \
@@ -221,23 +225,12 @@ AC_CHECK_HEADERS([[ \
 	ctype.h \
 	string.h \
 	errno.h \
-]])
+])
 AC_CHECK_HEADERS([ \
 	signal.h \
 	dlfcn.h \
 	unistd.h \
 ])
-
-if test "$with_mem_check" = "valgrind"; then
-	AC_CHECKING([for valgrind tool and Header files])
-	PKG_CHECK_MODULES([VALGRIND], [valgrind >= 3.0.0], [HAVE_VALGRIND=yes], [HAVE_VALGRIND=no])
-	if test "${HAVE_VALGRIND}" != "yes"; then
-		AC_MSG_ERROR([valgrind was not found])
-	fi
-	AC_DEFINE([USE_VALGRIND], [1], [Use valgrind memory debugging library])
-	CFLAGS="${CFLAGS} ${VALGRIND_CFLAGS} -g -fno-inline"
-#	LIBS="${VALGRIND_LIBS} ${LIBS}"
-fi
 
 CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wsign-compare -Wno-unused-parameter -Wno-unused-function"
 
