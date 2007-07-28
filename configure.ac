@@ -41,10 +41,14 @@ AC_PROG_INSTALL
 PKG_PROG_PKG_CONFIG
 AC_CHECK_PROGS([M4], [m4])
 
-HAVE_W32_SYSTEM="no"
-CYGWIN="no"
+test -z "${HAVE_W32_SYSTEM}" && HAVE_W32_SYSTEM="no"
+test -z "${CYGWIN}" && CYGWIN="no"
 case "${host}" in
 	*-mingw32*)
+		AC_DEFINE([HAVE_W32_SYSTEM], [1], [Defined if we run on a W32 API based system])
+		HAVE_W32_SYSTEM="yes"
+	;;
+	*-winnt*)
 		AC_DEFINE([HAVE_W32_SYSTEM], [1], [Defined if we run on a W32 API based system])
 		HAVE_W32_SYSTEM="yes"
 	;;
