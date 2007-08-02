@@ -34,7 +34,6 @@ AM_INIT_AUTOMAKE([${PACKAGE_NAME}], [${PACKAGE_VERSION}])
 AM_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([common.h])
 
-# Checks for programs.
 AC_CANONICAL_HOST
 AC_PROG_CC
 AC_PROG_INSTALL
@@ -136,7 +135,6 @@ AC_CHECK_FUNCS([ \
 	snprintf \
 ])
 
-# Checks for libraries.
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([pthread], [pthread_create])
 
@@ -212,7 +210,6 @@ else
 fi
 AM_CONDITIONAL([HAVE_W32_SYSTEM], [test "${HAVE_W32_SYSTEM}" = "yes"])
 
-# Checks for header files.
 AC_HEADER_STDC
 AC_C_CONST
 AC_C_VOLATILE
