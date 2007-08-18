@@ -1373,7 +1373,14 @@ int cmd_genkey (assuan_context_t ctx, char *line)
 	}
 		
 	while (*line != '\x0' && !isdigit (*line)) {
-		line++;
+		if (*line == '-') {
+			while (*line != '\x0' && !isspace (*line)) {
+				line++;
+			}
+		}
+		else {
+			line++;
+		}
 	}
 
 	if (*line == '\x0') {
