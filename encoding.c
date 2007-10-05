@@ -109,3 +109,48 @@ encoding_strappend (
 	return 1;
 }
 
+/* From gnupg */
+time_t
+isotime2epoch (
+	const char * const string
+) {
+	const char *s;
+	int year, month, day, hour, minu, sec;
+	struct tm tmbuf;
+	int i;
+
+	if (!*string)
+		return (time_t)(-1);
+	for (s=string, i=0; i < 8; i++, s++)
+		if (!isdigit (*s))
+			return (time_t)(-1);
+	if (*s != 'T')
+		return (time_t)(-1);
+	for (s++, i=9; i < 15; i++, s++)
+		if (!isdigit (*s))
+			return (time_t)(-1);
+	if ( !(!*s || (isascii (*s) && isspace(*s)) || *s == ':' || *s == ','))
+		return (time_t)(-1);  /* Wrong delimiter.  */
+
+	year  = (string[0]-'0') * 1000 + (string[1]-'0') * 100 + (string[2]-'0') * 10 + (string[3]-'0') * 1;
+	month = (string[4]-'0') * 10 + (string[5]-'0');
+	day   = (string[6]-'0') * 10 + (string[7]-'0');
+	hour  = (string[9]-'0') * 10 + (string[10]-'0');
+	minu  = (string[11]-'0') * 10 + (string[12]-'0');
+	sec   = (string[13]-'0') * 10 + (string[14]-'0');
+
+	/* Basic checks.  */
+	if (year < 1970 || month < 1 || month > 12 || day < 1 || day > 31
+		|| hour > 23 || minu > 59 || sec > 61 )
+		return (time_t)(-1);
+
+	memset (&tmbuf, 0, sizeof tmbuf);
+	tmbuf.tm_sec  = sec;
+	tmbuf.tm_min  = minu;
+	tmbuf.tm_hour = hour;
+	tmbuf.tm_mday = day;
+	tmbuf.tm_mon  = month-1;
+	tmbuf.tm_year = year - 1900;
+	tmbuf.tm_isdst = -1;
+	return timegm (&tmbuf);
+}

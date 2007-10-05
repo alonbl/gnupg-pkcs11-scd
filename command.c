@@ -1366,16 +1366,26 @@ int cmd_genkey (assuan_context_t ctx, char *line)
 	unsigned char *blob = NULL;
 	char *key = NULL;
 	size_t blob_size;
+	char timestamp[100] = {0};
 
 	if (!data->config->emulate_openpgp) {
 		error = GPG_ERR_INV_OP;
 		goto cleanup;
 	}
-		
+
 	while (*line != '\x0' && !isdigit (*line)) {
 		if (*line == '-') {
+			char *ts = "--timestamp=";
+			char *p = line;
+
 			while (*line != '\x0' && !isspace (*line)) {
 				line++;
+			}
+			line++;
+			
+			if (!strncmp (p, ts, strlen (ts))) {
+				p += strlen (ts);
+				sprintf (timestamp, "%d", (int)isotime2epoch (p));
 			}
 		}
 		else {
@@ -1385,6 +1395,10 @@ int cmd_genkey (assuan_context_t ctx, char *line)
 
 	if (*line == '\x0') {
 		goto cleanup;
+	}
+
+	if (strlen (timestamp) == 0) {
+		sprintf (timestamp, "%d", (int)time (NULL));
 	}
 
 	if (
@@ -1404,6 +1418,18 @@ int cmd_genkey (assuan_context_t ctx, char *line)
 				ctx,
 				"KEY-FPR",
 				key
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if (
+		(error = common_map_assuan_error (
+			assuan_write_status(
+				ctx,
+				"KEY-CREATED-AT",
+				timestamp
 			)
 		)) != GPG_ERR_NO_ERROR
 	) {
