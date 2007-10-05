@@ -6,60 +6,63 @@ $Id$
 
 2007-??-?? -- Version 0.05
 
-* Fixed a change in gnupg protocol for openpgp
-  emulation, thanks to Nick Kossifidis for testing.
+ * Fixed a change in gnupg protocol for openpgp
+   emulation, thanks to Nick Kossifidis for testing.
+
+ * Added key timestamp on OpenPGP key generation,
+   thanks to Daniel Benoy for reporting and testing.
 
 2007-06-13 -- Version 0.04
 
-* Build system fixups.
+ * Build system fixups.
 
-* RPM packaging is available, thank to Eddy Nigg.
+ * RPM packaging is available, thank to Eddy Nigg.
 
-* Debian packaging is available, thank to Sandro Wefel.
+ * Debian packaging is available, thank to Sandro Wefel.
 
-* Hacks to support for OpenPGP smartcard emulation,
-  please refer the man page.
+ * Hacks to support for OpenPGP smartcard emulation,
+   please refer the man page.
 
 2007-01-05 -- Version 0.03
 
-* Fixed some Intel C compiler warnings.
+ * Fixed some Intel C compiler warnings.
 
-* pkcs11-helper is now external dependency.
+ * pkcs11-helper is now external dependency.
 
-* Decrypt support unwrap now, thanks for
-  Christoph Neerfeld help.
+ * Decrypt support unwrap now, thanks for
+   Christoph Neerfeld help.
 
-* Configuration file sign-mode was renamed to
-  private-mask.
+ * Configuration file sign-mode was renamed to
+   private-mask.
 
 2006-10-20 -- Version 0.02
 
-* Added more characters to serialization exclude chars.
-  People may need to re-learn cards.
+ * Added more characters to serialization exclude chars.
+   People may need to re-learn cards.
 
-* Fixed configure GPG_HOME typeo, thanks to Bob Dunlop.
+ * Fixed configure GPG_HOME typeo, thanks to Bob Dunlop.
 
-* Unlike gpg-agent, gnupg-pkcs11-scd supports more than
-  one token available at the same time. In order to make
-  gpg-agent happy, gnupg-pkcs11-scd always returns the
-  same card serial number to gpg-agent.
-  When unavailable token is requested, gnupg-pkcs11-scd
-  will use NEEDPIN callback in order to ask for the
-  requested token.
-  When and if gpg-agent will support more than one serial
-  number or NEEDTOKEN callback, this behavior will be
-  modified.
+ * Unlike gpg-agent, gnupg-pkcs11-scd supports more than
+   one token available at the same time. In order to make
+   gpg-agent happy, gnupg-pkcs11-scd always returns the
+   same card serial number to gpg-agent.
+   When unavailable token is requested, gnupg-pkcs11-scd
+   will use NEEDPIN callback in order to ask for the
+   requested token.
+   When and if gpg-agent will support more than one serial
+   number or NEEDTOKEN callback, this behavior will be
+   modified.
 
-* Works as single threaded win32 server. Implementing
-  multi-threaded server forces copy of win32 socket handling
-  from gnupg, and it is GPLed.
-  When libassuan will handle sockets we will be able to
-  implement it.
+ * Works as single threaded win32 server. Implementing
+   multi-threaded server forces copy of win32 socket handling
+   from gnupg, and it is GPLed.
+   When libassuan will handle sockets we will be able to
+   implement it.
 
-* Added system wide configuration file, thanks to Bub Dunlop.
+ * Added system wide configuration file, thanks to Bub Dunlop.
 
-* Some more minor fixes.
+ * Some more minor fixes.
 
 2006-10-11 -- Version 0.01
 
-* Initial release.
+ * Initial release.

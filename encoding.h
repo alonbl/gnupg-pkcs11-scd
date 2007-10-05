@@ -47,5 +47,9 @@ encoding_strappend (
 	char * * const p_str,
 	char *s
 );
+time_t
+isotime2epoch (
+	const char * const string
+);
 
 #endif	/* COMMON_H__ */
