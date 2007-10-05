@@ -4,7 +4,7 @@ Copyright (c) 2006-2007 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
-2007-??-?? -- Version 0.05
+2007-10-05 -- Version 0.05
 
  * Fixed a change in gnupg protocol for openpgp
    emulation, thanks to Nick Kossifidis for testing.
