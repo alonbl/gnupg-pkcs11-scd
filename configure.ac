@@ -233,7 +233,7 @@ AC_CHECK_HEADERS([ \
 	unistd.h \
 ])
 
-CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wsign-compare -Wno-unused-parameter -Wno-unused-function"
+CFLAGS="${CFLAGS} -Wall -Wpointer-arith -Wsign-compare -Wno-unused-parameter -Wno-unused-function"
 
 if test "$enable_pedantic" = "yes"; then
 	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_POSIX_SOURCE -D_POSIX_C_SOURCE -D_SVID_SOURCE"
