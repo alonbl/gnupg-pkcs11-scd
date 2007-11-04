@@ -887,6 +887,15 @@ int main (int argc, char *argv[])
 		common_log (LOG_DEBUG, "version: %s", PACKAGE_VERSION);
 		dconfig_print (&config);
 		common_log (LOG_DEBUG, "run_mode: %d", run_mode);
+		common_log (LOG_DEBUG, "crypto: %s",
+#if defined(ENABLE_OPENSSL)
+			"openssl"
+#elif defined(ENABLE_GNUTLS)
+			"gnutls"
+#else
+			"invalid"
+#endif
+		);
 	}
 
 #if !defined(HAVE_W32_SYSTEM)
