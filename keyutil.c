@@ -59,7 +59,7 @@ keyutil_get_cert_mpi (
 #if defined(ENABLE_GNUTLS)
 	gnutls_x509_crt_t cert = NULL;
 	gnutls_datum_t datum = {der, len};
-	gnutls_datum_t m, e;
+	gnutls_datum_t m = {NULL, 0}, e = {NULL, 0};
 #elif defined(ENABLE_OPENSSL)
 	X509 *x509 = NULL;
 	EVP_PKEY *pubkey = NULL;
