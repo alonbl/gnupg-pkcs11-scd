@@ -236,7 +236,7 @@ AC_CHECK_HEADERS([ \
 CFLAGS="${CFLAGS} -Wall -Wpointer-arith -Wsign-compare -Wno-unused-parameter -Wno-unused-function"
 
 if test "$enable_pedantic" = "yes"; then
-	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_POSIX_SOURCE -D_POSIX_C_SOURCE -D_SVID_SOURCE"
+	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_ISOC99_SOURCE -D_BSD_SOURCE -D_POSIX_SOURCE"
 fi
 
 if test "${HAVE_W32_SYSTEM}" = "yes"; then
