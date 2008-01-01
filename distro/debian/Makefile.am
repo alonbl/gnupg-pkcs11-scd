@@ -41,7 +41,7 @@ EXTRA_DIST= \
 	watch
 
 copyright:	copyright.m4
-	$(M4) $< > $@
+	$(M4) copyright.m4 > $@
 
 clean-local:
 	-rm copyright
