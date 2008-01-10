@@ -9,6 +9,8 @@ $Id$
  * Fixed uninitializied gnutls datum, thank to Volodya
    Vaynshteyn for his help.
 
+ * Sync with gnupg-2.0.8 assuan usage.
+
 2007-10-05 -- Version 0.05
 
  * Fixed a change in gnupg protocol for openpgp

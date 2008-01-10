@@ -1257,7 +1257,16 @@ int cmd_getinfo (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 
-	if (!strcmp (line, "socket_name")) {
+	if (!strcmp (line, "version")) {
+		char *s = PACKAGE_VERSION;
+		error = common_map_assuan_error (assuan_send_data(ctx, s, strlen (s)));
+	}
+	else if (!strcmp (line, "pid")) {
+		char buf[50];
+		snprintf (buf, sizeof (buf), "%lu", (unsigned long)getpid());
+		error = common_map_assuan_error (assuan_send_data(ctx, buf, strlen (buf)));
+	}
+	else if (!strcmp (line, "socket_name")) {
 		const char *s = scdaemon_get_socket_name ();
 
 		if (s == NULL) {
@@ -1266,6 +1275,34 @@ int cmd_getinfo (assuan_context_t ctx, char *line)
 		else {
 			error = common_map_assuan_error (assuan_send_data(ctx, s, strlen (s)));
 		}
+	}
+	else if (!strcmp (line, "status")) {
+		pkcs11h_certificate_id_list_t user_certificates = NULL;
+		char flag = 'r';
+
+		if (
+			common_map_pkcs11_error (
+				pkcs11h_certificate_enumCertificateIds (
+					PKCS11H_ENUM_METHOD_CACHE_EXIST,
+					ctx,
+					PKCS11H_PROMPT_MASK_ALLOW_ALL,
+					NULL,
+					&user_certificates
+				)
+			) == GPG_ERR_NO_ERROR
+		) {
+			if (user_certificates != NULL) {
+				flag = 'u';
+
+				pkcs11h_certificate_freeCertificateIdList (user_certificates);
+				user_certificates = NULL;
+			}
+		}
+
+		error = common_map_assuan_error (assuan_send_data(ctx, &flag, 1));
+	}
+	else if (!strcmp (line, "reader_list")) {
+		error = GPG_ERR_NO_DATA;
 	}
 	else {
 		error = GPG_ERR_INV_DATA;

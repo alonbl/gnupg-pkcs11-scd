@@ -160,7 +160,7 @@ command_handler (const int fd, dconfig_data_t *config)
 		int fds[2] = {0, 1};
 		ret = assuan_init_pipe_server (&ctx, fds);
 	} else {
-		ret = assuan_init_connected_socket_server (&ctx, fd);
+		ret = assuan_init_socket_server_ext (&ctx, fd, 2);
 	}
 
 	if (ret != ASSUAN_No_Error) {
@@ -204,7 +204,7 @@ static
 void
 server_socket_close (const int fd) {
 	if (fd != -1) {
-		close (fd);
+		assuan_sock_close (fd);
 	}
 	if (s_socket_name != NULL) {
 		unlink (s_socket_name);
@@ -250,12 +250,12 @@ server_socket_create (void) {
 	assert (strlen (s_socket_name) + 1 < sizeof (serv_addr.sun_path));
 	strcpy (serv_addr.sun_path, s_socket_name);
 
-	if ((fd = socket (AF_UNIX, SOCK_STREAM, 0)) == -1) {
+	if ((fd = assuan_sock_new (AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		common_log (LOG_ERROR, "Cannot create  socket", s_socket_name);
 		goto cleanup;
 	}
 
-	if ((rc = bind (fd, (struct sockaddr*)&serv_addr, sizeof (serv_addr))) == -1) {
+	if ((rc = assuan_sock_bind (fd, (struct sockaddr*)&serv_addr, sizeof (serv_addr))) == -1) {
 		common_log (LOG_ERROR, "Cannot bing to  socket '%s'", s_socket_name);
 		goto cleanup;
 	}
