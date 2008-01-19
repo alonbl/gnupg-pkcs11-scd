@@ -29,7 +29,7 @@
 #
 
 AC_PREREQ([2.60])
-AC_INIT([gnupg-pkcs11-scd], [0.05])
+AC_INIT([gnupg-pkcs11-scd], [0.06])
 AM_INIT_AUTOMAKE([${PACKAGE_NAME}], [${PACKAGE_VERSION}])
 AM_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([common.h])

@@ -4,12 +4,14 @@ Copyright (c) 2006-2007 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
-????-??-?? -- Version 0.06
+2008-01-19 -- Version 0.06
 
  * Fixed uninitializied gnutls datum, thank to Volodya
    Vaynshteyn for his help.
 
  * Sync with gnupg-2.0.8 assuan usage.
+
+ * Some minor fixups.
 
 2007-10-05 -- Version 0.05
 
