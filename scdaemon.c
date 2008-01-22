@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
- * Copyright (c) 2006-2007 Alon Bar-Lev <alon.barlev@gmail.com>
+ * Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -588,7 +588,7 @@ static void usage (const char * const argv0)
 "%s %s\n"
 "\n"
 "Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>\n"
-"Copyright (c) 2006-2007 Alon Bar-Lev <alon.barlev@gmail.com>\n"
+"Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>\n"
 "This program comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it\n"
 "under certain conditions. See the file COPYING for details.\n"
@@ -793,7 +793,7 @@ int main (int argc, char *argv[])
 					"%s %s\n"
 					"\n"
 					"Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>\n"
-					"Copyright (c) 2006-2007 Alon Bar-Lev <alon.barlev@gmail.com>\n"
+					"Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>\n"
 					"\n"
 					"This is free software; see the source for copying conditions.\n"
 					"There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n",
