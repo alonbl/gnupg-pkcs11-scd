@@ -9,7 +9,7 @@ Upstream Authors:
 
 Copyright:
 	Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
-	Copyright (c) 2006-2007 Alon Bar-Lev <alon.barlev@gmail.com>
+	Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>
 
 include(../../COPYING)
 
