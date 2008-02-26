@@ -403,7 +403,7 @@ cleanup:
 
 int _get_certificate_by_type (assuan_context_t ctx, int type, pkcs11h_certificate_id_t *p_cert_id, char **p_key) {
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
-	gpg_err_code_t error = GPG_ERR_GENERAL;
+	gpg_err_code_t error = GPG_ERR_BAD_KEY;
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
 	pkcs11h_certificate_id_list_t curr_cert;
 	pkcs11h_certificate_id_t cert_id = NULL;
@@ -481,7 +481,6 @@ int _get_certificate_by_type (assuan_context_t ctx, int type, pkcs11h_certificat
 	}
 
 	if (!found) {
-		error = GPG_ERR_BAD_KEY;
 		goto cleanup;
 	}
 
