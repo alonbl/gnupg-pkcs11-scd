@@ -28,4 +28,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
+MAINTAINERCLEANFILES=Makefile.in
+
 EXTRA_DIST=gnupg-pkcs11-scd.spec
