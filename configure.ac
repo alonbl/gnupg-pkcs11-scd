@@ -29,16 +29,37 @@
 #
 
 AC_PREREQ([2.60])
-AC_INIT([gnupg-pkcs11-scd], [0.06])
-AM_INIT_AUTOMAKE([${PACKAGE_NAME}], [${PACKAGE_VERSION}])
+
+define([PACKAGE_VERSION_MAJOR], [0])
+define([PACKAGE_VERSION_MINOR], [7])
+define([PACKAGE_VERSION_FIX], [0])
+
+AC_INIT([gnupg-pkcs11-scd], [PACKAGE_VERSION_MAJOR.PACKAGE_VERSION_MINOR.PACKAGE_VERSION_FIX-beta])
+AC_CONFIG_AUX_DIR([.])
 AM_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([common.h])
+AM_INIT_AUTOMAKE([${PACKAGE_NAME}], [${PACKAGE_VERSION}])
+
+GNUPG_PKCS11_SCD_VERSION_MAJOR="PACKAGE_VERSION_MAJOR"
+GNUPG_PKCS11_SCD_VERSION_MINOR="PACKAGE_VERSION_MINOR"
+GNUPG_PKCS11_SCD_VERSION_FIX="PACKAGE_VERSION_FIX"
+
+AC_SUBST([GNUPG_PKCS11_SCD_VERSION_MAJOR])
+AC_SUBST([GNUPG_PKCS11_SCD_VERSION_MINOR])
+AC_SUBST([GNUPG_PKCS11_SCD_VERSION_FIX])
 
 AC_CANONICAL_HOST
 AC_PROG_CC
 AC_PROG_INSTALL
 PKG_PROG_PKG_CONFIG
 AC_CHECK_PROGS([M4], [m4])
+
+AC_ARG_WITH(
+	[cygwin-native],
+	[AC_HELP_STRING([--with-cygwin-native], [compile native win32])],
+	,
+	[with_cygwin_native="no"]
+)
 
 test -z "${HAVE_W32_SYSTEM}" && HAVE_W32_SYSTEM="no"
 test -z "${CYGWIN}" && CYGWIN="no"
@@ -68,63 +89,63 @@ esac
 
 AC_ARG_ENABLE(
 	[strict],
-	[AC_HELP_STRING([--enable-strict], [Enable strict compiler warnings])],
+	[AC_HELP_STRING([--enable-strict], [enable strict compiler warnings])],
 	,
 	[enable_strict="no"]
 )
 
 AC_ARG_ENABLE(
 	[pedantic],
-	[AC_HELP_STRING([--enable-pedantic], [Enable pedantic compiler warnings])],
+	[AC_HELP_STRING([--enable-pedantic], [enable pedantic compiler warnings])],
 	,
 	[enable_pedantic="no"]
 )
 
 AC_ARG_WITH(
 	[openssl],
-	[AC_HELP_STRING([--without-openssl], [Disable OpenSSL linkage)])],
+	[AC_HELP_STRING([--without-openssl], [disable OpenSSL linkage)])],
 	,
 	[with_openssl="yes"]
 )
 
 AC_ARG_WITH(
 	[gnutls],
-	[AC_HELP_STRING([--without-gnutls], [Disable GNUTLS linkage (OpenSSL will be used if both enabled)])],
+	[AC_HELP_STRING([--without-gnutls], [disable GNUTLS linkage (OpenSSL will be used if both enabled)])],
 	,
 	[with_gnutls="yes"]
 )
 
 AC_ARG_WITH(
 	[system-config],
-	[AC_HELP_STRING([--with-system-config=FILE], [Define gnupg system wide config])],
+	[AC_HELP_STRING([--with-system-config=FILE], [define gnupg system wide config])],
 	[SYSTEM_CONFIG="${withval}"],
 	[test "${HAVE_W32_SYSTEM}" = "yes" && SYSTEM_CONFIG="%SystemRoot%\\\\${PACKAGE}.conf" || SYSTEM_CONFIG="/etc/${PACKAGE}.conf"]
 )
 
 AC_ARG_WITH(
 	[gnupg-home],
-	[AC_HELP_STRING([--with-gnupg-home=DIR], [Define gnupg home])],
+	[AC_HELP_STRING([--with-gnupg-home=DIR], [define gnupg home])],
 	[GNUPG_HOME="${withval}"],
 	[test "${HAVE_W32_SYSTEM}" = "yes" && GNUPG_HOME="~\\\\.gnupg" || GNUPG_HOME="~/.gnupg"]
 )
 
 AC_ARG_WITH(
 	[libgpg-error-prefix],
-	[AC_HELP_STRING([--with-libgpg-error-prefix=DIR], [Define libgpgp-error prefix])],
+	[AC_HELP_STRING([--with-libgpg-error-prefix=DIR], [define libgpgp-error prefix])],
 	,
 	[with_libgpg_error_prefix="/usr" ]
 )
 
 AC_ARG_WITH(
 	[libassuan-prefix],
-	[AC_HELP_STRING([--with-libassuan-prefix=DIR], [Define libassuan prefix])],
+	[AC_HELP_STRING([--with-libassuan-prefix=DIR], [define libassuan prefix])],
 	,
 	[with_libassuan_prefix="/usr" ]
 )
 
 AC_ARG_WITH(
 	[libgcrypt-prefix],
-	[AC_HELP_STRING([--with-libgcrypt-prefix=DIR], [Define libgcrypt prefix])],
+	[AC_HELP_STRING([--with-libgcrypt-prefix=DIR], [define libgcrypt prefix])],
 	,
 	[with_libgcrypt_prefix="/usr" ]
 )
@@ -250,7 +271,7 @@ if test "${enable_strict}" = "yes"; then
 fi
 
 if test "${HAVE_W32_SYSTEM}" = "yes"; then
-	LIBS="${LIBS} -lkernel32 -lgdi32 -lws2_32"
+	LIBS="${LIBS} -lws2_32"
 fi
 
 AC_DEFINE_UNQUOTED([CONFIG_GPG_HOME], ["${GNUPG_HOME}"], [gnupg home])

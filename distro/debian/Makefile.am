@@ -28,7 +28,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-BUILT_SOURCES=copyright
+MAINTAINERCLEANFILES=Makefile.in
+CLEANFILES=copyright
 
 EXTRA_DIST= \
 	changelog \
@@ -39,9 +40,7 @@ EXTRA_DIST= \
 	copyright \
 	rules \
 	watch
+BUILT_SOURCES=copyright
 
 copyright:	copyright.m4
 	$(M4) copyright.m4 > $@
-
-clean-local:
-	-rm copyright

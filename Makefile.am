@@ -28,9 +28,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-# This option prevents autoreconf from overriding our COPYING and
-# INSTALL targets:
 AUTOMAKE_OPTIONS=foreign dist-bzip2
+
+MAINTAINERCLEANFILES= \
+	Makefile.in config.h.in config.h.in~ configure \
+	install-sh ltmain.sh missing mkinstalldirs \
+	compile depcomp config.log config.status \
+	config.guess config.sub acinclude.m4 aclocal.m4
+CLEANFILES=gnupg-pkcs11-scd.1.html
 
 SUBDIRS=distro
 
@@ -59,12 +64,7 @@ dist_man_MANS=gnupg-pkcs11-scd.1
 endif
 
 #
-# pkcs11-helper.spec must be on root for invalid RPM
+# gnupg-pkcs11-scd.spec must be on root for invalid RPM
 #
 dist-hook:
-	ln -s distro/rpm/gnupg-pkcs11-scd.spec $(distdir)/gnupg-pkcs11-scd.spec
-
-clean-generic:
-	-rm gnupg-pkcs11-scd.spec
-	-rm -f *.html
-
+	ln -s distro/rpm/gnupg-pkcs11-scd.spec "$(distdir)/gnupg-pkcs11-scd.spec"
