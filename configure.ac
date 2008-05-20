@@ -160,7 +160,7 @@ AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([ \
 	gettimeofday memmove memset socket strchr strdup strerror strrchr \
-	snprintf \
+	snprintf timegm unsetenv \
 ])
 
 AC_CHECK_LIB([dl], [dlopen])
