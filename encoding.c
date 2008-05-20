@@ -110,6 +110,51 @@ encoding_strappend (
 }
 
 /* From gnupg */
+
+/*
+  timegm() is a GNU function that might not be available everywhere.
+  It's basically the inverse of gmtime() - you give it a struct tm,
+  and get back a time_t.  It differs from mktime() in that it handles
+  the case where the struct tm is UTC and the local environment isn't.
+
+  Note, that this replacement implementaion is not thread-safe!
+
+  Some BSDs don't handle the putenv("foo") case properly, so we use
+  unsetenv if the platform has it to remove environment variables.
+*/
+#ifndef HAVE_TIMEGM
+static char old_zone[1024];
+time_t
+timegm (struct tm *tm)
+{
+	time_t answer;
+	char *zone;
+
+	zone=getenv("TZ");
+	putenv("TZ=UTC");
+	tzset();
+	answer=mktime(tm);
+	if(zone) {
+		if (strlen (old_zone) == 0) {
+			strcpy(old_zone,"TZ=");
+			strcat(old_zone,zone);
+		}
+		putenv (old_zone);
+	}
+	else {
+#ifdef HAVE_UNSETENV
+		unsetenv("TZ");
+#else
+		putenv("TZ");
+#endif
+	}
+
+	tzset();
+
+	return answer;
+}
+#endif /*!HAVE_TIMEGM*/
+
 time_t
 isotime2epoch (
 	const char * const string

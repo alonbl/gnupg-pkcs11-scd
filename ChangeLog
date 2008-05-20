@@ -4,6 +4,10 @@ Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
+????-??-?? -- Version 0.7.0
+
+ * Add timegm() replacement, thanks to Lars Silvén.
+
 2008-01-19 -- Version 0.06
 
  * Fixed uninitializied gnutls datum, thank to Volodya
