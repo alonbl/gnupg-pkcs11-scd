@@ -75,7 +75,7 @@ Cross-MinGW32
 				OPENSSL_CFLAGS="-I${w32root}/include" \
 				OPENSSL_LIBS="-L${w32root}/lib -lcrypto" \
 				PKCS11_HELPER_CFLAGS="-I${w32root}/include" \
-				PKCS11_HELPER_LIBS="-L${w32root}/lib -llibpkcs11-helper" \
+				PKCS11_HELPER_LIBS="-L${w32root}/lib -lpkcs11-helper" \
 				PKCS11_HELPER_FEATURES="threading token certificate engine_crypto"
 			make install DESTDIR="${w32root}"
 
