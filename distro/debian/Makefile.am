@@ -28,10 +28,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-MAINTAINERCLEANFILES=Makefile.in
+SUFFIXES=.m4
+MAINTAINERCLEANFILES=$(srcdir)/Makefile.in
 CLEANFILES=copyright
+BUILT_SOURCES=copyright
 
-EXTRA_DIST= \
+dist_noinst_DATA= \
 	changelog \
 	README.build \
 	compat \
@@ -40,7 +42,6 @@ EXTRA_DIST= \
 	copyright \
 	rules \
 	watch
-BUILT_SOURCES=copyright
 
-copyright:	copyright.m4
-	$(M4) copyright.m4 > $@
+.m4:
+	$(M4) -Dtop_srcdir="$(top_srcdir)" "$^" > "$@"
