@@ -11,7 +11,7 @@ Copyright:
 	Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
 	Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>
 
-include(../../COPYING)
+include(top_srcdir/COPYING)
 
 On Debian GNU/Linux systems, the complete text of the GNU General
 Public License can be found in `/usr/share/common-licenses/BSD'. 

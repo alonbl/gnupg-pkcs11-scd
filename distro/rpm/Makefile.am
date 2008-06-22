@@ -28,6 +28,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-MAINTAINERCLEANFILES=Makefile.in
+MAINTAINERCLEANFILES=$(srcdir)/Makefile.in
 
-EXTRA_DIST=gnupg-pkcs11-scd.spec
+dist_noinst_DATA=gnupg-pkcs11-scd.spec
