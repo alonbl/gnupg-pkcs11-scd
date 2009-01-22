@@ -256,6 +256,11 @@ Signing, verification, etc. work as usual with gpgsm.
 Typical steps to set up a card for gpg usage:
 .Bl -enum
 .It
+Aquire key ids:
+.Dl gpg-agent --server gpg-connect-agent
+Enter "SCD LEARN" and look for "KEY-FRIEDNLY" responses, the first field is the hash, the second
+is the subject name.
+.It
 Configure gnupg-pkcs11-scd for opengpg emulation, specify the public key hashes
 to be used for signature, encryption and authentication.
 .It
