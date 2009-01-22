@@ -65,7 +65,7 @@ AC_ARG_WITH(
 test -z "${HAVE_W32_SYSTEM}" && HAVE_W32_SYSTEM="no"
 test -z "${CYGWIN}" && CYGWIN="no"
 case "${host}" in
-	*-mingw32*)
+	*-mingw*)
 		AC_DEFINE([HAVE_W32_SYSTEM], [1], [Defined if we run on a W32 API based system])
 		HAVE_W32_SYSTEM="yes"
 	;;
