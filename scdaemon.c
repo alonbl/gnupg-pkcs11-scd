@@ -109,6 +109,7 @@ register_commands (const assuan_context_t ctx)
 		{ "OUTPUT",	NULL }, 
 		{ "GETATTR",	cmd_getattr },
 		{ "SETATTR",	cmd_setattr },
+		{ "WRITECERT",	NULL },
 		{ "WRITEKEY",	NULL },
 		{ "GENKEY",	cmd_genkey },
 		{ "RANDOM",	NULL },
@@ -118,7 +119,9 @@ register_commands (const assuan_context_t ctx)
 		{ "UNLOCK",	NULL },
 		{ "GETINFO",	cmd_getinfo },
 		{ "RESTART",	cmd_restart },
-		{ "CHV-STATUS-1", cmd_null },
+		{ "DISCONNECT",	cmd_null },
+		{ "APDU",	NULL },
+		{ "CHV-STATUS-1", cmd_null },	/* gnupg-1.X */
 		{ NULL, NULL }
 	};
 	int i, ret;
