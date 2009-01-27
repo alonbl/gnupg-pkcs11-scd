@@ -167,31 +167,43 @@ AC_CHECK_FUNCS([ \
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([pthread], [pthread_create])
 
-AC_MSG_CHECKING([for libgpg-error])
-if ! test -x "${with_libgpg_error_prefix}/bin/gpg-error-config"; then
-	AC_MSG_ERROR([Cannot locate libgpg-error])
-else
-	AC_MSG_RESULT([found])
-	CFLAGS="${CFLAGS} `\"${with_libgpg_error_prefix}/bin/gpg-error-config\" --cflags`"
-	LIBS="${LIBS} `\"${with_libgpg_error_prefix}/bin/gpg-error-config\" --libs`"
+AC_ARG_VAR([LIBGPG_ERROR_CFLAGS], [C compiler flags for libgpg-error])
+AC_ARG_VAR([LIBGPG_ERROR_LIBS], [linker flags for libgpg-error])
+if test -z "${LIBGPG_ERROR_LIBS}"; then
+	AC_MSG_CHECKING([for libgpg-error])
+	if ! test -x "${with_libgpg_error_prefix}/bin/gpg-error-config"; then
+		AC_MSG_ERROR([Cannot locate libgpg-error])
+	else
+		AC_MSG_RESULT([found])
+		LIBGPG_ERROR_CFLAGS="`\"${with_libgpg_error_prefix}/bin/gpg-error-config\" --cflags`"
+		LIBGPG_ERROR_LIBS="`\"${with_libgpg_error_prefix}/bin/gpg-error-config\" --libs`"
+	fi
 fi
 
-AC_MSG_CHECKING([for libassuan])
-if ! test -x "${with_libassuan_prefix}/bin/libassuan-config"; then
-	AC_MSG_ERROR([Cannot locate libassuan])
-else
-	AC_MSG_RESULT([found])
-	CFLAGS="${CFLAGS} `\"${with_libassuan_prefix}/bin/libassuan-config\" --cflags`"
-	LIBS="${LIBS} `\"${with_libassuan_prefix}/bin/libassuan-config\" --libs`"
+AC_ARG_VAR([LIBASSUAN_CFLAGS], [C compiler flags for libassuan])
+AC_ARG_VAR([LIBASSUAN_LIBS], [linker flags for libassuan])
+if test -z "${LIBASSUAN_LIBS}"; then
+	AC_MSG_CHECKING([for libassuan])
+	if ! test -x "${with_libassuan_prefix}/bin/libassuan-config"; then
+		AC_MSG_ERROR([Cannot locate libassuan])
+	else
+		AC_MSG_RESULT([found])
+		LIBASSUAN_CFLAGS="`\"${with_libassuan_prefix}/bin/libassuan-config\" --cflags`"
+		LIBASSUAN_LIBS="`\"${with_libassuan_prefix}/bin/libassuan-config\" --libs`"
+	fi
 fi
 
-AC_MSG_CHECKING([for libgcrypt])
-if ! test -x "${with_libgcrypt_prefix}/bin/libgcrypt-config"; then
-	AC_MSG_ERROR([Cannot locate libgcrypt])
-else
-	AC_MSG_RESULT([found])
-	CFLAGS="${CFLAGS} `\"${with_libgcrypt_prefix}/bin/libgcrypt-config\" --cflags`"
-	LIBS="${LIBS} `\"${with_libgcrypt_prefix}/bin/libgcrypt-config\" --libs`"
+AC_ARG_VAR([LIBGCRYPT_CFLAGS], [C compiler flags for libgcrypt])
+AC_ARG_VAR([LIBGCRYPT_LIBS], [linker flags for libgcrypt])
+if test -z "${LIBGCRYPT_LIBS}"; then
+	AC_MSG_CHECKING([for libgcrypt])
+	if ! test -x "${with_libgcrypt_prefix}/bin/libgcrypt-config"; then
+		AC_MSG_ERROR([Cannot locate libgcrypt])
+	else
+		AC_MSG_RESULT([found])
+		LIBGCRYPT_CFLAGS="`\"${with_libgcrypt_prefix}/bin/libgcrypt-config\" --cflags`"
+		LIBGCRYPT_LIBS="`\"${with_libgcrypt_prefix}/bin/libgcrypt-config\" --libs`"
+	fi
 fi
 
 PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7], [HAVE_OPENSSL="yes"], [HAVE_OPENSSL="no"])
@@ -203,8 +215,9 @@ PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4], [HAVE_GNUTLS="yes"], [HAVE_GNUTLS="
 
 PKG_CHECK_MODULES([PKCS11_HELPER], [libpkcs11-helper-1 >= 1.02],, [AC_MSG_ERROR([Cannot locate pkcs11-helper])])
 PKCS11_HELPER_1_CHECK_FEATURES([threading token certificate engine_crypto])
-CFLAGS="$CFLAGS ${PKCS11_HELPER_CFLAGS}"
-LIBS="${LIBS} ${PKCS11_HELPER_LIBS}"
+
+CFLAGS="${CFLAGS} ${LIBGPG_ERROR_CFLAGS} ${LIBASSUAN_CFLAGS} ${LIBGCRYPT_CFLAGS} ${PKCS11_HELPER_CFLAGS}"
+LIBS="${LIBS} ${LIBGPG_ERROR_LIBS} ${LIBASSUAN_LIBS} ${LIBGCRYPT_LIBS} ${PKCS11_HELPER_LIBS}"
 
 AC_MSG_CHECKING([cryptographic library to use])
 
