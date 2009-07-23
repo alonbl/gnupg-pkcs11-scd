@@ -35,7 +35,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#ifdef HAVE_MALLOC_H
 #include <malloc.h>
+#endif
 #include <assert.h>
 #include <string.h>
 #include <gpg-error.h>
