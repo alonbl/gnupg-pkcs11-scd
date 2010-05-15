@@ -1358,6 +1358,49 @@ int cmd_getattr (assuan_context_t ctx, char *line)
 			goto cleanup;
 		}
 	}
+	else if (!strcmp (line, "KEY-ATTR")) {
+		int i;
+		for (i=0;i<3;i++) {
+			char buffer[1024];
+
+			/* I am not sure 2048 is right here... */
+			snprintf(buffer, sizeof(buffer), "%d 1 %u %u %d", i+1, GCRY_PK_RSA, 2048, 0);
+
+			if (
+				(error = common_map_assuan_error (
+					assuan_write_status(
+						ctx,
+						"KEY-ATTR",
+						buffer
+					)
+				)) != GPG_ERR_NO_ERROR
+			) {
+				goto cleanup;
+			}
+		}
+	}
+	else if (!strcmp (line, "EXTCAP")) {
+		int i;
+		for (i=0;i<3;i++) {
+			char buffer[1024];
+
+			/* I am not sure what these are... */
+			snprintf(buffer, sizeof(buffer), "gc=%d ki=%d fc=%d pd=%d mcl3=%u aac=%d sm=%d",
+				0, 0, 0, 0, 2048, 0, 0);
+
+			if (
+				(error = common_map_assuan_error (
+					assuan_write_status(
+						ctx,
+						"EXTCAP",
+						buffer
+					)
+				)) != GPG_ERR_NO_ERROR
+			) {
+				goto cleanup;
+			}
+		}
+	}
 	else {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
