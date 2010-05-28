@@ -151,6 +151,15 @@ AC_ARG_WITH(
 	[with_libgcrypt_prefix="/usr" ]
 )
 
+if test "${enable_pedantic}" = "yes"; then
+	enable_strict="yes"
+	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_ISOC99_SOURCE -D_BSD_SOURCE -D_POSIX_SOURCE"
+fi
+
+if test "${enable_strict}" = "yes"; then
+	CFLAGS="${CFLAGS} -Wall -Wextra -Wpointer-arith -Wsign-compare -Wno-unused-parameter -Wno-unused-function"
+fi
+
 if test "${HAVE_W32_SYSTEM}" = "yes"; then
 	AC_CHECK_PROGS([MAN2HTML], [man2html])
 	test -z "${MAN2HTML}" && AC_MSG_ERROR([man2html is required for win32])
@@ -255,6 +264,7 @@ AM_CONDITIONAL([HAVE_W32_SYSTEM], [test "${HAVE_W32_SYSTEM}" = "yes"])
 AC_HEADER_STDC
 AC_C_CONST
 AC_C_VOLATILE
+AC_C_INLINE
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
@@ -274,15 +284,6 @@ AC_CHECK_HEADERS([ \
 	dlfcn.h \
 	unistd.h \
 ])
-
-if test "${enable_pedantic}" = "yes"; then
-	enable_strict="yes"
-	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_ISOC99_SOURCE -D_BSD_SOURCE -D_POSIX_SOURCE"
-fi
-
-if test "${enable_strict}" = "yes"; then
-	CFLAGS="${CFLAGS} -Wall -Wextra -Wpointer-arith -Wsign-compare -Wno-unused-parameter -Wno-unused-function"
-fi
 
 AC_DEFINE_UNQUOTED([CONFIG_GPG_HOME], ["${GNUPG_HOME}"], [gnupg home])
 AC_DEFINE_UNQUOTED([CONFIG_SYSTEM_CONFIG], ["${SYSTEM_CONFIG}"], [system config])
