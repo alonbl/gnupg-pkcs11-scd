@@ -110,32 +110,32 @@ register_commands (const assuan_context_t ctx)
 		assuan_handler_t handler;
 		const char * const help;
 	} table[] = {
-		{ "SERIALNO",	cmd_serialno, },
-		{ "LEARN",	cmd_learn },
-		{ "READCERT",	cmd_readcert },
-		{ "READKEY",	cmd_readkey },
-		{ "SETDATA",	cmd_setdata },
-		{ "PKSIGN",	cmd_pksign },
-		{ "PKAUTH",	NULL },
-		{ "PKDECRYPT",	cmd_pkdecrypt },
-		{ "INPUT",	NULL }, 
-		{ "OUTPUT",	NULL }, 
-		{ "GETATTR",	cmd_getattr },
-		{ "SETATTR",	cmd_setattr },
-		{ "WRITECERT",	NULL },
-		{ "WRITEKEY",	NULL },
-		{ "GENKEY",	cmd_genkey },
-		{ "RANDOM",	NULL },
-		{ "PASSWD",	NULL },
-		{ "CHECKPIN",	cmd_null },
-		{ "LOCK",	NULL },
-		{ "UNLOCK",	NULL },
-		{ "GETINFO",	cmd_getinfo },
-		{ "RESTART",	cmd_restart },
-		{ "DISCONNECT",	cmd_null },
-		{ "APDU",	NULL },
-		{ "CHV-STATUS-1", cmd_null },	/* gnupg-1.X */
-		{ NULL, NULL }
+		{ "SERIALNO",	cmd_serialno, NULL },
+		{ "LEARN",	cmd_learn, NULL },
+		{ "READCERT",	cmd_readcert, NULL },
+		{ "READKEY",	cmd_readkey, NULL },
+		{ "SETDATA",	cmd_setdata, NULL },
+		{ "PKSIGN",	cmd_pksign, NULL },
+		{ "PKAUTH",	NULL, NULL },
+		{ "PKDECRYPT",	cmd_pkdecrypt, NULL },
+		{ "INPUT",	NULL, NULL }, 
+		{ "OUTPUT",	NULL, NULL }, 
+		{ "GETATTR",	cmd_getattr, NULL },
+		{ "SETATTR",	cmd_setattr, NULL },
+		{ "WRITECERT",	NULL, NULL },
+		{ "WRITEKEY",	NULL, NULL },
+		{ "GENKEY",	cmd_genkey, NULL },
+		{ "RANDOM",	NULL, NULL },
+		{ "PASSWD",	NULL, NULL },
+		{ "CHECKPIN",	cmd_null, NULL },
+		{ "LOCK",	NULL, NULL },
+		{ "UNLOCK",	NULL, NULL },
+		{ "GETINFO",	cmd_getinfo, NULL },
+		{ "RESTART",	cmd_restart, NULL },
+		{ "DISCONNECT",	cmd_null, NULL },
+		{ "APDU",	NULL, NULL },
+		{ "CHV-STATUS-1", cmd_null, NULL },	/* gnupg-1.X */
+		{ NULL, NULL, NULL }
 	};
 	int i, ret;
 
@@ -174,7 +174,8 @@ command_handler (const int fd, dconfig_data_t *config)
 	data.config = config;
 
 	if ((ret = assuan_new(&ctx)) != 0) {
-		common_log (LOG_FATAL,"failed to create assuan context %s", gpg_strerror (ret));
+		common_log (LOG_ERROR,"failed to create assuan context %s", gpg_strerror (ret));
+		goto cleanup;
 	}
 
 	if(fd < 0) {
@@ -185,11 +186,13 @@ command_handler (const int fd, dconfig_data_t *config)
 	}
 
 	if (ret != 0) {
-		common_log (LOG_FATAL,"failed to initialize server: %s", gpg_strerror (ret));
+		common_log (LOG_ERROR,"failed to initialize server: %s", gpg_strerror (ret));
+		goto cleanup;
 	}
 
 	if(((ret = register_commands(ctx))) != 0) {
-		common_log (LOG_FATAL,"failed to register assuan commands: %s", gpg_strerror (ret));
+		common_log (LOG_ERROR,"failed to register assuan commands: %s", gpg_strerror (ret));
+		goto cleanup;
 	}
 
 	if (config->verbose) {
@@ -213,9 +216,10 @@ command_handler (const int fd, dconfig_data_t *config)
 		}
 	}
 
-	cmd_free_data (ctx);
+cleanup:
 
 	if (ctx != NULL) {
+		cmd_free_data (ctx);
 		assuan_release (ctx);
 		ctx = NULL;
 	}
@@ -310,7 +314,9 @@ _server_socket_command_handler (void *arg) {
 	command_handler (entry->fd, entry->config);
 	entry->stopped = 1;
 
-	write (s_fd_accept_terminate[1], &clean, sizeof (clean));
+	if (write (s_fd_accept_terminate[1], &clean, sizeof (clean)) == -1) {
+		common_log (LOG_FATAL, "write failed");
+	}
 
 	return NULL;
 }
@@ -450,7 +456,9 @@ static
 void
 server_socket_accept_terminate (pthread_t thread) {
 	accept_command_t stop = ACCEPT_THREAD_STOP;
-	write (s_fd_accept_terminate[1], &stop, sizeof (stop));
+	if (write (s_fd_accept_terminate[1], &stop, sizeof (stop)) == -1) {
+		common_log (LOG_FATAL, "write failed");
+	}
 	pthread_join (thread, NULL);
 	close (s_fd_accept_terminate[0]);
 	close (s_fd_accept_terminate[1]);
@@ -941,11 +949,10 @@ int main (int argc, char *argv[])
 		if (pid != 0) {
 			static const char *key = "SCDAEMON_INFO";
 			char env[1024];
-
-			snprintf (env, sizeof (env), "%s=%s:%lu:1", key, s_socket_name, (unsigned long)pid);
+			snprintf (env, sizeof (env), "%s:%lu:1", s_socket_name, (unsigned long)pid);
 
 			if (argc - base_argc > 0) {
-				putenv (env);
+				setenv(key, env, 1);
 				execvp (argv[base_argc], &(argv[base_argc]));
 				kill (pid, SIGTERM);
 				exit (1);
@@ -953,10 +960,10 @@ int main (int argc, char *argv[])
 			else {
 				if (env_is_csh) {
 					*strchr (env, '=') = ' ';
-					printf ("setenv %s\n", env);
+					printf ("setenv %s %s\n", key, env);
 				}
 				else {
-					printf ("%s; export %s\n", env, key);
+					printf ("%s=%s; export %s\n", key, env, key);
 				}
 				exit (0);
 			}
@@ -976,7 +983,9 @@ int main (int argc, char *argv[])
 			}
 		}
 
-		chdir ("/");
+		if (chdir ("/") == -1) {
+			common_log (LOG_FATAL, "chdir failed");
+		}
 
 		if (argc - base_argc > 0) {
 			struct sigaction sa;
@@ -1059,7 +1068,9 @@ int main (int argc, char *argv[])
 		 */
 		int fds[2];
 		char c;
-		pipe (fds);
+		if (pipe (fds)==-1) {
+			common_log (LOG_FATAL, "Could not create pipe");
+		}
 		close (0);
 		dup2 (fds[0], 0);
 		close (fds[0]);
