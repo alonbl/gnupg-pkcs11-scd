@@ -4,10 +4,11 @@ Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
-????-??-?? -- Version 0.7.0
+2010-05-28 -- Version 0.7.0
 
  * Add timegm() replacement, thanks to Lars Silvén.
- * Sync with gnupg-2.0.10 commands.
+ * Sync with gnupg-2.0.14 commands.
+ * Need assuan-2.
 
 2008-01-19 -- Version 0.06
 
