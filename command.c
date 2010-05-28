@@ -283,12 +283,10 @@ send_certificate_list (
 		}
 
 		if (
-			(error = common_map_assuan_error (
-				assuan_write_status (
-					ctx,
-					"KEY-FRIEDNLY",
-					nameinfo
-				)
+			(error = assuan_write_status (
+				ctx,
+				"KEY-FRIEDNLY",
+				nameinfo
 			)) != GPG_ERR_NO_ERROR
 		) {
 			goto retry;
@@ -305,12 +303,10 @@ send_certificate_list (
 
 
 			if (
-				(error = common_map_assuan_error (
-					assuan_write_status (
-						ctx,
-						"KEY-FPR",
-						gpginfo
-					)
+				(error = assuan_write_status (
+					ctx,
+					"KEY-FPR",
+					gpginfo
 				)) != GPG_ERR_NO_ERROR
 			) {
 				goto retry;
@@ -320,12 +316,10 @@ send_certificate_list (
 
 		if (
 			!data->config->emulate_openpgp &&
-			(error = common_map_assuan_error (
-				assuan_write_status (
-					ctx,
-					"CERTINFO",
-					info_cert
-				)
+			(error = assuan_write_status (
+				ctx,
+				"CERTINFO",
+				info_cert
 			)) != GPG_ERR_NO_ERROR
 		) {
 			goto retry;
@@ -343,12 +337,10 @@ send_certificate_list (
 			}
 
 			if (
-				(error = common_map_assuan_error (
-					assuan_write_status (
-						ctx,
-						"KEYPAIRINFO",
-						keypairinfo
-					)
+				(error = assuan_write_status (
+					ctx,
+					"KEYPAIRINFO",
+					keypairinfo
 				)) != GPG_ERR_NO_ERROR
 			) {
 				goto retry;
@@ -525,7 +517,7 @@ void cmd_free_data (assuan_context_t ctx) {
 	}
 }
 
-int cmd_null (assuan_context_t ctx, char *line)
+gpg_error_t cmd_null (assuan_context_t ctx, char *line)
 {
 	(void)ctx;
 	(void)line;
@@ -537,7 +529,7 @@ int cmd_null (assuan_context_t ctx, char *line)
    Returns the card serial number and internally enumerates all certificates.
    This function MUST be called before any other operation with the card.
 */
-int cmd_serialno (assuan_context_t ctx, char *line)
+gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 {
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_GENERAL;
@@ -586,12 +578,10 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 		}
 
 		if (
-			(error = common_map_assuan_error (
-				assuan_write_status (
-					ctx,
-					"SERIALNO",
-					serial_and_stamp
-				)
+			(error = assuan_write_status (
+				ctx,
+				"SERIALNO",
+				serial_and_stamp
 			)) != GPG_ERR_NO_ERROR
 		) {
 			goto cleanup;
@@ -678,12 +668,10 @@ int cmd_serialno (assuan_context_t ctx, char *line)
 		}
 
 		if (
-			(error = common_map_assuan_error (
-				assuan_write_status (
-					ctx,
-					"SERIALNO",
-					serial_and_stamp
-				)
+			(error = assuan_write_status (
+				ctx,
+				"SERIALNO",
+				serial_and_stamp
 			)) != GPG_ERR_NO_ERROR
 		) {
 			goto retry;
@@ -718,7 +706,7 @@ cleanup:
 }
 
 /** TODO: handle --force option! */
-int cmd_learn (assuan_context_t ctx, char *line)
+gpg_error_t cmd_learn (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
@@ -740,26 +728,20 @@ int cmd_learn (assuan_context_t ctx, char *line)
 				&user_certificates
 			)
 		)) != GPG_ERR_NO_ERROR ||
-		(error = common_map_assuan_error (
-			assuan_write_status (
-				ctx,
-				"APPTYPE",
-				"PKCS11"
-			)
+		(error = assuan_write_status (
+			ctx,
+			"APPTYPE",
+			"PKCS11"
 		)) != GPG_ERR_NO_ERROR ||
-		(error = common_map_assuan_error (
-			send_certificate_list (
-				ctx,
-				user_certificates,
-				0
-			)
+		(error = send_certificate_list (
+			ctx,
+			user_certificates,
+			0
 		)) != GPG_ERR_NO_ERROR ||
-		(error = common_map_assuan_error (
-			send_certificate_list (
-				ctx,
-				issuer_certificates,
-				1
-			)
+		(error = send_certificate_list (
+			ctx,
+			issuer_certificates,
+			1
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
@@ -786,7 +768,7 @@ cleanup:
    Return certificate contents. Line contains the percent-plus escaped
    certificate ID.
 */
-int cmd_readcert (assuan_context_t ctx, char *line)
+gpg_error_t cmd_readcert (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
@@ -799,9 +781,7 @@ int cmd_readcert (assuan_context_t ctx, char *line)
 			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
 		)) != GPG_ERR_NO_ERROR ||
 		(error = get_cert_blob (ctx, cert_id, &blob, &blob_size)) != GPG_ERR_NO_ERROR ||
-		(error = common_map_assuan_error (
-			assuan_send_data (ctx, blob, blob_size)
-		)) != GPG_ERR_NO_ERROR
+		(error = assuan_send_data (ctx, blob, blob_size)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
 	}
@@ -829,7 +809,7 @@ cleanup:
 }
 
 /** Read key given cert id in line. */
-int cmd_readkey (assuan_context_t ctx, char *line)
+gpg_error_t cmd_readkey (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
@@ -862,12 +842,10 @@ int cmd_readkey (assuan_context_t ctx, char *line)
 	}
 
 	if (
-		(error = common_map_assuan_error (
-			assuan_send_data(
-				ctx,
-				blob,
-				gcry_sexp_canon_len (blob, 0, NULL, NULL)
-			)
+		(error = assuan_send_data(
+			ctx,
+			blob,
+			gcry_sexp_canon_len (blob, 0, NULL, NULL)
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
@@ -896,7 +874,7 @@ cleanup:
 }
 
 /** Store hex-encoded data from line to be signed/decrypted. */
-int cmd_setdata (assuan_context_t ctx, char *line)
+gpg_error_t cmd_setdata (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
@@ -921,7 +899,7 @@ cleanup:
 }
 
 /** Sign data (set by SETDATA) with certificate id in line. */
-int cmd_pksign (assuan_context_t ctx, char *line)
+gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 {
 	static unsigned const char sha1_oid[] = { /* 1.3.14.3.2.26 */
 		0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
@@ -1063,7 +1041,7 @@ int cmd_pksign (assuan_context_t ctx, char *line)
 				&sig_len
 			)
 		)) != GPG_ERR_NO_ERROR ||
-		(error = common_map_assuan_error (assuan_send_data(ctx, sig, sig_len))) != GPG_ERR_NO_ERROR
+		(error = assuan_send_data(ctx, sig, sig_len)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
 	}
@@ -1103,7 +1081,7 @@ cleanup:
 }
 
 /** Decrypt data (set by SETDATA) with certificate id in line. */
-int cmd_pkdecrypt (assuan_context_t ctx, char *line)
+gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
@@ -1197,9 +1175,7 @@ int cmd_pkdecrypt (assuan_context_t ctx, char *line)
 				&ptext_len
 			)
 		)) != GPG_ERR_NO_ERROR ||
-		(error = common_map_assuan_error (
-			assuan_send_data(ctx, ptext, ptext_len))
-		) != GPG_ERR_NO_ERROR
+		(error = assuan_send_data(ctx, ptext, ptext_len)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
 	}
@@ -1235,7 +1211,7 @@ cleanup:
    pkcs11-helper neither supports getting random data, nor exports sufficient
    data to use raw PKCS#11.
 */
-int cmd_random (assuan_context_t ctx, char *line)
+gpg_error_t cmd_random (assuan_context_t ctx, char *line)
 {
 	(void)ctx;
 	(void)line;
@@ -1244,7 +1220,7 @@ int cmd_random (assuan_context_t ctx, char *line)
 }
 
 /** Not implemented. */
-int cmd_checkpin (assuan_context_t ctx, char *line)
+gpg_error_t cmd_checkpin (assuan_context_t ctx, char *line)
 {
 	(void)ctx;
 	(void)line;
@@ -1252,18 +1228,18 @@ int cmd_checkpin (assuan_context_t ctx, char *line)
 	return gpg_error (GPG_ERR_INV_OP);
 }
 
-int cmd_getinfo (assuan_context_t ctx, char *line)
+gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 
 	if (!strcmp (line, "version")) {
 		char *s = PACKAGE_VERSION;
-		error = common_map_assuan_error (assuan_send_data(ctx, s, strlen (s)));
+		error = assuan_send_data(ctx, s, strlen (s));
 	}
 	else if (!strcmp (line, "pid")) {
 		char buf[50];
 		snprintf (buf, sizeof (buf), "%lu", (unsigned long)getpid());
-		error = common_map_assuan_error (assuan_send_data(ctx, buf, strlen (buf)));
+		error = assuan_send_data(ctx, buf, strlen (buf));
 	}
 	else if (!strcmp (line, "socket_name")) {
 		const char *s = scdaemon_get_socket_name ();
@@ -1272,7 +1248,7 @@ int cmd_getinfo (assuan_context_t ctx, char *line)
 			error = GPG_ERR_INV_DATA;
 		}
 		else {
-			error = common_map_assuan_error (assuan_send_data(ctx, s, strlen (s)));
+			error = assuan_send_data(ctx, s, strlen (s));
 		}
 	}
 	else if (!strcmp (line, "status")) {
@@ -1298,7 +1274,7 @@ int cmd_getinfo (assuan_context_t ctx, char *line)
 			}
 		}
 
-		error = common_map_assuan_error (assuan_send_data(ctx, &flag, 1));
+		error = assuan_send_data(ctx, &flag, 1);
 	}
 	else if (!strcmp (line, "reader_list")) {
 		error = GPG_ERR_NO_DATA;
@@ -1310,7 +1286,7 @@ int cmd_getinfo (assuan_context_t ctx, char *line)
 	return gpg_error (error);
 }
 
-int cmd_restart (assuan_context_t ctx, char *line)
+gpg_error_t cmd_restart (assuan_context_t ctx, char *line)
 {
 	(void)ctx;
 	(void)line;
@@ -1318,7 +1294,7 @@ int cmd_restart (assuan_context_t ctx, char *line)
 	return gpg_error (GPG_ERR_NO_ERROR);
 }
 
-int cmd_getattr (assuan_context_t ctx, char *line)
+gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 
@@ -1334,12 +1310,10 @@ int cmd_getattr (assuan_context_t ctx, char *line)
 	}
 	else if (!strcmp (line, "CHV-STATUS")) {
 		if (
-			(error = common_map_assuan_error (
-				assuan_write_status(
-					ctx,
-					"CHV-STATUS",
-					"1 1 1 1 1 1 1"
-				)
+			(error = assuan_write_status(
+				ctx,
+				"CHV-STATUS",
+				"1 1 1 1 1 1 1"
 			)) != GPG_ERR_NO_ERROR
 		) {
 			goto cleanup;
@@ -1347,12 +1321,10 @@ int cmd_getattr (assuan_context_t ctx, char *line)
 	}
 	else if (!strcmp (line, "DISP-NAME")) {
 		if (
-			(error = common_map_assuan_error (
-				assuan_write_status(
-					ctx,
-					"DISP-NAME",
-					"PKCS#11"
-				)
+			(error = assuan_write_status(
+				ctx,
+				"DISP-NAME",
+				"PKCS#11"
 			)) != GPG_ERR_NO_ERROR
 		) {
 			goto cleanup;
@@ -1367,12 +1339,10 @@ int cmd_getattr (assuan_context_t ctx, char *line)
 			snprintf(buffer, sizeof(buffer), "%d 1 %u %u %d", i+1, GCRY_PK_RSA, 2048, 0);
 
 			if (
-				(error = common_map_assuan_error (
-					assuan_write_status(
-						ctx,
-						"KEY-ATTR",
-						buffer
-					)
+				(error = assuan_write_status(
+					ctx,
+					"KEY-ATTR",
+					buffer
 				)) != GPG_ERR_NO_ERROR
 			) {
 				goto cleanup;
@@ -1389,12 +1359,10 @@ int cmd_getattr (assuan_context_t ctx, char *line)
 				0, 0, 0, 0, 2048, 0, 0);
 
 			if (
-				(error = common_map_assuan_error (
-					assuan_write_status(
-						ctx,
-						"EXTCAP",
-						buffer
-					)
+				(error = assuan_write_status(
+					ctx,
+					"EXTCAP",
+					buffer
 				)) != GPG_ERR_NO_ERROR
 			) {
 				goto cleanup;
@@ -1413,7 +1381,7 @@ cleanup:
 	return gpg_error (error);
 }
 
-int cmd_setattr (assuan_context_t ctx, char *line)
+gpg_error_t cmd_setattr (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 
@@ -1431,7 +1399,7 @@ cleanup:
 	return gpg_error (error);
 }
 
-int cmd_genkey (assuan_context_t ctx, char *line)
+gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 {
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_GENERAL;
@@ -1492,24 +1460,20 @@ int cmd_genkey (assuan_context_t ctx, char *line)
 	}
 
 	if (
-		(error = common_map_assuan_error (
-			assuan_write_status (
-				ctx,
-				"KEY-FPR",
-				key
-			)
+		(error = assuan_write_status (
+			ctx,
+			"KEY-FPR",
+			key
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
 	}
 
 	if (
-		(error = common_map_assuan_error (
-			assuan_write_status(
-				ctx,
-				"KEY-CREATED-AT",
-				timestamp
-			)
+		(error = assuan_write_status(
+			ctx,
+			"KEY-CREATED-AT",
+			timestamp
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
@@ -1563,24 +1527,20 @@ int cmd_genkey (assuan_context_t ctx, char *line)
 	}
 
 	if (
-		(error = common_map_assuan_error (
-			assuan_write_status(
-				ctx,
-				"KEY-DATA",
-				n_resp
-			)
+		(error = assuan_write_status(
+			ctx,
+			"KEY-DATA",
+			n_resp
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
 	}
 
 	if (
-		(error = common_map_assuan_error (
-			assuan_write_status(
-				ctx,
-				"KEY-DATA",
-				e_resp
-			)
+		(error = assuan_write_status(
+			ctx,
+			"KEY-DATA",
+			e_resp
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
