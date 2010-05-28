@@ -184,13 +184,13 @@ AC_ARG_VAR([LIBASSUAN_CFLAGS], [C compiler flags for libassuan])
 AC_ARG_VAR([LIBASSUAN_LIBS], [linker flags for libassuan])
 if test -z "${LIBASSUAN_LIBS}"; then
 	AC_MSG_CHECKING([for libassuan])
-	if ! test -x "${with_libassuan_prefix}/bin/libassuan-config"; then
-		AC_MSG_ERROR([Cannot locate libassuan])
-	else
-		AC_MSG_RESULT([found])
-		LIBASSUAN_CFLAGS="`\"${with_libassuan_prefix}/bin/libassuan-config\" --cflags`"
-		LIBASSUAN_LIBS="`\"${with_libassuan_prefix}/bin/libassuan-config\" --libs`"
-	fi
+	test -x "${with_libassuan_prefix}/bin/libassuan-config" || AC_MSG_ERROR([Cannot locate libassuan])
+	"${with_libassuan_prefix}/bin/libassuan-config" --version | grep "^2\." > /dev/null || AC_MSG_ERROR([Need assuan-2])
+
+	AC_MSG_RESULT([found])
+
+	LIBASSUAN_CFLAGS="`\"${with_libassuan_prefix}/bin/libassuan-config\" --cflags`"
+	LIBASSUAN_LIBS="`\"${with_libassuan_prefix}/bin/libassuan-config\" --libs`"
 fi
 
 AC_ARG_VAR([LIBGCRYPT_CFLAGS], [C compiler flags for libgcrypt])

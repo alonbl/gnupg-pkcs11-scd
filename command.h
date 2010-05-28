@@ -40,21 +40,21 @@ typedef struct {
 } cmd_data_t;
 
 void cmd_free_data (assuan_context_t ctx);
-int cmd_null (assuan_context_t ctx, char *line);
-int cmd_getinfo (assuan_context_t ctx, char *line);
-int cmd_serialno (assuan_context_t ctx, char *line);
-int cmd_learn (assuan_context_t ctx, char *line);
-int cmd_readcert (assuan_context_t ctx, char *line);
-int cmd_readkey (assuan_context_t ctx, char *line);
-int cmd_setdata (assuan_context_t ctx, char *line);
-int cmd_pksign (assuan_context_t ctx, char *line);
-int cmd_pkdecrypt (assuan_context_t ctx, char *line);
-int cmd_random (assuan_context_t ctx, char *line);
-int cmd_checkpin (assuan_context_t ctx, char *line);
-int cmd_getinfo (assuan_context_t ctx, char *line);
-int cmd_restart (assuan_context_t ctx, char *line);
-int cmd_genkey (assuan_context_t ctx, char *line);
-int cmd_getattr (assuan_context_t ctx, char *line);
-int cmd_setattr (assuan_context_t ctx, char *line);
+gpg_error_t cmd_null (assuan_context_t ctx, char *line);
+gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line);
+gpg_error_t cmd_serialno (assuan_context_t ctx, char *line);
+gpg_error_t cmd_learn (assuan_context_t ctx, char *line);
+gpg_error_t cmd_readcert (assuan_context_t ctx, char *line);
+gpg_error_t cmd_readkey (assuan_context_t ctx, char *line);
+gpg_error_t cmd_setdata (assuan_context_t ctx, char *line);
+gpg_error_t cmd_pksign (assuan_context_t ctx, char *line);
+gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line);
+gpg_error_t cmd_random (assuan_context_t ctx, char *line);
+gpg_error_t cmd_checkpin (assuan_context_t ctx, char *line);
+gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line);
+gpg_error_t cmd_restart (assuan_context_t ctx, char *line);
+gpg_error_t cmd_genkey (assuan_context_t ctx, char *line);
+gpg_error_t cmd_getattr (assuan_context_t ctx, char *line);
+gpg_error_t cmd_setattr (assuan_context_t ctx, char *line);
 
 #endif

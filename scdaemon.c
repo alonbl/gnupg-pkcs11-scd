@@ -57,6 +57,18 @@
 #include <gnutls/gnutls.h>
 #endif
 
+#ifdef HAVE_W32_SYSTEM
+typedef void *gnupg_fd_t;
+#define GNUPG_INVALID_FD ((void*)(-1))
+#define INT2FD(s) ((void *)(s))
+#define FD2INT(h) ((unsigned int)(h))
+#else
+typedef int gnupg_fd_t;
+#define GNUPG_INVALID_FD (-1)
+#define INT2FD(s) (s)
+#define FD2INT(h) (h)
+#endif
+
 typedef enum {
 	ACCEPT_THREAD_STOP,
 	ACCEPT_THREAD_CLEAN
@@ -95,7 +107,8 @@ register_commands (const assuan_context_t ctx)
 {
 	static struct {
 		const char *name;
-		int (*handler)(assuan_context_t ctx, char *line);
+		assuan_handler_t handler;
+		const char * const help;
 	} table[] = {
 		{ "SERIALNO",	cmd_serialno, },
 		{ "LEARN",	cmd_learn },
@@ -131,7 +144,8 @@ register_commands (const assuan_context_t ctx)
 			(ret = assuan_register_command (
 				ctx,
 				table[i].name,
-				table[i].handler
+				table[i].handler,
+				table[i].help
 			))
 		) {
 			return ret;
@@ -159,24 +173,29 @@ command_handler (const int fd, dconfig_data_t *config)
 	memset (&data, 0, sizeof (data));
 	data.config = config;
 
+	if ((ret = assuan_new(&ctx)) != 0) {
+		common_log (LOG_FATAL,"failed to create assuan context %s", gpg_strerror (ret));
+	}
+
 	if(fd < 0) {
-		int fds[2] = {0, 1};
-		ret = assuan_init_pipe_server (&ctx, fds);
+		assuan_fd_t fds[2] = {assuan_fdopen(0), assuan_fdopen(1)};
+		ret = assuan_init_pipe_server (ctx, fds);
 	} else {
-		ret = assuan_init_socket_server_ext (&ctx, fd, 2);
+		ret = assuan_init_socket_server (ctx, INT2FD(fd), ASSUAN_SOCKET_SERVER_ACCEPTED);
 	}
 
-	if (ret != ASSUAN_No_Error) {
-		common_log (LOG_FATAL,"failed to initialize server: %s", assuan_strerror (ret));
+	if (ret != 0) {
+		common_log (LOG_FATAL,"failed to initialize server: %s", gpg_strerror (ret));
 	}
 
-	if(((ret = register_commands(ctx))) != ASSUAN_No_Error) {
-		common_log (LOG_FATAL,"failed to register assuan commands: %s", assuan_strerror (ret));
+	if(((ret = register_commands(ctx))) != 0) {
+		common_log (LOG_FATAL,"failed to register assuan commands: %s", gpg_strerror (ret));
 	}
 
 	if (config->verbose) {
-		assuan_set_log_stream (ctx, assuan_get_assuan_log_stream ());
+		assuan_set_log_stream (ctx, common_get_log_stream());
 	}
+
 	assuan_set_pointer (ctx, &data);
 
 	while (1) {
@@ -184,20 +203,20 @@ command_handler (const int fd, dconfig_data_t *config)
 			break;
 		}
 
-		if (ret != ASSUAN_No_Error) {
-			common_log (LOG_WARNING,"assuan_accept failed: %s", assuan_strerror(ret));
+		if (ret != 0) {
+			common_log (LOG_WARNING,"assuan_accept failed: %s", gpg_strerror(ret));
 			break;
 		}
 		
-		if ((ret = assuan_process (ctx)) != ASSUAN_No_Error) {
-			common_log (LOG_WARNING,"assuan_process failed: %s", assuan_strerror(ret));
+		if ((ret = assuan_process (ctx)) != 0) {
+			common_log (LOG_WARNING,"assuan_process failed: %s", gpg_strerror(ret));
 		}
 	}
 
 	cmd_free_data (ctx);
 
 	if (ctx != NULL) {
-		assuan_deinit_server (ctx);
+		assuan_release (ctx);
 		ctx = NULL;
 	}
 }
