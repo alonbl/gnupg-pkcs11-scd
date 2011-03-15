@@ -919,32 +919,90 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	int session_locked = 0;
 	unsigned char *sig = NULL;
 	size_t sig_len;
+	char hash[100] = "";
+	enum { INJECT_NONE, INJECT_SHA1, INJECT_RMD160 } inject = INJECT_NONE;
 
 	if (data->data == NULL) {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
 
+	while (*line != '\x0' && (isspace (*line) || *line == '-')) {
+		if (*line == '-') {
+			char *hashprm = "--hash=";
+			char *p = line;
+
+			while (*line != '\x0' && !isspace (*line)) {
+				line++;
+			}
+			line++;
+			
+			if (!strncmp (p, hashprm, strlen (hashprm))) {
+				p += strlen (hashprm);
+				*(line-1) = '\0';
+				snprintf (hash, sizeof(hash), "%s", p);
+			}
+		}
+		else {
+			line++;
+		}
+	}
+
+	if (*line == '\x0') {
+		goto cleanup;
+	}
 	/*
 	 * sender prefixed data with algorithm OID
 	 */
-	if (
-		data->size == 20 + sizeof (sha1_oid) ||
-		data->size == 20 + sizeof (rmd160_oid)
-	) {
-		if (
-			memcmp (data->data, sha1_oid, sizeof (sha1_oid)) &&
-			memcmp (data->data, rmd160_oid, sizeof (rmd160_oid))
-		) {
+	if (strcmp(hash, "")) {
+		if (!strcmp(hash, "sha1")) {
+			inject = INJECT_SHA1;
+		}
+		else if (!strcmp(hash, "rmd160")) {
+			inject = INJECT_RMD160;
+		}
+		else {
 			error = GPG_ERR_UNSUPPORTED_ALGORITHM;
 			goto cleanup;
 		}
 	}
 	else {
-		/*
-		 * unknown hash algorithm;
-		 * gnupg's scdaemon forces to SHA1
-		 */
+		if (
+			data->size == 20 + sizeof (sha1_oid) ||
+			data->size == 20 + sizeof (rmd160_oid)
+		) {
+			if (
+				memcmp (data->data, sha1_oid, sizeof (sha1_oid)) &&
+				memcmp (data->data, rmd160_oid, sizeof (rmd160_oid))
+			) {
+				error = GPG_ERR_UNSUPPORTED_ALGORITHM;
+				goto cleanup;
+			}
+		}
+		else {
+			/*
+			 * unknown hash algorithm;
+			 * gnupg's scdaemon forces to SHA1
+			 */
+			inject = INJECT_SHA1;
+		}
+	}
+
+	if (inject != INJECT_NONE) {
+		const unsigned char *oid;
+		size_t oid_size;
+		switch (inject) {
+			case INJECT_SHA1:
+				oid = sha1_oid;
+				oid_size = sizeof (sha1_oid);
+			break;
+			case INJECT_RMD160:
+				oid = rmd160_oid;
+				oid_size = sizeof (rmd160_oid);
+			break;
+			default:
+				goto cleanup;
+		}
 
 		need_free__data = 1;
 
@@ -953,14 +1011,14 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 			goto cleanup;
 		}
 
-		if ((_data->data = (unsigned char *)malloc (data->size + sizeof (sha1_oid))) == NULL) {
+		if ((_data->data = (unsigned char *)malloc (data->size + oid_size)) == NULL) {
 			error = GPG_ERR_ENOMEM;
 			goto cleanup;
 		}
 
 		_data->size = 0;
-		memmove (_data->data+_data->size, sha1_oid, sizeof (sha1_oid));
-		_data->size += sizeof (sha1_oid);
+		memmove (_data->data+_data->size, oid, oid_size);
+		_data->size += oid_size;
 		memmove (_data->data+_data->size, data->data, data->size);
 		_data->size += data->size;
 	}
