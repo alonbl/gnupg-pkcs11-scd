@@ -1,6 +1,6 @@
 #
 # Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
-# Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>
+# Copyright (c) 2006-2011 Alon Bar-Lev <alon.barlev@gmail.com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@ AC_PREREQ([2.60])
 
 define([PACKAGE_VERSION_MAJOR], [0])
 define([PACKAGE_VERSION_MINOR], [7])
-define([PACKAGE_VERSION_FIX], [0])
+define([PACKAGE_VERSION_FIX], [1])
 define([PACKAGE_SUFFIX], [])
 
 AC_INIT([gnupg-pkcs11-scd], [PACKAGE_VERSION_MAJOR.PACKAGE_VERSION_MINOR.PACKAGE_VERSION_FIX[]PACKAGE_SUFFIX])
