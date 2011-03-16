@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
- * Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>
+ * Copyright (c) 2006-2011 Alon Bar-Lev <alon.barlev@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
