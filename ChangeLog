@@ -1,10 +1,10 @@
 gnupg-pkcs11-scd
 Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
-Copyright (c) 2006-2008 Alon Bar-Lev <alon.barlev@gmail.com>
+Copyright (c) 2006-2011 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
-????-??-?? -- Version 0.7.1
+2011-03-16 -- Version 0.7.1
 
  * Sync with gnupg-2.0.17.
 
