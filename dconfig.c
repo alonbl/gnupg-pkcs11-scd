@@ -98,7 +98,7 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 		
 		if (!strcmp (line, "")) {
 		}
-		else if (prefix_is (line, "log-file")) {
+		else if (prefix_is (line, "log-file ")) {
 			char *p = strchr (line, ' ');
 			trim (p);
 			config->log_file = strdup (p);
