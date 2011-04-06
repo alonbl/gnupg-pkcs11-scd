@@ -4,6 +4,10 @@ Copyright (c) 2006-2011 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
+????-??-?? -- Version 0.7.2
+
+ * Some cleanups, thanks to Timo Schulz.
+
 2011-03-16 -- Version 0.7.1
 
  * Sync with gnupg-2.0.17.

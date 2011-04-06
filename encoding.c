@@ -136,8 +136,8 @@ timegm (struct tm *tm)
 	answer=mktime(tm);
 	if(zone) {
 		if (strlen (old_zone) == 0) {
-			strcpy(old_zone,"TZ=");
-			strcat(old_zone,zone);
+			snprintf(old_zone, sizeof(old_zone), "TZ=%s", zone);
+			old_zone[sizeof(old_zone)-1] = '\0';
 		}
 		putenv (old_zone);
 	}
