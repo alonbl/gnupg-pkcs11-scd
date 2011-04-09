@@ -4,7 +4,7 @@ Copyright (c) 2006-2011 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
-????-??-?? -- Version 0.7.2
+2011-04-09 -- Version 0.7.2
 
  * Some cleanups, thanks to Timo Schulz.
  * Sync hashing algorithms for OpenPGP.
