@@ -901,14 +901,28 @@ cleanup:
 /** Sign data (set by SETDATA) with certificate id in line. */
 gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 {
-	static unsigned const char sha1_oid[] = { /* 1.3.14.3.2.26 */
-		0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
-		0x02, 0x1a, 0x05, 0x00, 0x04, 0x14
-	};
-	static unsigned const char rmd160_oid[] = { /* is 1.3.36.3.2.1 */
-		0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x24, 0x03,
-		0x02, 0x01, 0x05, 0x00, 0x04, 0x14
-	};
+	static unsigned char rmd160_prefix[15] = /* Object ID is 1.3.36.3.2.1 */
+		{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x24, 0x03,
+		0x02, 0x01, 0x05, 0x00, 0x04, 0x14  };
+	static unsigned char sha1_prefix[15] =   /* (1.3.14.3.2.26) */
+		{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
+		0x02, 0x1a, 0x05, 0x00, 0x04, 0x14  };
+	static unsigned char sha224_prefix[19] = /* (2.16.840.1.101.3.4.2.4) */
+		{ 0x30, 0x2D, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+		0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04,
+		0x1C  };
+	static unsigned char sha256_prefix[19] = /* (2.16.840.1.101.3.4.2.1) */
+		{ 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+		0x00, 0x04, 0x20  };
+	static unsigned char sha384_prefix[19] = /* (2.16.840.1.101.3.4.2.2) */
+		{ 0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05,
+		0x00, 0x04, 0x30  };
+	static unsigned char sha512_prefix[19] = /* (2.16.840.1.101.3.4.2.3) */
+		{ 0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05,
+		0x00, 0x04, 0x40  };
 
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
@@ -920,7 +934,15 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	unsigned char *sig = NULL;
 	size_t sig_len;
 	char hash[100] = "";
-	enum { INJECT_NONE, INJECT_SHA1, INJECT_RMD160 } inject = INJECT_NONE;
+	enum {
+		INJECT_NONE,
+		INJECT_RMD160,
+		INJECT_SHA1,
+		INJECT_SHA224,
+		INJECT_SHA256,
+		INJECT_SHA384,
+		INJECT_SHA512
+	} inject = INJECT_NONE;
 
 	if (data->data == NULL) {
 		error = GPG_ERR_INV_DATA;
@@ -955,11 +977,23 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	 * sender prefixed data with algorithm OID
 	 */
 	if (strcmp(hash, "")) {
-		if (!strcmp(hash, "sha1")) {
+		if (!strcmp(hash, "rmd160")) {
+			inject = INJECT_RMD160;
+		}
+		else if (!strcmp(hash, "sha1")) {
 			inject = INJECT_SHA1;
 		}
-		else if (!strcmp(hash, "rmd160")) {
-			inject = INJECT_RMD160;
+		else if (!strcmp(hash, "sha224")) {
+			inject = INJECT_SHA224;
+		}
+		else if (!strcmp(hash, "sha256")) {
+			inject = INJECT_SHA256;
+		}
+		else if (!strcmp(hash, "sha384")) {
+			inject = INJECT_SHA384;
+		}
+		else if (!strcmp(hash, "sha512")) {
+			inject = INJECT_SHA512;
 		}
 		else {
 			error = GPG_ERR_UNSUPPORTED_ALGORITHM;
@@ -968,12 +1002,12 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	}
 	else {
 		if (
-			data->size == 20 + sizeof (sha1_oid) ||
-			data->size == 20 + sizeof (rmd160_oid)
+			data->size == 20 + sizeof (sha1_prefix) ||
+			data->size == 20 + sizeof (rmd160_prefix)
 		) {
 			if (
-				memcmp (data->data, sha1_oid, sizeof (sha1_oid)) &&
-				memcmp (data->data, rmd160_oid, sizeof (rmd160_oid))
+				memcmp (data->data, sha1_prefix, sizeof (sha1_prefix)) &&
+				memcmp (data->data, rmd160_prefix, sizeof (rmd160_prefix))
 			) {
 				error = GPG_ERR_UNSUPPORTED_ALGORITHM;
 				goto cleanup;
@@ -992,13 +1026,29 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 		const unsigned char *oid;
 		size_t oid_size;
 		switch (inject) {
-			case INJECT_SHA1:
-				oid = sha1_oid;
-				oid_size = sizeof (sha1_oid);
-			break;
 			case INJECT_RMD160:
-				oid = rmd160_oid;
-				oid_size = sizeof (rmd160_oid);
+				oid = rmd160_prefix;
+				oid_size = sizeof (rmd160_prefix);
+			break;
+			case INJECT_SHA1:
+				oid = sha1_prefix;
+				oid_size = sizeof (sha1_prefix);
+			break;
+			case INJECT_SHA224:
+				oid = sha224_prefix;
+				oid_size = sizeof (sha224_prefix);
+			break;
+			case INJECT_SHA256:
+				oid = sha256_prefix;
+				oid_size = sizeof(sha256_prefix);
+			break;
+			case INJECT_SHA384:
+				oid = sha384_prefix;
+				oid_size = sizeof(sha384_prefix);
+			break;
+			case INJECT_SHA512:
+				oid = sha512_prefix;
+				oid_size = sizeof(sha512_prefix);
 			break;
 			default:
 				goto cleanup;
