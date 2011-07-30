@@ -242,6 +242,7 @@ server_socket_close (const int fd) {
 		free (s_socket_dir);
 		s_socket_dir = NULL;
 	}
+	assuan_sock_deinit();
 }
 
 static
@@ -270,6 +271,11 @@ server_socket_create (void) {
 	struct sockaddr_un serv_addr;
 	int fd = -1;
 	int rc = -1;
+
+	if ((rc = assuan_sock_init()) != 0) {
+		common_log (LOG_ERROR,"Cannot init socket %s", gpg_strerror (rc));
+		goto cleanup;
+	}
 
 	memset (&serv_addr, 0, sizeof (serv_addr));
 	serv_addr.sun_family = AF_UNIX;
