@@ -550,11 +550,17 @@ gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 	 */
 	{
 		char *serial_and_stamp = NULL;
+		char *p;
 
-		if (data->config->emulate_openpgp) {
+		if (serial_and_stamp == NULL && strcmp (line, "openpgp") == 0) {
 			serial_and_stamp = strdup (OPENPGP_SERIAL);
 		}
-		else {
+
+		if (serial_and_stamp == NULL && data->config->emulate_openpgp) {
+			serial_and_stamp = strdup (OPENPGP_SERIAL);
+		}
+
+		if (serial_and_stamp == NULL) {
 			char *ser_token = "PKCS#11 TOKEN";
 
 			/*

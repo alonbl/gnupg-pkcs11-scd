@@ -4,6 +4,9 @@ Copyright (c) 2006-2011 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
+2013-??-?? - Version 0.7.4
+ * Fix gpg change in serialno attribute.
+
 2011-07-30 -- Version 0.7.3
 
  * Use assuan_sock_init, bug#3382372.
