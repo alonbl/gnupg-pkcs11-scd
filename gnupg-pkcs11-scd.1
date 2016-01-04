@@ -51,6 +51,15 @@
 is a drop-in replacement for the smart-card daemon (scd) shipped with the
 next-generation GnuPG (gnupg-2). The daemon interfaces to smart-cards
 by using RSA Security Inc. PKCS#11 Cryptographic Token Interface (Cryptoki).
+.Pp
+Ths interface with GnuPG is restricted to feching existing keys from
+the card. Neither new key generation nor key transfer is possible
+through this interface. Instead, when the smart-card is asked to
+generate a key in a particular slot, the existing public key in that
+slot is returned. This facilitates the transfer of keys on the
+smart-card to usage as a subkey on an existing GnuPG master key.  See
+the GNUPG INTEGRATION section for example usage.
+.Pp
 The following options are available:
 .Bl -tag -width "AA"
 .It --server
@@ -274,7 +283,10 @@ to gpg to be registered.
 .Dl admin
 .Dl generate (DO NOT BACKUP KEYS)
 .It
-Disable the opengpg emulation.
+Alternatively, you can add the existing keys as subkeys on an existing
+GPG master key:
+.Dl gpg --edit-key MASTER_KEY_ID
+.Dl addcardkey
 .El
 .Pp
 Now you can use the same card with your gpg and gpgsm keys. We don't know if this is a
