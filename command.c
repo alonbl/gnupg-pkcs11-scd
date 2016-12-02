@@ -956,7 +956,7 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 
 	while (*line != '\x0' && (isspace (*line) || *line == '-')) {
 		if (*line == '-') {
-			char *hashprm = "--hash=";
+			static const char *hashprm = "--hash=";
 			char *p = line;
 
 			while (*line != '\x0' && !isspace (*line)) {
@@ -1535,7 +1535,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 
 	while (*line != '\x0' && !isdigit (*line)) {
 		if (*line == '-') {
-			char *ts = "--timestamp=";
+			static const char *ts = "--timestamp=";
 			char *p = line;
 
 			while (*line != '\x0' && !isspace (*line)) {
