@@ -39,7 +39,7 @@ AC_INIT([gnupg-pkcs11-scd], [PACKAGE_VERSION_MAJOR.PACKAGE_VERSION_MINOR.PACKAGE
 AC_CONFIG_AUX_DIR([.])
 AM_CONFIG_HEADER([config.h])
 AC_CONFIG_SRCDIR([common.h])
-AM_INIT_AUTOMAKE([${PACKAGE_NAME}], [${PACKAGE_VERSION}])
+AM_INIT_AUTOMAKE
 
 GNUPG_PKCS11_SCD_VERSION_MAJOR="PACKAGE_VERSION_MAJOR"
 GNUPG_PKCS11_SCD_VERSION_MINOR="PACKAGE_VERSION_MINOR"
@@ -151,18 +151,18 @@ AC_ARG_WITH(
 	[with_libgcrypt_prefix="/usr" ]
 )
 
+if test "${HAVE_W32_SYSTEM}" = "yes"; then
+	AC_CHECK_PROGS([MAN2HTML], [man2html])
+	test -z "${MAN2HTML}" && AC_MSG_ERROR([man2html is required for win32])
+fi
+
 if test "${enable_pedantic}" = "yes"; then
 	enable_strict="yes"
-	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_ISOC99_SOURCE -D_BSD_SOURCE -D_POSIX_SOURCE"
+	CFLAGS="${CFLAGS} -ansi -pedantic -D__STRICT_ANSI__ -D_ISOC99_SOURCE -D_DEFAULT_SOURCE"
 fi
 
 if test "${enable_strict}" = "yes"; then
 	CFLAGS="${CFLAGS} -Wall -Wextra -Wpointer-arith -Wsign-compare -Wno-unused-parameter -Wno-unused-function"
-fi
-
-if test "${HAVE_W32_SYSTEM}" = "yes"; then
-	AC_CHECK_PROGS([MAN2HTML], [man2html])
-	test -z "${MAN2HTML}" && AC_MSG_ERROR([man2html is required for win32])
 fi
 
 AC_FUNC_MKTIME

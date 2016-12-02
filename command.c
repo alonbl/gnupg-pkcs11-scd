@@ -550,7 +550,6 @@ gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 	 */
 	{
 		char *serial_and_stamp = NULL;
-		char *p;
 
 		if (serial_and_stamp == NULL && strcmp (line, "openpgp") == 0) {
 			serial_and_stamp = strdup (OPENPGP_SERIAL);
