@@ -114,6 +114,7 @@ register_commands (const assuan_context_t ctx)
 		{ "LEARN",	cmd_learn, NULL },
 		{ "READCERT",	cmd_readcert, NULL },
 		{ "READKEY",	cmd_readkey, NULL },
+		{ "KEY-DATA",	NULL, NULL },
 		{ "SETDATA",	cmd_setdata, NULL },
 		{ "PKSIGN",	cmd_pksign, NULL },
 		{ "PKAUTH",	NULL, NULL },
