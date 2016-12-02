@@ -190,7 +190,7 @@ send_certificate_list (
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_list_t curr_cert;
-	
+
 	for (
 		curr_cert = head;
 		curr_cert != NULL;
@@ -683,7 +683,7 @@ gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 		}
 
 		error = GPG_ERR_NO_ERROR;
-	
+
 	cleanup:
 
 		if (serial_and_stamp != NULL) {
@@ -855,7 +855,7 @@ gpg_error_t cmd_readkey (assuan_context_t ctx, char *line)
 	) {
 		goto cleanup;
 	}
-	
+
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
@@ -963,7 +963,7 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 				line++;
 			}
 			line++;
-			
+
 			if (!strncmp (p, hashprm, strlen (hashprm))) {
 				p += strlen (hashprm);
 				*(line-1) = '\0';
@@ -1203,7 +1203,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 	size_t ptext_len;
 	int session_locked = 0;
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
-	
+
 	if (
 		data == NULL ||
 		data->data == NULL
@@ -1542,7 +1542,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 				line++;
 			}
 			line++;
-			
+
 			if (!strncmp (p, ts, strlen (ts))) {
 				p += strlen (ts);
 				sprintf (timestamp, "%d", (int)isotime2epoch (p));

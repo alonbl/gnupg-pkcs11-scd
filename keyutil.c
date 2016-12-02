@@ -110,10 +110,10 @@ keyutil_get_cert_mpi (
 		error = GPG_ERR_WRONG_PUBKEY_ALGO;
 		goto cleanup;
 	}
-	
+
 	n_hex = BN_bn2hex (pubkey->pkey.rsa->n);
 	e_hex = BN_bn2hex (pubkey->pkey.rsa->e);
-		
+
 	if(n_hex == NULL || e_hex == NULL) {
 		error = GPG_ERR_BAD_KEY;
 		goto cleanup;
@@ -281,7 +281,7 @@ char *keyutil_get_cert_hexgrip (gcry_sexp_t sexp)
 {
 	char *ret = NULL;
 	unsigned char grip[20];
-	
+
 	if (gcry_pk_get_keygrip (sexp, grip)) {
 		ret = encoding_bin2hex (grip, sizeof (grip));
 	}

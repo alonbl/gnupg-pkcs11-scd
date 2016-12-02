@@ -95,7 +95,7 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 
 	while (fgets (line, sizeof (line), fp) != NULL) {
 		trim (line);
-		
+
 		if (!strcmp (line, "")) {
 		}
 		else if (prefix_is (line, "log-file ")) {
@@ -113,7 +113,7 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 			char *p = strchr (line, ' ');
 			char *p2;
 			int entry = 0;
-			
+
 			while (entry < DCONFIG_MAX_PROVIDERS && (p2 = strchr (p, ',')) != NULL) {
 				*p2 = '\x0';
 				trim (p);
@@ -155,7 +155,7 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 		else if (prefix_is (line, "provider-")) {
 			char *name = strchr (line, '-')+1;
 			char *p;
-			
+
 			if ((p = strchr (name, '-')) != NULL) {
 				int entry;
 				*p = '\x0';

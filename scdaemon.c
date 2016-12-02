@@ -210,7 +210,7 @@ command_handler (const int fd, dconfig_data_t *config)
 			common_log (LOG_WARNING,"assuan_accept failed: %s", gpg_strerror(ret));
 			break;
 		}
-		
+
 		if ((ret = assuan_process (ctx)) != 0) {
 			common_log (LOG_WARNING,"assuan_process failed: %s", gpg_strerror(ret));
 		}
@@ -355,7 +355,7 @@ _server_socket_accept (void *arg) {
 		if (rc != -1 && rc != 0) {
 			if (FD_ISSET (s_fd_accept_terminate[0], &fdset)) {
 				accept_command_t cmd;
-				
+
 				if (
 					(rc = read (
 						s_fd_accept_terminate[0],
