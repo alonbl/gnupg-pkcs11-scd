@@ -883,15 +883,51 @@ gpg_error_t cmd_setdata (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
+	int append = 0;
+	int index;
+	size_t len;
 
-	cmd_free_data (ctx);
+	while (*line != '\x0' && (isspace (*line) || *line == '-')) {
+		if (*line == '-') {
+			static const char *appendprm = "--append ";
+			char *p = line;
 
-	if ((strlen (line) % 2) != 0) {
+			while (*line != '\x0' && !isspace (*line)) {
+				line++;
+			}
+			line++;
+
+			if (!strncmp (p, appendprm, strlen (appendprm))) {
+				p += strlen (appendprm);
+				append = 1;
+			}
+		}
+		else {
+			line++;
+		}
+	}
+
+	if (!append) {
+		cmd_free_data (ctx);
+	}
+
+	if (!encoding_hex2bin(line, NULL, &len)) {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
 
-	if (!encoding_hex2bin (line, &data->data, &data->size)) {
+	if (!append) {
+		index = 0;
+		data->size = len;
+		data->data = (unsigned char *)malloc(data->size);
+	}
+	else {
+		index = data->size;
+		data->size += len;
+		data->data = (unsigned char *)realloc(data->data, data->size);
+	}
+
+	if (!encoding_hex2bin (line, data->data + index, NULL)) {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
@@ -906,25 +942,28 @@ cleanup:
 /** Sign data (set by SETDATA) with certificate id in line. */
 gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 {
-	static unsigned char rmd160_prefix[15] = /* Object ID is 1.3.36.3.2.1 */
+	static const unsigned char rmd160_prefix[] = /* (1.3.36.3.2.1) */
 		{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x24, 0x03,
 		0x02, 0x01, 0x05, 0x00, 0x04, 0x14  };
-	static unsigned char sha1_prefix[15] =   /* (1.3.14.3.2.26) */
+	static const unsigned char md5_prefix[] =   /* (1.2.840.113549.2.5) */
+		{ 0x30, 0x2c, 0x30, 0x09, 0x06, 0x08, 0x2a, 0x86, 0x48,
+		0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10  };
+	static const unsigned char sha1_prefix[] =   /* (1.3.14.3.2.26) */
 		{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
 		0x02, 0x1a, 0x05, 0x00, 0x04, 0x14  };
-	static unsigned char sha224_prefix[19] = /* (2.16.840.1.101.3.4.2.4) */
+	static const unsigned char sha224_prefix[] = /* (2.16.840.1.101.3.4.2.4) */
 		{ 0x30, 0x2D, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
 		0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04,
 		0x1C  };
-	static unsigned char sha256_prefix[19] = /* (2.16.840.1.101.3.4.2.1) */
+	static const unsigned char sha256_prefix[] = /* (2.16.840.1.101.3.4.2.1) */
 		{ 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
 		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
 		0x00, 0x04, 0x20  };
-	static unsigned char sha384_prefix[19] = /* (2.16.840.1.101.3.4.2.2) */
+	static const unsigned char sha384_prefix[] = /* (2.16.840.1.101.3.4.2.2) */
 		{ 0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
 		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05,
 		0x00, 0x04, 0x30  };
-	static unsigned char sha512_prefix[19] = /* (2.16.840.1.101.3.4.2.3) */
+	static const unsigned char sha512_prefix[] = /* (2.16.840.1.101.3.4.2.3) */
 		{ 0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
 		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05,
 		0x00, 0x04, 0x40  };
@@ -942,6 +981,7 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	enum {
 		INJECT_NONE,
 		INJECT_RMD160,
+		INJECT_MD5,
 		INJECT_SHA1,
 		INJECT_SHA224,
 		INJECT_SHA256,
@@ -982,22 +1022,25 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	 * sender prefixed data with algorithm OID
 	 */
 	if (strcmp(hash, "")) {
-		if (!strcmp(hash, "rmd160")) {
+		if (!strcmp(hash, "rmd160") && data->size == 0x14) {
 			inject = INJECT_RMD160;
 		}
-		else if (!strcmp(hash, "sha1")) {
+		else if (!strcmp(hash, "md5") && data->size == 0x10) {
+			inject = INJECT_MD5;
+		}
+		else if (!strcmp(hash, "sha1") && data->size == 0x14) {
 			inject = INJECT_SHA1;
 		}
-		else if (!strcmp(hash, "sha224")) {
+		else if (!strcmp(hash, "sha224") && data->size == 0x1c) {
 			inject = INJECT_SHA224;
 		}
-		else if (!strcmp(hash, "sha256")) {
+		else if (!strcmp(hash, "sha256") && data->size == 0x20) {
 			inject = INJECT_SHA256;
 		}
-		else if (!strcmp(hash, "sha384")) {
+		else if (!strcmp(hash, "sha384") && data->size == 0x30) {
 			inject = INJECT_SHA384;
 		}
-		else if (!strcmp(hash, "sha512")) {
+		else if (!strcmp(hash, "sha512") && data->size == 0x40) {
 			inject = INJECT_SHA512;
 		}
 		else {
@@ -1007,10 +1050,12 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	}
 	else {
 		if (
-			data->size == 20 + sizeof (sha1_prefix) ||
-			data->size == 20 + sizeof (rmd160_prefix)
+			data->size == 0x10 + sizeof (md5_prefix) ||
+			data->size == 0x14 + sizeof (sha1_prefix) ||
+			data->size == 0x14 + sizeof (rmd160_prefix)
 		) {
 			if (
+				memcmp (data->data, md5_prefix, sizeof (md5_prefix)) &&
 				memcmp (data->data, sha1_prefix, sizeof (sha1_prefix)) &&
 				memcmp (data->data, rmd160_prefix, sizeof (rmd160_prefix))
 			) {
@@ -1034,6 +1079,10 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 			case INJECT_RMD160:
 				oid = rmd160_prefix;
 				oid_size = sizeof (rmd160_prefix);
+			break;
+			case INJECT_MD5:
+				oid = md5_prefix;
+				oid_size = sizeof (md5_prefix);
 			break;
 			case INJECT_SHA1:
 				oid = sha1_prefix;
@@ -1288,6 +1337,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 				&ptext_len
 			)
 		)) != GPG_ERR_NO_ERROR ||
+		(error = assuan_write_status(ctx, "PADDING", "0")) != GPG_ERR_NO_ERROR ||
 		(error = assuan_send_data(ctx, ptext, ptext_len)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
