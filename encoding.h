@@ -34,7 +34,7 @@
 int
 encoding_hex2bin (
 	const char * const source,
-	unsigned char * * const target,
+	unsigned char * const target,
 	size_t * const p_target_size
 );
 char *

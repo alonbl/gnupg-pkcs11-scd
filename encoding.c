@@ -37,38 +37,39 @@
 int
 encoding_hex2bin (
 	const char * const source,
-	unsigned char * * const p_target,
+	unsigned char * const target,
 	size_t * const p_target_size
 ) {
-	unsigned char *target = NULL;
-	const char *p;
+	const char *ps = source;
+	unsigned char *pt = target;
 	char buf[3] = {'\0', '\0', '\0'};
 	int i = 0;
 
-	p = source;
-	*p_target = NULL;
-	*p_target_size = 0;
+	if (p_target_size != NULL) {
+		*p_target_size = 0;
+	}
 
-	target = (unsigned char *)malloc (strlen (source) / 2);
-
-	while (target != NULL && *p != '\x0') {
-		if (isxdigit ((unsigned char)*p)) {
-			buf[i%2] = *p;
+	while (*ps != '\x0') {
+		if (isxdigit ((unsigned char)*ps)) {
+			buf[i%2] = *ps;
 
 			if ((i%2) == 1) {
-				unsigned v;
-				if (sscanf (buf, "%x", &v) != 1) {
-					v = 0;
+				if (pt != NULL) {
+					unsigned v;
+					if (sscanf (buf, "%x", &v) != 1) {
+						v = 0;
+					}
+					*pt = (char)(v & 0xff);
+					pt++;
 				}
-				target[*p_target_size] = (char)(v & 0xff);
-				(*p_target_size)++;
+				if (p_target_size != NULL) {
+					(*p_target_size)++;
+				}
 			}
 			i++;
 		}
-		p++;
+		ps++;
 	}
-
-	*p_target = target;
 
 	return 1;
 }
