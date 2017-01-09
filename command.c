@@ -1022,28 +1022,57 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	 * sender prefixed data with algorithm OID
 	 */
 	if (strcmp(hash, "")) {
-		if (!strcmp(hash, "rmd160") && data->size == 0x14) {
+		if (!strcmp(hash, "rmd160") && data->size == (0x14 + sizeof(rmd160_prefix)) && 
+			!memcmp (data->data, rmd160_prefix, sizeof (rmd160_prefix))) {
+			inject = INJECT_NONE;
+		}
+		else if (!strcmp(hash, "rmd160") && data->size == 0x14) {
 			inject = INJECT_RMD160;
+		}
+		else if (!strcmp(hash, "md5") && data->size == (0x10 + sizeof(md5_prefix)) && 
+			!memcmp (data->data, md5_prefix, sizeof (md5_prefix))) {
+			inject = INJECT_NONE;
 		}
 		else if (!strcmp(hash, "md5") && data->size == 0x10) {
 			inject = INJECT_MD5;
 		}
+		else if (!strcmp(hash, "sha1") && data->size == (0x14 + sizeof(sha1_prefix)) && 
+			!memcmp (data->data, sha1_prefix, sizeof (sha1_prefix))) {
+			inject = INJECT_NONE;
+		}
 		else if (!strcmp(hash, "sha1") && data->size == 0x14) {
 			inject = INJECT_SHA1;
+		}
+		else if (!strcmp(hash, "sha224") && data->size == (0x1c + sizeof(sha224_prefix)) && 
+			!memcmp (data->data, sha224_prefix, sizeof (sha224_prefix))) {
+			inject = INJECT_NONE;
 		}
 		else if (!strcmp(hash, "sha224") && data->size == 0x1c) {
 			inject = INJECT_SHA224;
 		}
+		else if (!strcmp(hash, "sha256") && data->size == (0x20 + sizeof(sha256_prefix)) && 
+			!memcmp (data->data, sha256_prefix, sizeof (sha256_prefix))) {
+			inject = INJECT_NONE;
+		}
 		else if (!strcmp(hash, "sha256") && data->size == 0x20) {
 			inject = INJECT_SHA256;
 		}
+		else if (!strcmp(hash, "sha384") && data->size == (0x30 + sizeof(sha384_prefix)) && 
+			!memcmp (data->data, sha384_prefix, sizeof (sha384_prefix))) {
+			inject = INJECT_NONE;
+		}
 		else if (!strcmp(hash, "sha384") && data->size == 0x30) {
 			inject = INJECT_SHA384;
+		}
+		else if (!strcmp(hash, "sha512") && data->size == (0x40 + sizeof(sha512_prefix)) && 
+			!memcmp (data->data, sha512_prefix, sizeof (sha512_prefix))) {
+			inject = INJECT_NONE;
 		}
 		else if (!strcmp(hash, "sha512") && data->size == 0x40) {
 			inject = INJECT_SHA512;
 		}
 		else {
+			common_log (LOG_DEBUG, "unsupported hash algo (hash=%s,size=%d)", hash, data->size);
 			error = GPG_ERR_UNSUPPORTED_ALGORITHM;
 			goto cleanup;
 		}
