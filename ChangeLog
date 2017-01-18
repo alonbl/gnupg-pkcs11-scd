@@ -1,10 +1,10 @@
 gnupg-pkcs11-scd
 Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
-Copyright (c) 2006-2011 Alon Bar-Lev <alon.barlev@gmail.com>
+Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
-2013-??-?? - Version 0.7.4
+2017-01-18 - Version 0.7.4
  * Fix gpg change in serialno attribute.
  * Sync with gnupg-2.1, thanks to Moritz Bechler.
 
