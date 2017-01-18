@@ -4,6 +4,9 @@ Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
 $Id$
 
+????-??-?? - Version 0.7.5
+
+
 2017-01-18 - Version 0.7.4
  * Fix gpg change in serialno attribute.
  * Sync with gnupg-2.1, thanks to Moritz Bechler.
