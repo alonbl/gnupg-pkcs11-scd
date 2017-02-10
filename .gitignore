@@ -6,21 +6,22 @@
 
 .deps
 
-configure
-Makefile.in
-config.log
-depcomp
-config.h
 Makefile
-config.status
-config.guess
-config.sub
-stamp-h1
-config.h.in
-autom4te.cache
-missing
+Makefile.in
 aclocal.m4
+autom4te.cache
+compile
+config.guess
+config.h
+config.h.in
+config.log
+config.status
+config.sub
+configure
+depcomp
 install-sh
+missing
+stamp-h1
 
 gnupg-pkcs11-scd
 gnupg-pkcs11-scd.spec
