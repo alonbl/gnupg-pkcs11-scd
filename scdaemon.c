@@ -775,6 +775,9 @@ int main (int argc, char *argv[])
 	const char * CONFIG_SUFFIX = ".conf";
 	char *default_config_file = NULL;
 
+	/* unused intentionally */
+	(void)log_quiet;
+
 #if !defined(HAVE_W32_SYSTEM)
 	s_parent_pid = getpid ();
 #endif
