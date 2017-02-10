@@ -6,6 +6,7 @@ $Id$
 
 ????-??-?? - Version 0.7.5
 
+ * Fix issue with decrypting padded data, thanks to smunaut.
 
 2017-01-18 - Version 0.7.4
 

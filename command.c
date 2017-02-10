@@ -1281,6 +1281,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 	size_t ptext_len;
 	int session_locked = 0;
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
+	cmd_data_t _data;
 
 	if (
 		data == NULL ||
@@ -1288,6 +1289,25 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 	) {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
+	}
+
+	/*
+	 * Guess.. taken from openpgp card implementation
+	 * and java PKCS#11 provider.
+	 */
+	_data.data = data->data;
+	_data.size = data->size;
+	if (
+		*_data.data == 0 && (
+			_data.size == 129 ||
+			_data.size == 193 ||
+			_data.size == 257 ||
+			_data.size == 385 ||
+			_data.size == 513
+		)
+	) {
+		_data.data++;
+		_data.size--;
 	}
 
 	if (!strncmp (line, OPENPGP_SERIAL, strlen (OPENPGP_SERIAL))) {
@@ -1340,8 +1360,8 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 			pkcs11h_certificate_decryptAny (
 				cert,
 				CKM_RSA_PKCS, 
-				data->data,
-				data->size,
+				_data.data,
+				_data.size,
 				NULL,
 				&ptext_len
 			)
@@ -1360,8 +1380,8 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 			pkcs11h_certificate_decryptAny (
 				cert,
 				CKM_RSA_PKCS, 
-				data->data,
-				data->size,
+				_data.data,
+				_data.size,
 				ptext,
 				&ptext_len
 			)
