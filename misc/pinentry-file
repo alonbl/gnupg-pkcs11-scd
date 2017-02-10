@@ -1,0 +1,85 @@
+#!/usr/bin/python
+
+
+import argparse
+import sys
+
+
+def parse_args():
+    class MyArgumentParser(argparse.ArgumentParser):
+
+        def error(self, message):
+            raise RuntimeError(message)
+
+        def exit(self, status=0, message=None):
+            raise RuntimeError(message)
+
+    parser = MyArgumentParser(
+        prog='pinentry-file',
+        description=(
+            'File based pinentry'
+        ),
+    )
+    parser.add_argument(
+        '--file',
+        required=True,
+    )
+    return parser.parse_args()
+
+
+def write(s):
+    sys.stdout.write(s)
+    sys.stdout.flush()
+
+
+def main():
+    try:
+        args = parse_args()
+
+        write(
+            'OK Pleased to meet you\n'
+        )
+        while True:
+            # HACK-BEGIN
+            # python2
+            line = sys.stdin.readline()
+            if not line:
+                break
+            # HACK-END
+            line = line.strip()
+            s = line.split(' ', 2)
+            command = s[0]
+            if command in (
+                'SETDESC',
+                'SETPROMPT',
+                'SETTITLE',
+                'SETOK',
+                'SETCANCEL',
+                'SETERROR',
+                'SETQUALITYBAR',
+                'SETQUALITYBAR_TT',
+                'CONFIRM',
+                'MESSAGE',
+                'OPTION',
+            ):
+                write('OK\n')
+            elif command == 'GETPIN':
+                with open(args.file) as f:
+                    write('D %s\n' % f.readline().rstrip('\r\n'))
+                write('OK\n')
+            else:
+                write(
+                    'ERR 536871187 Unknown ' +
+                    'IPC command <User defined source 1>\n'
+                )
+    except Exception as e:
+        try:
+            write(
+                'ERR 536871187 %s\n' % e
+            )
+        except Exception:
+            pass
+
+
+if __name__ == '__main__':
+    main()
