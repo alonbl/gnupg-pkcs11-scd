@@ -39,7 +39,6 @@ typedef struct {
 	int verbose;
 	int pin_cache;
 
-	int emulate_openpgp;
 	char *openpgp_sign;
 	char *openpgp_encr;
 	char *openpgp_auth;

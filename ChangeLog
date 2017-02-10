@@ -7,6 +7,23 @@ $Id$
 ????-??-?? - Version 0.7.5
 
  * Fix issue with decrypting padded data, thanks to smunaut.
+ * Catchup with gnupg-2.1 changes which caused inability to support
+   both gpg and gpgsm. Implementation had to change card serial
+   number, as a result current keys of gpg will look for the
+   previous serial card.
+   emulate-openpgpg option is obsoleted and removed.
+
+   ACTION REQUIRED
+   in order to assign new card serial number to existing keys,
+   delete all PKCS#11 secret keys using:
+       gpg --delete-secret-keys $KEY then
+   Then regenerate keys using:
+       gpg --card-edit
+       admin
+       generate
+   Do not replace keys!
+   gpg will learn the private keys of the new card and attach to
+   the existing public keys.
 
 2017-01-18 - Version 0.7.4
 

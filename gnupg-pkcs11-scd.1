@@ -1,6 +1,6 @@
 .\"
 .\" Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
-.\" Copyright (c) 2006-2011 Alon Bar-Lev <alon.barlev@gmail.com>
+.\" Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -196,7 +196,6 @@ provider-p1-library /usr/lib/pkcs11/p1.so
 #provider-p1-cert-private
 #provider-p1-private-mask 0
 
-#emulate-openpgpg
 #openpgp-sign 5C661B8C07CFD957F7D98D5B9A0F31D236BFAC2A
 #openpgp-encr D2DC0BD1EDD185969748B6025B452816F97CBA57
 #openpgp-auth A7B8C1A3A8F71FCEC018886F8767927B9C8D871F
@@ -228,25 +227,15 @@ Force decrypt.
 .It 8
 Force decrypt with unwrap.
 .El
-.It emulate-openpgp
-Emulate OpenPGP card. Unfortunately, gnupg cannot handle the OpenPGP card with certificates.
-So you need to turn this on in order to learn card keys.
-.Pp
-In OpenPGP card emulation we cannot guess which key should match a type, so you have
-to specify the SHA1 of the key explicitly.
-.Pp
-In order to determine which key is which, use the following command:
-.Dl gpg-agent --server gpg-connect-agent
-Enter "SCD LEARN" and look for "KEY-FRIEDNLY" responses, the first field is the hash, the second
-is the subject name.
-.Pp
-You still have to store a certificate (may be self-signed) that corresponds to the keypair.
 .It openpgp-sign
-Hex string (Upper letter, no space) SHA1 of signing public key.
+Hex string (Upper letter, no space) SHA1 of signing public key see
+GNUPG INTEGRATION how to obtain.
 .It openpgp-encr
-Hex string (Upper letter, no space) SHA1 of encryption public key.
+Hex string (Upper letter, no space) SHA1 of encryption public key see
+GNUPG INTEGRATION how to obtain.
 .It openpgp-auth
-Hex string (Upper letter, no space) SHA1 of authentication public key.
+Hex string (Upper letter, no space) SHA1 of authentication public key see
+GNUPG INTEGRATION how to obtain.
 .El
 .Sh GNUPG INTEGRATION
 Typical steps to set up a card for gpgsm usage:
@@ -270,15 +259,13 @@ Aquire key ids:
 Enter "SCD LEARN" and look for "KEY-FRIEDNLY" responses, the first field is the hash, the second
 is the subject name.
 .It
-Configure gnupg-pkcs11-scd for opengpg emulation, specify the public key hashes
-to be used for signature, encryption and authentication.
-.It
 Instruct GnuPG to discover all useful information of card:
 .Dl gpg --card-status
 You should see valid card status.
 .It
 Now, you should virtual generate keys, the keys are not actually generated, but returned
 to gpg to be registered.
+Please remember to kill gpg-agent when you modify configuration files.
 .Dl gpg --card-edit
 .Dl admin
 .Dl generate (DO NOT BACKUP KEYS)
@@ -288,11 +275,13 @@ GPG master key:
 .Dl gpg --edit-key MASTER_KEY_ID
 .Dl addcardkey
 .It
-Disable the opengpg emulation, if your card requires it to work with GPG.
+In order to reattach a key to smartcard, remove secret key using:
+.Dl gpg --delete-secret-keys MASTER_KEY_ID
+Then regenerate but without replace keys using:
+.Dl gpg --card-edit
+.Dl admin
+.Dl generate (DO NOT GENERATE KEYS)
 .El
-.Pp
-Now you can use the same card with your gpg and gpgsm keys. We don't know if this is a
-bug or feature in gnupg, but we glad that it works.
 .Pp
 Signing, verification, etc. work as usual with gpg.
 .Sh SECURITY CONSIDERATIONS

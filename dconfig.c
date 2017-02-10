@@ -134,9 +134,6 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 		else if (prefix_is (line, "pin-cache ")) {
 			config->pin_cache = atoi (strchr (line, ' '));
 		}
-		else if (prefix_is (line, "emulate-openpgp")) {
-			config->emulate_openpgp = 1;
-		}
 		else if (prefix_is (line, "openpgp-sign")) {
 			char *p = strchr (line, ' ');
 			trim (p);

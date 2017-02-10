@@ -38,7 +38,14 @@
 #define _M2S(x) #x
 #define M2S(x) _M2S(x)
 
-#define OPENPGP_SERIAL "D2760001240111111111111111111111"
+/*
+ * OpenPGP prefix
+ * 11
+ * PKCS#11
+ * 1s
+ */
+#define OPENPGP_PKCS11_SERIAL "D27600012401" "11" "504B4353233131" "1111"
+#define OPENPGP_KEY_NAME_PREFIX "OPENPGP."
 #define OPENPGP_SIGN 1
 #define OPENPGP_ENCR 2
 #define OPENPGP_AUTH 3
@@ -260,13 +267,13 @@ send_certificate_list (
 		) {
 			key_prefix = M2S(OPENPGP_SIGN) " ";
 		}
-		if (
+		else if (
 			data->config->openpgp_encr != NULL &&
 			!strcmp (data->config->openpgp_encr, key_hexgrip)
 		) {
 			key_prefix = M2S(OPENPGP_ENCR) " ";
 		}
-		if (
+		else if (
 			data->config->openpgp_auth != NULL &&
 			!strcmp (data->config->openpgp_auth, key_hexgrip)
 		) {
@@ -313,9 +320,7 @@ send_certificate_list (
 			}
 
 		}
-
 		if (
-			!data->config->emulate_openpgp &&
 			(error = assuan_write_status (
 				ctx,
 				"CERTINFO",
@@ -393,7 +398,7 @@ cleanup:
 	return error;
 }
 
-int _get_certificate_by_type (assuan_context_t ctx, int type, pkcs11h_certificate_id_t *p_cert_id, char **p_key) {
+int _get_certificate_by_name (assuan_context_t ctx, char *name, int typehint, pkcs11h_certificate_id_t *p_cert_id, char **p_key) {
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_BAD_KEY;
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
@@ -402,11 +407,24 @@ int _get_certificate_by_type (assuan_context_t ctx, int type, pkcs11h_certificat
 	char *key_hexgrip = NULL;
 	gcry_sexp_t sexp = NULL;
 	char *key = NULL;
+	int type;
 	int found = 0;
 
 	*p_cert_id = NULL;
 	if (p_key != NULL) {
 		*p_key = NULL;
+	}
+
+	if (name == NULL) {
+		type = typehint;
+	}
+	else if (strncmp (name, OPENPGP_KEY_NAME_PREFIX, strlen (OPENPGP_KEY_NAME_PREFIX))) {
+		return common_map_pkcs11_error (
+			pkcs11h_certificate_deserializeCertificateId (p_cert_id, name)
+		);
+	}
+	else {
+		type = atoi(name + strlen (OPENPGP_KEY_NAME_PREFIX));
 	}
 
 	switch (type) {
@@ -531,76 +549,26 @@ gpg_error_t cmd_null (assuan_context_t ctx, char *line)
 */
 gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 {
-	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 #if defined(COMMENT)
+	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	pkcs11h_token_id_list_t list = NULL;
 	pkcs11h_token_id_list_t i;
 #endif
 
-	(void)line;
-
-	/*
-	 * @ALON
-	 * I am amazed!!!!
-	 *
-	 * gpg-agent does not support more than one serial number!!!
-	 * it does not matter anyhow, since we go by certificate_id
-	 * but still... it is stupid!
-	 */
-	{
-		char *serial_and_stamp = NULL;
-
-		if (serial_and_stamp == NULL && strcmp (line, "openpgp") == 0) {
-			serial_and_stamp = strdup (OPENPGP_SERIAL);
-		}
-
-		if (serial_and_stamp == NULL && data->config->emulate_openpgp) {
-			serial_and_stamp = strdup (OPENPGP_SERIAL);
-		}
-
-		if (serial_and_stamp == NULL) {
-			char *ser_token = "PKCS#11 TOKEN";
-
-			/*
-			 * serial number has to be hex-encoded data,
-			 * followed by " 0"
-			 */
-			if (
-				(serial_and_stamp = encoding_bin2hex (
-					(unsigned char *)ser_token,
-					strlen (ser_token)
-				)) == NULL
-			) {
-				error = GPG_ERR_GENERAL;
-				goto cleanup;
-			}
-		}
-
-		if (!encoding_strappend (&serial_and_stamp, " 0")) {
-			error = GPG_ERR_ENOMEM;
-			goto cleanup;
-		}
-
-		if (
-			(error = assuan_write_status (
-				ctx,
-				"SERIALNO",
-				serial_and_stamp
-			)) != GPG_ERR_NO_ERROR
-		) {
-			goto cleanup;
-		}
-
-		error = GPG_ERR_NO_ERROR;
-
-	cleanup:
-
-		if (serial_and_stamp != NULL) {
-			free (serial_and_stamp);
-			serial_and_stamp = NULL;
-		}
+	if (
+		(error = assuan_write_status (
+			ctx,
+			"SERIALNO",
+			OPENPGP_PKCS11_SERIAL " 0"
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
 
 #if defined(COMMENT)
 	if (
@@ -719,7 +687,14 @@ gpg_error_t cmd_learn (assuan_context_t ctx, char *line)
 
 	(void)line;
 
-	if ((error = gpg_err_code (cmd_serialno (ctx, line))) != GPG_ERR_NO_ERROR) {
+	if (
+		(error = gpg_err_code (cmd_serialno (ctx, line))) != GPG_ERR_NO_ERROR ||
+		(error = assuan_write_status (
+			ctx,
+			"APPTYPE",
+			"PKCS11"
+		)) != GPG_ERR_NO_ERROR
+	) {
 		goto cleanup;
 	}
 
@@ -732,11 +707,6 @@ gpg_error_t cmd_learn (assuan_context_t ctx, char *line)
 				&issuer_certificates,
 				&user_certificates
 			)
-		)) != GPG_ERR_NO_ERROR ||
-		(error = assuan_write_status (
-			ctx,
-			"APPTYPE",
-			"PKCS11"
 		)) != GPG_ERR_NO_ERROR ||
 		(error = send_certificate_list (
 			ctx,
@@ -782,8 +752,12 @@ gpg_error_t cmd_readcert (assuan_context_t ctx, char *line)
 	size_t blob_size;
 
 	if (
-		(error = common_map_pkcs11_error (
-			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
+		(error = _get_certificate_by_name (
+			ctx,
+			line,
+			0,
+			&cert_id,
+			NULL
 		)) != GPG_ERR_NO_ERROR ||
 		(error = get_cert_blob (ctx, cert_id, &blob, &blob_size)) != GPG_ERR_NO_ERROR ||
 		(error = assuan_send_data (ctx, blob, blob_size)) != GPG_ERR_NO_ERROR
@@ -823,8 +797,12 @@ gpg_error_t cmd_readkey (assuan_context_t ctx, char *line)
 	size_t blob_size;
 
 	if (
-		(error = common_map_pkcs11_error (
-			pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
+		(error = _get_certificate_by_name (
+			ctx,
+			line,
+			0,
+			&cert_id,
+			NULL
 		)) != GPG_ERR_NO_ERROR ||
 		(error = get_cert_sexp (ctx, cert_id, &sexp)) != GPG_ERR_NO_ERROR
 	) {
@@ -1156,26 +1134,16 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 		_data->size += data->size;
 	}
 
-	if (!strncmp (line, OPENPGP_SERIAL, strlen (OPENPGP_SERIAL))) {
-		if (
-			(error = _get_certificate_by_type (
-				ctx,
-				OPENPGP_SIGN,
-				&cert_id,
-				NULL
-			)) != GPG_ERR_NO_ERROR
-		) {
-			goto cleanup;
-		}
-	}
-	else {
-		if (
-			(error = common_map_pkcs11_error (
-				pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
-			)) != GPG_ERR_NO_ERROR
-		) {
-			goto cleanup;
-		}
+	if (
+		(error = _get_certificate_by_name (
+			ctx,
+			NULL,
+			OPENPGP_SIGN,
+			&cert_id,
+			NULL
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
 
 	if (
@@ -1310,26 +1278,16 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 		_data.size--;
 	}
 
-	if (!strncmp (line, OPENPGP_SERIAL, strlen (OPENPGP_SERIAL))) {
-		if (
-			(error = _get_certificate_by_type (
-				ctx,
-				OPENPGP_ENCR,
-				&cert_id,
-				NULL
-			)) != GPG_ERR_NO_ERROR
-		) {
-			goto cleanup;
-		}
-	}
-	else {
-		if (
-			(error = common_map_pkcs11_error (
-				pkcs11h_certificate_deserializeCertificateId (&cert_id, line)
-			)) != GPG_ERR_NO_ERROR
-		) {
-			goto cleanup;
-		}
+	if (
+		(error = _get_certificate_by_name (
+			ctx,
+			NULL,
+			OPENPGP_ENCR,
+			&cert_id,
+			NULL
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
 
 	if (
@@ -1508,6 +1466,7 @@ gpg_error_t cmd_restart (assuan_context_t ctx, char *line)
 
 gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 {
+	pkcs11h_certificate_id_list_t user_certificates = NULL;
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 
 	if (!strcmp (line, "SERIALNO")) {
@@ -1516,7 +1475,22 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 		}
 	}
 	else if (!strcmp (line, "KEY-FPR")) {
-		if ((error = gpg_err_code (cmd_learn (ctx, line))) != GPG_ERR_NO_ERROR) {
+		if (
+			(error = common_map_pkcs11_error (
+				pkcs11h_certificate_enumCertificateIds (
+					PKCS11H_ENUM_METHOD_CACHE_EXIST,
+					ctx,
+					PKCS11H_PROMPT_MASK_ALLOW_ALL,
+					NULL,
+					&user_certificates
+				)
+			)) != GPG_ERR_NO_ERROR ||
+			(error = send_certificate_list (
+				ctx,
+				user_certificates,
+				0
+			)) != GPG_ERR_NO_ERROR
+		) {
 			goto cleanup;
 		}
 	}
@@ -1590,6 +1564,11 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 
 cleanup:
 
+	if (user_certificates != NULL) {
+		pkcs11h_certificate_freeCertificateIdList (user_certificates);
+		user_certificates = NULL;
+	}
+
 	return gpg_error (error);
 }
 
@@ -1613,7 +1592,6 @@ cleanup:
 
 gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 {
-	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
 	gcry_mpi_t n_mpi = NULL;
@@ -1626,11 +1604,6 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 	char *key = NULL;
 	size_t blob_size;
 	char timestamp[100] = {0};
-
-	if (!data->config->emulate_openpgp) {
-		error = GPG_ERR_INV_OP;
-		goto cleanup;
-	}
 
 	while (*line != '\x0' && !isdigit (*line)) {
 		if (*line == '-') {
@@ -1661,9 +1634,10 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 	}
 
 	if (
-		(error = _get_certificate_by_type (
+		(error = _get_certificate_by_name (
 			ctx,
-			atoi (line),
+			NULL,
+			atoi(line),
 			&cert_id,
 			&key
 		)) != GPG_ERR_NO_ERROR
@@ -1691,7 +1665,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 		goto cleanup;
 	}
 
-	if ((error = cmd_serialno (ctx, line)) != GPG_ERR_NO_ERROR) {
+	if ((error = cmd_serialno (ctx, "openpgp")) != GPG_ERR_NO_ERROR) {
 		goto cleanup;
 	}
 
