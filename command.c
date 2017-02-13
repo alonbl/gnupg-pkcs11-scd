@@ -408,7 +408,6 @@ int _get_certificate_by_name (assuan_context_t ctx, char *name, int typehint, pk
 	gcry_sexp_t sexp = NULL;
 	char *key = NULL;
 	int type;
-	int found = 0;
 
 	*p_cert_id = NULL;
 	if (p_key != NULL) {
@@ -438,10 +437,12 @@ int _get_certificate_by_name (assuan_context_t ctx, char *name, int typehint, pk
 			key = data->config->openpgp_auth;
 		break;
 		default:
+			error = GPG_ERR_BAD_KEY;
 			goto cleanup;
 	}
 
 	if (key == NULL) {
+		error = GPG_ERR_BAD_KEY;
 		goto cleanup;
 	}
 
@@ -461,7 +462,7 @@ int _get_certificate_by_name (assuan_context_t ctx, char *name, int typehint, pk
 
 	for (
 		curr_cert = user_certificates;
-		curr_cert != NULL && !found;
+		curr_cert != NULL && cert_id == NULL;
 		curr_cert = curr_cert->next
 	) {
 
@@ -475,8 +476,6 @@ int _get_certificate_by_name (assuan_context_t ctx, char *name, int typehint, pk
 		}
 
 		if (!strcmp (key_hexgrip, key)) {
-			found = 1;
-
 			if (
 				(error = common_map_pkcs11_error (
 					pkcs11h_certificate_duplicateCertificateId (
@@ -490,7 +489,8 @@ int _get_certificate_by_name (assuan_context_t ctx, char *name, int typehint, pk
 		}
 	}
 
-	if (!found) {
+	if (cert_id == NULL) {
+		error = GPG_ERR_BAD_KEY;
 		goto cleanup;
 	}
 
@@ -994,6 +994,7 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	}
 
 	if (*line == '\x0') {
+		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
 	/*
@@ -1112,6 +1113,7 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 				oid_size = sizeof(sha512_prefix);
 			break;
 			default:
+				error = GPG_ERR_INV_DATA;
 				goto cleanup;
 		}
 
@@ -1626,6 +1628,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 	}
 
 	if (*line == '\x0') {
+		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
 
