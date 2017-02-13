@@ -24,6 +24,8 @@ $Id$
    Do not replace keys!
    gpg will learn the private keys of the new card and attach to
    the existing public keys.
+ * Support gnupg-2.1 add existing key to master key.
+   This feature makes the explicit settings in configuration obsolete.
 
 2017-01-18 - Version 0.7.4
 

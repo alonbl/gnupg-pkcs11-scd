@@ -417,6 +417,13 @@ int _get_certificate_by_name (assuan_context_t ctx, char *name, int typehint, pk
 	if (name == NULL) {
 		type = typehint;
 	}
+	else if (	/* gnupg-2.0 mode */
+		data->config->openpgp_sign != NULL ||
+		data->config->openpgp_encr != NULL ||
+		data->config->openpgp_auth != NULL
+	) {
+		type = typehint;
+	}
 	else if (strncmp (name, OPENPGP_KEY_NAME_PREFIX, strlen (OPENPGP_KEY_NAME_PREFIX))) {
 		return common_map_pkcs11_error (
 			pkcs11h_certificate_deserializeCertificateId (p_cert_id, name)
@@ -1139,7 +1146,7 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 	if (
 		(error = _get_certificate_by_name (
 			ctx,
-			NULL,
+			line,
 			OPENPGP_SIGN,
 			&cert_id,
 			NULL
@@ -1283,7 +1290,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 	if (
 		(error = _get_certificate_by_name (
 			ctx,
-			NULL,
+			line,
 			OPENPGP_ENCR,
 			&cert_id,
 			NULL

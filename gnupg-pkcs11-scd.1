@@ -196,6 +196,7 @@ provider-p1-library /usr/lib/pkcs11/p1.so
 #provider-p1-cert-private
 #provider-p1-private-mask 0
 
+# The following are for gnupg-2.0 mode
 #openpgp-sign 5C661B8C07CFD957F7D98D5B9A0F31D236BFAC2A
 #openpgp-encr D2DC0BD1EDD185969748B6025B452816F97CBA57
 #openpgp-auth A7B8C1A3A8F71FCEC018886F8767927B9C8D871F
@@ -228,13 +229,13 @@ Force decrypt.
 Force decrypt with unwrap.
 .El
 .It openpgp-sign
-Hex string (Upper letter, no space) SHA1 of signing public key see
+[gnupg-2.0] Hex string (Upper letter, no space) SHA1 of signing public key see
 GNUPG INTEGRATION how to obtain.
 .It openpgp-encr
-Hex string (Upper letter, no space) SHA1 of encryption public key see
+[gnupg-2.0] Hex string (Upper letter, no space) SHA1 of encryption public key see
 GNUPG INTEGRATION how to obtain.
 .It openpgp-auth
-Hex string (Upper letter, no space) SHA1 of authentication public key see
+[gnupg-2.0] Hex string (Upper letter, no space) SHA1 of authentication public key see
 GNUPG INTEGRATION how to obtain.
 .El
 .Sh GNUPG INTEGRATION
@@ -251,7 +252,7 @@ Instruct GnuPG to discover all useful certificates on the card:
 .Pp
 Signing, verification, etc. work as usual with gpgsm.
 .Pp
-Typical steps to set up a card for gpg usage:
+Typical steps to set up a card for gpg-2.0 usage:
 .Bl -enum
 .It
 Aquire key ids:
@@ -265,10 +266,10 @@ You should see valid card status.
 .It
 Now, you should virtual generate keys, the keys are not actually generated, but returned
 to gpg to be registered.
-Please remember to kill gpg-agent when you modify configuration files.
 .Dl gpg --card-edit
 .Dl admin
 .Dl generate (DO NOT BACKUP KEYS)
+Kill gpg-agent and modify configuration to have sign, encrypt, authenticate key hex ids.
 .It
 Alternatively, you can add the existing keys as subkeys on an existing
 GPG master key:
@@ -276,11 +277,30 @@ GPG master key:
 .Dl addcardkey
 .It
 In order to reattach a key to smartcard, remove secret key using:
-.Dl gpg --delete-secret-keys MASTER_KEY_ID
+.Dl gpg --delete-secret-keys KEY_ID
 Then regenerate but without replace keys using:
 .Dl gpg --card-edit
 .Dl admin
 .Dl generate (DO NOT GENERATE KEYS)
+.El
+.Pp
+Signing, verification, etc. work as usual with gpg.
+.Pp
+Typical steps to set up a card for gpg-2.1 usage:
+.Bl -enum
+.It
+Aquire key ids:
+.Dl gpg-agent --server gpg-connect-agent
+Enter "SCD LEARN" and look for "KEY-FRIEDNLY" responses, the first field is the hash, the second
+is the subject name.
+.It
+Generate master key using:
+.Dl gpg --gen-key
+.It
+Edit master key to add card subkeys using:
+.Dl gpg --expert --edit-key MASTER_KEY_ID
+Add keys using addkey command, select existing key option and
+enter the key id acquired earlier.
 .El
 .Pp
 Signing, verification, etc. work as usual with gpg.
