@@ -286,21 +286,33 @@ Then regenerate but without replace keys using:
 .Pp
 Signing, verification, etc. work as usual with gpg.
 .Pp
-Typical steps to set up a card for gpg-2.1 usage:
+Typical steps to set up a card for >=gpg-2.1.19 usage:
 .Bl -enum
+.It
+Refresh local key store:
+.Dl gpg --card-status
 .It
 Aquire key ids:
 .Dl gpg-agent --server gpg-connect-agent
-Enter "SCD LEARN" and look for "KEY-FRIEDNLY" responses, the first field is the hash, the second
+Enter "SCD LEARN" and look for "KEY-FRIEDNLY" responses, the first field is the keygrip, the second
 is the subject name.
 .It
-Generate master key using:
-.Dl gpg --gen-key
+Create master key based on existing key using:
+.Dl gpg --expert --full-generate-key
+Select:
+.Dl (13) Existing key
+Enter keygrip to be used as primary key.
 .It
-Edit master key to add card subkeys using:
-.Dl gpg --expert --edit-key MASTER_KEY_ID
-Add keys using addkey command, select existing key option and
-enter the key id acquired earlier.
+Continue as usual to setup your primary key, you should
+probably use signature for master key.
+.It
+Add subkey using:
+.Dl gpg --expert --edit-key ${MASTER_KEY_ID}
+.Dl gpg> addkey
+.Dl (13) Existing key
+Enter keygrip to be used as subkey.
+.It
+Continue as usual to setup your subkey.
 .El
 .Pp
 Signing, verification, etc. work as usual with gpg.
