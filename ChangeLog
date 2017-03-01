@@ -2,9 +2,7 @@ gnupg-pkcs11-scd
 Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
 Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
-$Id$
-
-????-??-?? - Version 0.7.5
+2017-03-01 - Version 0.7.5
 
  * Fix issue with decrypting padded data, thanks to smunaut.
  * Catchup with gnupg-2.1 changes which caused inability to support
@@ -14,18 +12,21 @@ $Id$
    emulate-openpgpg option is obsoleted and removed.
 
    ACTION REQUIRED
-   in order to assign new card serial number to existing keys,
+   in order to assign new card serial number to existing keys.
+   backup your ~/.gnupg.
    delete all PKCS#11 secret keys using:
        gpg --delete-secret-keys $KEY then
-   Then regenerate keys using:
+   Then refresh keys using:
        gpg --card-edit
+   In <gnupg-2.1.19 the keys should be re-generated using:
        admin
        generate
    Do not replace keys!
    gpg will learn the private keys of the new card and attach to
    the existing public keys.
- * Support gnupg-2.1 add existing key to master key.
-   This feature makes the explicit settings in configuration obsolete.
+ * Support gnupg-2.1 features of using existing keys, keys
+   should not be explicitly specified in configuration file
+   any more.
 
 2017-01-18 - Version 0.7.4
 
