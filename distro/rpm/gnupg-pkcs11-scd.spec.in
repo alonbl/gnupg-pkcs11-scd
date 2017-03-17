@@ -30,10 +30,10 @@ by using RSA Security Inc. PKCS#11 Cryptographic Token Interface (Cryptoki).
 
 %build
 %configure
-make %{?_smp_mflags}
+%{__make} %{?_smp_mflags}
 
 %install
-%makeinstall
+%{__make} %{?_smp_mflags} install DESTDIR="%{?buildroot}"
 
 %files
 %{_bindir}/*
