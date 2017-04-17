@@ -728,6 +728,7 @@ int main (int argc, char *argv[])
 		OPT_CSH,
 		OPT_OPTIONS,
 		OPT_NO_DETACH,
+		OPT_HOMEDIR,
 		OPT_LOG_FILE,
 		OPT_VERSION,
 		OPT_HELP
@@ -743,6 +744,7 @@ int main (int argc, char *argv[])
 		{ "csh", no_argument, NULL, OPT_CSH },
 		{ "options", required_argument, NULL, OPT_OPTIONS },
 		{ "no-detach", no_argument, NULL, OPT_NO_DETACH },
+		{ "homedir", required_argument, NULL, OPT_HOMEDIR },
 		{ "log-file", required_argument, NULL, OPT_LOG_FILE },
 		{ "version", no_argument, NULL, OPT_VERSION },
 		{ "help", no_argument, NULL, OPT_HELP },
@@ -824,6 +826,9 @@ int main (int argc, char *argv[])
 			case OPT_NO_DETACH:
 				no_detach = 1;
 			break;
+			case OPT_HOMEDIR:
+				home_dir = strdup (optarg);
+			break;
 			case OPT_LOG_FILE:
 				base_argc++;
 				log_file = strdup (optarg);
@@ -871,7 +876,9 @@ int main (int argc, char *argv[])
 	}
 #endif
 
-	home_dir = get_home_dir ();
+	if (home_dir == NULL) {
+		home_dir = get_home_dir ();
+	}
 
 	if (config_file == NULL) {
 		if ((config_file = (char *)malloc (strlen (home_dir) + strlen (default_config_file)+2)) == NULL) {
