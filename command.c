@@ -557,11 +557,6 @@ gpg_error_t cmd_null (assuan_context_t ctx, char *line)
 gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
-#if defined(COMMENT)
-	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
-	pkcs11h_token_id_list_t list = NULL;
-	pkcs11h_token_id_list_t i;
-#endif
 
 	if (
 		(error = assuan_write_status (
@@ -577,111 +572,6 @@ gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 
 cleanup:
 
-#if defined(COMMENT)
-	if (
-		(error = common_map_pkcs11_error (
-			pkcs11h_token_enumTokenIds (
-				PKCS11H_ENUM_METHOD_RELOAD,
-				&list
-			)
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
-	}
-
-	if (list == NULL) {
-		error = GPG_ERR_CARD_NOT_PRESENT;
-		goto cleanup;
-	}
-
-	for (i=list;i!=NULL;i=i->next) {
-		char *serial_and_stamp = NULL;
-		char *ser_token = NULL;
-		size_t ser_len;
-
-		if (
-			(error = common_map_pkcs11_error (
-				pkcs11h_token_serializeTokenId (
-					NULL,
-					&ser_len,
-					i->token_id
-				)
-			)) != GPG_ERR_NO_ERROR
-		) {
-			goto retry;
-		}
-
-		if ((ser_token = (char *)malloc (ser_len)) == NULL) {
-			error = GPG_ERR_ENOMEM;
-			goto retry;
-		}
-
-		if (
-			(error = common_map_pkcs11_error (
-				pkcs11h_token_serializeTokenId (
-					ser_token,
-					&ser_len,
-					i->token_id
-				)
-			)) != GPG_ERR_NO_ERROR
-		) {
-			goto retry;
-		}
-
-		/*
-		 * serial number has to be hex-encoded data,
-		 * followed by " 0"
-		 */
-		if (
-			(serial_and_stamp = encoding_bin2hex (
-				(unsigned char *)ser_token,
-				strlen (ser_token)
-			)) == NULL
-		) {
-			error = GPG_ERR_GENERAL;
-			goto retry;
-		}
-
-		if (!encoding_strappend (&serial_and_stamp, " 0")) {
-			error = GPG_ERR_ENOMEM;
-			goto retry;
-		}
-
-		if (
-			(error = assuan_write_status (
-				ctx,
-				"SERIALNO",
-				serial_and_stamp
-			)) != GPG_ERR_NO_ERROR
-		) {
-			goto retry;
-		}
-
-		error = GPG_ERR_NO_ERROR;
-
-	cleanup:
-
-		if (serial_and_stamp != NULL) {
-			free (serial_and_stamp);
-			serial_and_stamp = NULL;
-		}
-
-		if (ser_token != NULL) {
-			free (ser_token);
-			ser_token = NULL;
-		}
-	}
-
-	error = GPG_ERR_NO_ERROR;
-
-cleanup:
-
-	if (list != NULL) {
-		pkcs11h_token_freeTokenIdList (list);
-		list = NULL;
-	}
-#endif
-
 	return gpg_error (error);
 }
 
@@ -695,7 +585,11 @@ gpg_error_t cmd_learn (assuan_context_t ctx, char *line)
 	(void)line;
 
 	if (
-		(error = gpg_err_code (cmd_serialno (ctx, line))) != GPG_ERR_NO_ERROR ||
+		(error = assuan_write_status (
+			ctx,
+			"SERIALNO",
+			OPENPGP_PKCS11_SERIAL
+		)) != GPG_ERR_NO_ERROR ||
 		(error = assuan_write_status (
 			ctx,
 			"APPTYPE",
@@ -1479,7 +1373,13 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 
 	if (!strcmp (line, "SERIALNO")) {
-		if ((error = gpg_err_code (cmd_serialno (ctx, line))) != GPG_ERR_NO_ERROR) {
+		if (
+			(error = assuan_write_status (
+				ctx,
+				"SERIALNO",
+				OPENPGP_PKCS11_SERIAL
+			)) != GPG_ERR_NO_ERROR
+		) {
 			goto cleanup;
 		}
 	}
@@ -1660,26 +1560,17 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 			ctx,
 			"KEY-FPR",
 			key
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
-	}
-
-	if (
+		)) != GPG_ERR_NO_ERROR ||
 		(error = assuan_write_status(
 			ctx,
 			"KEY-CREATED-AT",
 			timestamp
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
-	}
-
-	if ((error = cmd_serialno (ctx, "openpgp")) != GPG_ERR_NO_ERROR) {
-		goto cleanup;
-	}
-
-	if (
+		)) != GPG_ERR_NO_ERROR ||
+		(error = assuan_write_status (
+			ctx,
+			"SERIALNO",
+			OPENPGP_PKCS11_SERIAL
+		)) != GPG_ERR_NO_ERROR ||
 		(error = get_cert_blob (
 			ctx,
 			cert_id,

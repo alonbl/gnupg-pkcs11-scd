@@ -5,6 +5,7 @@ Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 ????-??-?? - Version 0.7.6
 
  * Add --homedir parameter.
+ * Rework serial responses for gnupg-2.1.19.
 
 2017-03-01 - Version 0.7.5
 
