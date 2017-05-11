@@ -32,6 +32,18 @@
 #include <pkcs11-helper-1.0/pkcs11h-core.h>
 #include "dconfig.h"
 
+
+/*
+ * OpenPGP prefix
+ * 11
+ * PKCS#11
+ * 1s
+ */
+#define OPENPGP_PKCS11_SERIAL "D27600012401" "11" "504B4353233131" "1111"
+#define PKCS11_SERIAL "504B4353233131"
+#define OPENPGP_PKCS11_SERIAL_PREFIX  "D27600012401" "11"
+#define OPENPGP_PKCS11_SERIAL_SUFFIX  "1111"
+
 static
 void
 trim (char * const line) {
@@ -81,7 +93,7 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 
 	memset (config, 0, sizeof (dconfig_data_t));
 	config->pin_cache = PKCS11H_PIN_CACHE_INFINITE;
-
+	config->application_id = OPENPGP_PKCS11_SERIAL;
 #if defined(HAVE_W32_SYSTEM)
 	if (!ExpandEnvironmentStrings (_file, file, sizeof (file))) {
 		goto cleanup;
@@ -97,6 +109,23 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 		trim (line);
 
 		if (!strcmp (line, "")) {
+		}
+		else if (prefix_is (line, "serial-number ")) {
+			char *p = strchr (line, ' ');
+			trim (p);
+			if ( strlen (p) == 14 ) {
+				config->pkcs11_serial = strdup (p);
+				if ((config->application_id = (char *)malloc(33)) == NULL) {
+					goto cleanup;
+				}
+				strcpy(config->application_id, OPENPGP_PKCS11_SERIAL_PREFIX);
+				strcat(config->application_id, config->pkcs11_serial);
+				strcat(config->application_id, OPENPGP_PKCS11_SERIAL_SUFFIX);
+			}
+			else {
+				common_log (LOG_ERROR, "serial-number must be 14 chars '%s'", p);
+			}
+
 		}
 		else if (prefix_is (line, "log-file ")) {
 			char *p = strchr (line, ' ');
@@ -197,6 +226,7 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 		}
 	}
 
+	
 	ok = 1;
 
 cleanup:
