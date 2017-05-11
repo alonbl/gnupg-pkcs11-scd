@@ -200,6 +200,8 @@ provider-p1-library /usr/lib/pkcs11/p1.so
 #openpgp-sign 5C661B8C07CFD957F7D98D5B9A0F31D236BFAC2A
 #openpgp-encr D2DC0BD1EDD185969748B6025B452816F97CBA57
 #openpgp-auth A7B8C1A3A8F71FCEC018886F8767927B9C8D871F
+
+#serial-number 1234567890ABCD
 .Ed
 .Pp
 The following attributes can be set for each provider:
@@ -236,6 +238,10 @@ GNUPG INTEGRATION how to obtain.
 GNUPG INTEGRATION how to obtain.
 .It openpgp-auth
 [gnupg-2.0] Hex string (Upper letter, no space) SHA1 of authentication public key see
+GNUPG INTEGRATION how to obtain.
+.It serial-number
+[gnupg-2.0] 14 character Hex string (Upper letter, no space) representing the 
+serial number of the openpgp-card
 GNUPG INTEGRATION how to obtain.
 .El
 .Sh GNUPG INTEGRATION
@@ -275,6 +281,10 @@ Alternatively, you can add the existing keys as subkeys on an existing
 GPG master key:
 .Dl gpg --edit-key MASTER_KEY_ID
 .Dl addcardkey
+
+If you want to setup your keyring with two tokens, one for the master key and one for 
+daily usage you will need two config files with differnt serial numbers and differnt keys.
+Please exchange these files as soon as your pinentry programm asks you for the corresponding card.
 .It
 In order to reattach a key to smartcard, remove secret key using:
 .Dl gpg --delete-secret-keys KEY_ID

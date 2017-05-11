@@ -556,13 +556,24 @@ gpg_error_t cmd_null (assuan_context_t ctx, char *line)
 */
 gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 {
+	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_GENERAL;
+	char *appid_plus_0;
+
+	if ((appid_plus_0 = (char *)malloc (strlen(data->config->application_id) + 3 )) == NULL) {
+                error = GPG_ERR_ENOMEM;
+                goto cleanup;
+        } 
+	strcpy(appid_plus_0,data->config->application_id);
+	strcat(appid_plus_0," 0");
+
+	
 
 	if (
 		(error = assuan_write_status (
 			ctx,
 			"SERIALNO",
-			OPENPGP_PKCS11_SERIAL " 0"
+			appid_plus_0
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
@@ -581,6 +592,8 @@ gpg_error_t cmd_learn (assuan_context_t ctx, char *line)
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
 	pkcs11h_certificate_id_list_t issuer_certificates = NULL;
+	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
+	const char * text = data->config->application_id;
 
 	(void)line;
 
@@ -588,7 +601,7 @@ gpg_error_t cmd_learn (assuan_context_t ctx, char *line)
 		(error = assuan_write_status (
 			ctx,
 			"SERIALNO",
-			OPENPGP_PKCS11_SERIAL
+			data->config->application_id
 		)) != GPG_ERR_NO_ERROR ||
 		(error = assuan_write_status (
 			ctx,
@@ -1371,13 +1384,14 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 {
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
 	gpg_err_code_t error = GPG_ERR_GENERAL;
+	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 
 	if (!strcmp (line, "SERIALNO")) {
 		if (
 			(error = assuan_write_status (
 				ctx,
 				"SERIALNO",
-				OPENPGP_PKCS11_SERIAL
+				data->config->application_id
 			)) != GPG_ERR_NO_ERROR
 		) {
 			goto cleanup;
@@ -1513,6 +1527,8 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 	char *key = NULL;
 	size_t blob_size;
 	char timestamp[100] = {0};
+	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
+	const char * text = data->config->application_id;
 
 	while (*line != '\x0' && !isdigit (*line)) {
 		if (*line == '-') {
@@ -1569,7 +1585,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 		(error = assuan_write_status (
 			ctx,
 			"SERIALNO",
-			OPENPGP_PKCS11_SERIAL
+			data->config->application_id
 		)) != GPG_ERR_NO_ERROR ||
 		(error = get_cert_blob (
 			ctx,

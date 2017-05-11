@@ -42,6 +42,8 @@ typedef struct {
 	char *openpgp_sign;
 	char *openpgp_encr;
 	char *openpgp_auth;
+	char *application_id;
+	char *pkcs11_serial;
 
 	struct {
 		char *name;
