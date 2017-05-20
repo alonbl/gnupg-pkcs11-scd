@@ -4,6 +4,10 @@ Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
 ????-??-?? - Version 0.7.7
 
+ * Support multiple tokens via serial numbers by hashing token id into
+   serial number.
+   Implementation changes the card serial number yet again, executing
+   gpg --card-status should resync.
 
 2017-04-18 - Version 0.7.6
 

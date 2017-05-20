@@ -29,6 +29,7 @@
  */
 
 #include "common.h"
+#include <pkcs11-helper-1.0/pkcs11h-token.h>
 #include <pkcs11-helper-1.0/pkcs11h-certificate.h>
 #include "command.h"
 #include "scdaemon.h"
@@ -41,10 +42,12 @@
 /*
  * OpenPGP prefix
  * 11
- * PKCS#11
+ * P11
+ * xxxxxxxx - sha1(token_id)
  * 1s
  */
-#define OPENPGP_PKCS11_SERIAL "D27600012401" "11" "504B4353233131" "1111"
+#define OPENPGP_PKCS11_SERIAL "D27600012401" "11" "503131%8s" "1111"
+#define OPENPGP_PKCS11_SERIAL_BYTES 4
 #define OPENPGP_KEY_NAME_PREFIX "OPENPGP."
 #define OPENPGP_SIGN 1
 #define OPENPGP_ENCR 2
@@ -172,6 +175,134 @@ cleanup:
 	if (blob != NULL) {
 		free (blob);
 		blob = NULL;
+	}
+
+	return error;
+}
+
+static
+gpg_err_code_t
+get_serial_of_tokenid(
+	pkcs11h_token_id_t tokenid,
+	char **serial
+) {
+	gpg_err_code_t error = GPG_ERR_GENERAL;
+	char *serialized = NULL;
+	char *serialpart = NULL;
+	unsigned char *digest = NULL;
+	size_t n;
+
+	*serial = NULL;
+
+	if (
+		(error = common_map_pkcs11_error(
+			pkcs11h_token_serializeTokenId(
+				NULL,
+				&n,
+				tokenid
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if ((serialized = (char *)malloc(n)) == NULL) {
+		error = GPG_ERR_ENOMEM;
+		goto cleanup;
+	}
+
+	if (
+		(error = common_map_pkcs11_error(
+			pkcs11h_token_serializeTokenId(
+				serialized,
+				&n,
+				tokenid
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if ((digest = (unsigned char *)malloc(gcry_md_get_algo_dlen(GCRY_MD_SHA1))) == NULL) {
+		error = GPG_ERR_ENOMEM;
+		goto cleanup;
+	}
+
+	gcry_md_hash_buffer(GCRY_MD_SHA1, digest, serialized, strlen(serialized));
+
+	/*
+	 * Take the first N bytes.
+	 */
+	if ((serialpart = encoding_bin2hex(digest, OPENPGP_PKCS11_SERIAL_BYTES)) == NULL) {
+		error = GPG_ERR_ENOMEM;
+		goto cleanup;
+	}
+
+	if ((*serial = malloc(strlen(OPENPGP_PKCS11_SERIAL) + OPENPGP_PKCS11_SERIAL_BYTES * 2 + 1)) == NULL) {
+		error = GPG_ERR_ENOMEM;
+		goto cleanup;
+	}
+
+	sprintf(*serial, OPENPGP_PKCS11_SERIAL, serialpart);
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
+
+	if (serialized != NULL) {
+		free(serialized);
+		serialized = NULL;
+	}
+
+	if (serialpart != NULL) {
+		free(serialpart);
+		serialpart = NULL;
+	}
+
+	if (digest != NULL) {
+		free(digest);
+		digest = NULL;
+	}
+
+	return error;
+}
+static
+gpg_err_code_t
+get_serial(
+	assuan_context_t ctx,
+	char **serial
+) {
+	gpg_err_code_t error = GPG_ERR_GENERAL;
+	pkcs11h_token_id_list_t tokens = NULL;
+
+	*serial = NULL;
+
+	if (
+		(error = common_map_pkcs11_error(
+			pkcs11h_token_enumTokenIds(
+				PKCS11H_ENUM_METHOD_CACHE_EXIST,
+				&tokens
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	/*
+	 * gpg supports only single card, let's take the first.
+	 */
+	if (tokens != NULL) {
+		if ((error = get_serial_of_tokenid(tokens->token_id, serial)) != GPG_ERR_NO_ERROR) {
+			goto cleanup;
+		}
+	}
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
+	if (tokens != NULL) {
+		pkcs11h_token_freeTokenIdList(tokens);
+		tokens = NULL;
 	}
 
 	return error;
@@ -550,27 +681,41 @@ gpg_error_t cmd_null (assuan_context_t ctx, char *line)
 	return gpg_error (GPG_ERR_NO_ERROR);
 }
 
-/**
-   Returns the card serial number and internally enumerates all certificates.
-   This function MUST be called before any other operation with the card.
-*/
 gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
+	char *serial = NULL;
 
 	if (
-		(error = assuan_write_status (
-			ctx,
-			"SERIALNO",
-			OPENPGP_PKCS11_SERIAL " 0"
-		)) != GPG_ERR_NO_ERROR
+		(error = get_serial(ctx, &serial)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
+	}
+
+	if (serial != NULL) {
+		char buffer[1024];
+
+		sprintf(buffer, "%s 0", serial);
+
+		if (
+			(error = assuan_write_status (
+				ctx,
+				"SERIALNO",
+				buffer
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
+		}
 	}
 
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
+
+	if (serial != NULL) {
+		free(serial);
+		serial = NULL;
+	}
 
 	return gpg_error (error);
 }
@@ -581,14 +726,21 @@ gpg_error_t cmd_learn (assuan_context_t ctx, char *line)
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
 	pkcs11h_certificate_id_list_t issuer_certificates = NULL;
+	char *serial = NULL;
 
 	(void)line;
+
+	if (
+		(error = get_serial(ctx, &serial)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
 
 	if (
 		(error = assuan_write_status (
 			ctx,
 			"SERIALNO",
-			OPENPGP_PKCS11_SERIAL
+			serial
 		)) != GPG_ERR_NO_ERROR ||
 		(error = assuan_write_status (
 			ctx,
@@ -635,6 +787,11 @@ cleanup:
 	if (user_certificates != NULL) {
 		pkcs11h_certificate_freeCertificateIdList (user_certificates);
 		user_certificates = NULL;
+	}
+
+	if (serial != NULL) {
+		free(serial);
+		serial = NULL;
 	}
 
 	return gpg_error (error);
@@ -1370,17 +1527,26 @@ gpg_error_t cmd_restart (assuan_context_t ctx, char *line)
 gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 {
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
+	char *serial = NULL;
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 
 	if (!strcmp (line, "SERIALNO")) {
 		if (
-			(error = assuan_write_status (
-				ctx,
-				"SERIALNO",
-				OPENPGP_PKCS11_SERIAL
-			)) != GPG_ERR_NO_ERROR
+			(error = get_serial(ctx, &serial)) != GPG_ERR_NO_ERROR
 		) {
 			goto cleanup;
+		}
+
+		if (serial != NULL) {
+			if (
+				(error = assuan_write_status (
+					ctx,
+					"SERIALNO",
+					serial
+				)) != GPG_ERR_NO_ERROR
+			) {
+				goto cleanup;
+			}
 		}
 	}
 	else if (!strcmp (line, "KEY-FPR")) {
@@ -1478,6 +1644,11 @@ cleanup:
 		user_certificates = NULL;
 	}
 
+	if (serial != NULL) {
+		free(serial);
+		serial = NULL;
+	}
+
 	return gpg_error (error);
 }
 
@@ -1510,6 +1681,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 	char *n_resp = strdup ("n ");
 	char *e_resp = strdup ("e ");
 	unsigned char *blob = NULL;
+	char *serial = NULL;
 	char *key = NULL;
 	size_t blob_size;
 	char timestamp[100] = {0};
@@ -1565,11 +1737,20 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 			ctx,
 			"KEY-CREATED-AT",
 			timestamp
-		)) != GPG_ERR_NO_ERROR ||
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if ((error = get_serial_of_tokenid(cert_id->token_id, &serial)) != GPG_ERR_NO_ERROR) {
+		goto cleanup;
+	}
+
+	if (
 		(error = assuan_write_status (
 			ctx,
 			"SERIALNO",
-			OPENPGP_PKCS11_SERIAL
+			serial
 		)) != GPG_ERR_NO_ERROR ||
 		(error = get_cert_blob (
 			ctx,
@@ -1675,6 +1856,11 @@ cleanup:
 	if (cert_id != NULL) {
 		pkcs11h_certificate_freeCertificateId (cert_id);
 		cert_id = NULL;
+	}
+
+	if (serial != NULL) {
+		free(serial);
+		serial = NULL;
 	}
 
 	return gpg_error (error);
