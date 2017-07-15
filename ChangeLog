@@ -2,7 +2,7 @@ gnupg-pkcs11-scd
 Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
 Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
-????-??-?? - Version 0.7.7
+2017-07-15 - Version 0.8.0
 
  * Support multiple tokens via serial numbers by hashing token id into
    serial number.
