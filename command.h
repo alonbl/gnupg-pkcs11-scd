@@ -35,6 +35,7 @@
 
 typedef struct {
 	dconfig_data_t *config;
+	const char *socket_name;
 	unsigned char *data;
 	size_t size;
 } cmd_data_t;

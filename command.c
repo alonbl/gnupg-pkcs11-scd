@@ -32,7 +32,6 @@
 #include <pkcs11-helper-1.0/pkcs11h-token.h>
 #include <pkcs11-helper-1.0/pkcs11h-certificate.h>
 #include "command.h"
-#include "scdaemon.h"
 #include "encoding.h"
 #include "keyutil.h"
 
@@ -1460,6 +1459,7 @@ gpg_error_t cmd_checkpin (assuan_context_t ctx, char *line)
 
 gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line)
 {
+	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 
 	if (!strcmp (line, "version")) {
@@ -1472,7 +1472,7 @@ gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line)
 		error = assuan_send_data(ctx, buf, strlen (buf));
 	}
 	else if (!strcmp (line, "socket_name")) {
-		const char *s = scdaemon_get_socket_name ();
+		const char *s = data->socket_name;
 
 		if (s == NULL) {
 			error = GPG_ERR_INV_DATA;

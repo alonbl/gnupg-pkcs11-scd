@@ -39,7 +39,6 @@
 */
 
 #include "common.h"
-#include "scdaemon.h"
 #include "command.h"
 #include "dconfig.h"
 #include <signal.h>
@@ -94,11 +93,6 @@ static char *s_socket_dir = NULL;
 static int s_fd_accept_terminate[2] = {-1, -1};
 static int s_parent_pid = -1;
 #endif
-
-const char *
-scdaemon_get_socket_name (void) {
-	return s_socket_name;
-}
 
 /** Register commands with assuan. */
 static
@@ -173,6 +167,7 @@ command_handler (const int fd, dconfig_data_t *config)
 
 	memset (&data, 0, sizeof (data));
 	data.config = config;
+	data.socket_name = s_socket_name;
 
 	if ((ret = assuan_new(&ctx)) != 0) {
 		common_log (LOG_ERROR,"failed to create assuan context %s", gpg_strerror (ret));

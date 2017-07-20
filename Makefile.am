@@ -51,7 +51,7 @@ dist_doc_DATA=gnupg-pkcs11-scd.conf.example
 
 gnupg_pkcs11_scd_SOURCES= \
 	common.h \
-	scdaemon.h scdaemon.c \
+	scdaemon.c \
 	common.h common.c \
 	command.h command.c \
 	encoding.h encoding.c \
