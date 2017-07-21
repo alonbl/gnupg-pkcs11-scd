@@ -38,7 +38,7 @@ define([PACKAGE_SUFFIX], [_master])
 AC_INIT([gnupg-pkcs11-scd], [PACKAGE_VERSION_MAJOR.PACKAGE_VERSION_MINOR.PACKAGE_VERSION_FIX[]PACKAGE_SUFFIX])
 AC_CONFIG_AUX_DIR([.])
 AM_CONFIG_HEADER([config.h])
-AC_CONFIG_SRCDIR([common.h])
+AC_CONFIG_SRCDIR([gnupg-pkcs11-scd/common.h])
 AM_INIT_AUTOMAKE
 
 GNUPG_PKCS11_SCD_VERSION_MAJOR="PACKAGE_VERSION_MAJOR"
@@ -290,6 +290,7 @@ AC_DEFINE_UNQUOTED([CONFIG_SYSTEM_CONFIG], ["${SYSTEM_CONFIG}"], [system config]
 
 AC_CONFIG_FILES([
 	Makefile
+	gnupg-pkcs11-scd/Makefile
 	distro/Makefile
 	distro/debian/Makefile
 	distro/rpm/Makefile

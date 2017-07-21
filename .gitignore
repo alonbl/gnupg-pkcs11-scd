@@ -1,8 +1,9 @@
 *.bz2
-*.gz
-*.o
-*.html
 *.exe
+*.gz
+*.html
+*.o
+*~
 
 .deps
 
@@ -23,7 +24,7 @@ install-sh
 missing
 stamp-h1
 
-gnupg-pkcs11-scd
 gnupg-pkcs11-scd.spec
+gnupg-pkcs11-scd/gnupg-pkcs11-scd
 
 copyright

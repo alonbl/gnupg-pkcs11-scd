@@ -28,28 +28,29 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-AUTOMAKE_OPTIONS=foreign dist-bzip2
-
 MAINTAINERCLEANFILES= \
-	config.log config.status \
-	$(srcdir)/Makefile.in \
-	$(srcdir)/config.h.in $(srcdir)/config.h.in~ $(srcdir)/configure \
-	$(srcdir)/install-sh $(srcdir)/ltmain.sh $(srcdir)/missing \
-	$(srcdir)/depcomp $(srcdir)/compile $(srcdir)/aclocal.m4 \
-	$(srcdir)/config.guess $(srcdir)/config.sub \
-	$(srcdir)/m4/ltsugar.m4 $(srcdir)/m4/libtool.m4 \
-	$(srcdir)/m4/ltversion.m4 $(srcdir)/m4/lt~obsolete.m4 \
-	$(srcdir)/m4/ltoptions.m4 \
-	$(srcdir)/gnupg-pkcs11-scd.spec
+	$(srcdir)/Makefile.in
+CLEANFILES=gnupg-pkcs11-scd.1.html
 
-SUBDIRS=\
-	gnupg-pkcs11-scd \
-	distro
+bin_PROGRAMS=gnupg-pkcs11-scd
+dist_doc_DATA=gnupg-pkcs11-scd.conf.example
 
-doc_DATA=README COPYING
+gnupg_pkcs11_scd_SOURCES= \
+	common.h \
+	scdaemon.c \
+	common.h common.c \
+	command.h command.c \
+	encoding.h encoding.c \
+	keyutil.h keyutil.c \
+	dconfig.h dconfig.c
 
-#
-# gnupg-pkcs11-scd.spec must be on root for invalid RPM
-#
-dist-hook:
-	ln -s distro/rpm/gnupg-pkcs11-scd.spec "$(distdir)/gnupg-pkcs11-scd.spec"
+if HAVE_W32_SYSTEM
+dist_man_MANS=
+EXTRA_DIST=gnupg-pkcs11-scd.1
+nodist_html_DATA=gnupg-pkcs11-scd.1.html
+
+gnupg-pkcs11-scd.1.html: gnupg-pkcs11-scd.1
+	$(MAN2HTML) < "$^" > "$@"
+else
+dist_man_MANS=gnupg-pkcs11-scd.1
+endif
