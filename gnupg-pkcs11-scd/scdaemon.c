@@ -46,6 +46,7 @@
 #include <errno.h>
 #include <pkcs11-helper-1.0/pkcs11h-core.h>
 #if !defined(HAVE_W32_SYSTEM)
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -92,6 +93,7 @@ typedef struct global_s {
 	thread_list_t *threads;
 	char *socket_dir;
 	int fd_accept_terminate[2];
+	uid_t uid_acl;
 #endif
 
 } global_t;
@@ -174,6 +176,20 @@ command_handler (global_t *global, const int fd)
 	cmd_data_t data;
 	int ret;
 
+	if (fd != -1 && global->uid_acl != (uid_t)-1) {
+		struct ucred ucred;
+		socklen_t len = sizeof(ucred);
+
+		if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
+			common_log (LOG_WARNING, "Cannot get socket credentials: %s", strerror (errno));
+			goto cleanup;
+		}
+		if (ucred.uid != global->uid_acl) {
+			common_log (LOG_WARNING, "Mismatch credentials actual %d expected %d", ucred.uid, global->uid_acl);
+			goto cleanup;
+		}
+	}
+
 	memset (&data, 0, sizeof (data));
 	data.config = &global->config;
 	data.socket_name = global->socket_name;
@@ -207,6 +223,8 @@ command_handler (global_t *global, const int fd)
 	assuan_set_pointer (ctx, &data);
 
 	while (1) {
+		common_log (LOG_DEBUG, "accepting connection");
+
 		if ((ret = assuan_accept (ctx)) == -1) {
 			break;
 		}
@@ -216,12 +234,18 @@ command_handler (global_t *global, const int fd)
 			break;
 		}
 
+		common_log (LOG_DEBUG, "processing connection");
+
 		if ((ret = assuan_process (ctx)) != 0) {
 			common_log (LOG_WARNING,"assuan_process failed: %s", gpg_strerror(ret));
 		}
+
+		common_log (LOG_DEBUG, "post-processing connection");
 	}
 
 cleanup:
+
+	common_log (LOG_DEBUG, "cleanup connection");
 
 	if (ctx != NULL) {
 		cmd_free_data (ctx);
@@ -297,6 +321,19 @@ server_socket_create (global_t *global) {
 		goto cleanup;
 	}
 
+#if !defined(HAVE_W32_SYSTEM)
+	if (global->uid_acl != (uid_t)-1) {
+		if (chmod(global->socket_name, 0666) == -1) {
+			common_log (LOG_ERROR, "Cannot chmod '%s'", global->socket_name);
+			goto cleanup;
+		}
+		if (chmod(global->socket_dir, 0755) == -1) {
+			common_log (LOG_ERROR, "Cannot chmod '%s'", global->socket_dir);
+			goto cleanup;
+		}
+	}
+#endif
+
 	if ((rc = listen (fd, SOMAXCONN)) == -1) {
 		common_log (LOG_ERROR, "Cannot listen to socket '%s'", global->socket_name);
 		goto cleanup;
@@ -369,6 +406,7 @@ _server_socket_accept (void *arg) {
 					) == sizeof (cmd)
 				) {
 					if (cmd == ACCEPT_THREAD_STOP) {
+						common_log (LOG_DEBUG, "Thread command terminate");
 						rc = -1;
 					}
 					else if (cmd == ACCEPT_THREAD_CLEAN) {
@@ -650,6 +688,7 @@ static void usage (const char * const argv0)
 "     --options             read options from file\n"
 "     --no-detach           do not detach from the console\n"
 "     --homedir             specify home directory\n"
+"     --uid-acl             accept only this uid, implies world read/write socket\n"
 "     --log-file            use a log file for the server\n"
 "     --help                print this information\n"
 		),
@@ -734,6 +773,7 @@ int main (int argc, char *argv[])
 		OPT_OPTIONS,
 		OPT_NO_DETACH,
 		OPT_HOMEDIR,
+		OPT_UID_ACL,
 		OPT_LOG_FILE,
 		OPT_VERSION,
 		OPT_HELP
@@ -750,6 +790,7 @@ int main (int argc, char *argv[])
 		{ "options", required_argument, NULL, OPT_OPTIONS },
 		{ "no-detach", no_argument, NULL, OPT_NO_DETACH },
 		{ "homedir", required_argument, NULL, OPT_HOMEDIR },
+		{ "uid-acl", required_argument, NULL, OPT_UID_ACL },
 		{ "log-file", required_argument, NULL, OPT_LOG_FILE },
 		{ "version", no_argument, NULL, OPT_VERSION },
 		{ "help", no_argument, NULL, OPT_HELP },
@@ -788,6 +829,7 @@ int main (int argc, char *argv[])
 	s_parent_pid = getpid ();
 	global.fd_accept_terminate[0] = -1;
 	global.fd_accept_terminate[1] = -1;
+	global.uid_acl = (uid_t)-1;
 #endif
 
 	if ((default_config_file = (char *)malloc (strlen (PACKAGE)+strlen (CONFIG_SUFFIX)+1)) == NULL) {
@@ -832,6 +874,11 @@ int main (int argc, char *argv[])
 			case OPT_HOMEDIR:
 				home_dir = strdup (optarg);
 			break;
+#if !defined(HAVE_W32_SYSTEM)
+			case OPT_UID_ACL:
+				global.uid_acl = atoi(optarg);
+			break;
+#endif
 			case OPT_LOG_FILE:
 				log_file = optarg;
 			break;

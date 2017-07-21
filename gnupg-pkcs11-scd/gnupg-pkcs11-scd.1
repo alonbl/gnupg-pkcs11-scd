@@ -39,6 +39,7 @@
 .Op --multi-server
 .Op --daemon
 .Op --homedir Ar dir
+.Op --uid-acl Ar uid
 .Op --verbose
 .Op --quiet
 .Op --sh
@@ -73,6 +74,9 @@ stdin/stdout, the server also opens an additional listening UNIX socket.
 Detach and run in background.
 .It --homedir Ar dir
 Use this home directory instead of guessing.
+.It --uid-acl Ar uid
+Create unix socket as world read/write and apply access control that
+accepts only remote processes of this uid. Usable for proxy scenario.
 .It --verbose
 Be verbose while running.
 .It --quiet
