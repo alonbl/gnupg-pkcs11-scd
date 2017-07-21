@@ -103,6 +103,34 @@ AC_ARG_ENABLE(
 	[enable_pedantic="no"]
 )
 
+AC_ARG_ENABLE(
+	[proxy],
+	[AC_HELP_STRING([--enable-proxy], [enable gnupg-pkcs11-scd-proxy])],
+	,
+	[enable_proxy="no"]
+)
+
+AC_ARG_WITH(
+	[proxy-socket],
+	[AC_HELP_STRING([--with-proxy-socket=FILE], [set proxy socket @<:@LOCALSTATEDIR/run/gnupg-pkcs11-scd-proxy/cmd@:>@])],
+	,
+	[with_proxy_socket="\${localstatedir}/run/gnupg-pkcs11-scd-server/cmd"]
+)
+
+AC_ARG_WITH(
+	[proxy-user],
+	[AC_HELP_STRING([--with-proxy-user=USER], [set proxy user @<:@gnupg-pkcs11-scd-proxy@:>@])],
+	,
+	[with_proxy_user="gnupg-pkcs11-scd-proxy"]
+)
+
+AC_ARG_WITH(
+	[proxy-group],
+	[AC_HELP_STRING([--with-proxy-group=GROUP], [set proxy group @<:@gnupg-pkcs11@:>@])],
+	,
+	[with_proxy_group="gnupg-pkcs11"]
+)
+
 AC_ARG_WITH(
 	[openssl],
 	[AC_HELP_STRING([--without-openssl], [disable OpenSSL linkage)])],
@@ -240,6 +268,12 @@ if test "${with_openssl}" = "no" -a "${with_gnutls}" = "no"; then
 	AC_MSG_ERROR([Cannot locate OpenSSL or GNUTLS])
 fi
 
+AC_SUBST([CONFIG_PROXY_SOCKET], [${with_proxy_socket}])
+AC_SUBST([CONFIG_PROXY_USER], [${with_proxy_user}])
+AC_SUBST([CONFIG_PROXY_GROUP], [${with_proxy_group}])
+AC_DEFINE_UNQUOTED([CONFIG_PROXY_GROUP], ["${with_proxy_group}"], [proxy group])
+AM_CONDITIONAL([ENABLE_PROXY], [test "${enable_proxy}" = "yes"])
+
 if test "${with_openssl}" = "yes"; then
 	AC_MSG_RESULT([Using OpenSSL])
 	AC_DEFINE([ENABLE_OPENSSL], [1], [Use OpenSSL library])
@@ -290,6 +324,8 @@ AC_DEFINE_UNQUOTED([CONFIG_SYSTEM_CONFIG], ["${SYSTEM_CONFIG}"], [system config]
 
 AC_CONFIG_FILES([
 	Makefile
+	gnupg-pkcs11-scd-proxy/Makefile
+	gnupg-pkcs11-scd-proxy/gnupg-pkcs11-scd-proxy.service.in
 	gnupg-pkcs11-scd/Makefile
 	distro/Makefile
 	distro/debian/Makefile

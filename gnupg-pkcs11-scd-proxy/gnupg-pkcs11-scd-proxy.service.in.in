@@ -1,0 +1,20 @@
+#
+# Notice:
+# You should add environment file and set SCD_CONFIG
+# with the location of gnupg-pkcs11-scd config file.
+#
+
+[Unit]
+Description=gnupg-pkcs11-scd-proxy
+
+[Service]
+EnvironmentFile=/etc/default/gnupg-pkcs11-scd-proxy
+Type=simple
+ExecStart=@bindir_POST@/gnupg-pkcs11-scd-proxy-server --scd-config=${SCD_CONFIG}
+RuntimeDirectory=gnupg-pkcs11-scd-proxy
+RuntimeDirectoryMode=0750
+User=@CONFIG_PROXY_USER@
+Group=@CONFIG_PROXY_GROUP@
+
+[Install]
+WantedBy=multi-user.target

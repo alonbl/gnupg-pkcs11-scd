@@ -28,28 +28,49 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-AUTOMAKE_OPTIONS = foreign dist-bzip2
-ACLOCAL_AMFLAGS = -I m4
-
 MAINTAINERCLEANFILES = \
-	config.log config.status \
 	$(srcdir)/Makefile.in \
-	$(srcdir)/config.h.in $(srcdir)/config.h.in~ $(srcdir)/configure \
-	$(srcdir)/install-sh $(srcdir)/ltmain.sh $(srcdir)/missing \
-	$(srcdir)/depcomp $(srcdir)/compile $(srcdir)/aclocal.m4 \
-	$(srcdir)/config.guess $(srcdir)/config.sub \
-	$(srcdir)/m4/ltsugar.m4 $(srcdir)/m4/libtool.m4 \
-	$(srcdir)/m4/ltversion.m4 $(srcdir)/m4/lt~obsolete.m4 \
-	$(srcdir)/m4/ltoptions.m4 \
+	$(NULKL)
+CLEANFILES = \
+	gnupg-pkcs11-scd-proxy.1.html \
+	gnupg-pkcs11-scd-proxy.service \
 	$(NULL)
 
-SUBDIRS = \
-	gnupg-pkcs11-scd \
+SUFFIXES = .in
+
+AM_CPPFLAGS = \
+	-DCONFIG_PROXY_SOCKET='"@CONFIG_PROXY_SOCKET@"' \
+	-DCONFIG_SCD_BIN='"$(bindir)/gnupg-pkcs11-scd"' \
+	$(NULL)
+
+if ENABLE_PROXY
+bin_PROGRAMS = \
 	gnupg-pkcs11-scd-proxy \
-	distro \
+	gnupg-pkcs11-scd-proxy-server \
+	$(NULL)
+nodist_noinst_DATA = \
+	gnupg-pkcs11-scd-proxy.service \
+	$(NULL)
+dist_man_MANS = \
+	gnupg-pkcs11-scd-proxy.1 \
+	$(NULL)
+else
+EXTRA_DIST = \
+	gnupg-pkcs11-scd-proxy.1 \
+	$(NULL)
+endif
+
+gnupg_pkcs11_scd_proxy_SOURCES= \
+	gnupg-pkcs11-scd-proxy.c \
 	$(NULL)
 
-doc_DATA = \
-	COPYING \
-	README \
+gnupg_pkcs11_scd_proxy_server_SOURCES= \
+	gnupg-pkcs11-scd-proxy-server.c \
 	$(NULL)
+
+
+.in:
+	sed \
+		-e 's#@bindir_POST[@]#$(bindir)#g' \
+		-e 's#@CONFIG_PROXY_SOCKET_POST[@]#$(CONFIG_PROXY_SOCKET)#g' \
+		< $< > $@

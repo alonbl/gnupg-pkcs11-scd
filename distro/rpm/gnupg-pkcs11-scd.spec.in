@@ -15,6 +15,7 @@ BuildRequires:	openssl-devel >= 0.9.7a
 BuildRequires:	pkcs11-helper-devel >= 1.03
 BuildRequires:	libassuan-devel
 BuildRequires:	libgcrypt-devel
+BuildRequires:	systemd
 Requires:	openssl >= 0.9.7a
 Requires:	pkcs11-helper >= 1.03
 Requires:	libassuan
@@ -25,20 +26,57 @@ gnupg-pkcs11-scd is a drop-in replacement for the smart-card daemon (scd) shippe
 next-generation GnuPG (gnupg-2). The daemon interfaces to smart-cards
 by using RSA Security Inc. PKCS#11 Cryptographic Token Interface (Cryptoki).
 
+%package proxy
+Summary:	GnuPG compatible smart-card proxy daemon for gnupg-pkcs11-scd
+Requires: 	%{name} = %{version}-%{release}
+Requires(pre):		/usr/sbin/useradd
+Requires(post):		systemd
+Requires(preun):	systemd
+Requires(postun):	systemd
+
+%description proxy
+A proxy for gnupg-pkcs11-scd.
+
+%pre proxy
+getent group gnupg-pkcs11-scd-proxy >/dev/null || groupadd -r gnupg-pkcs11-scd-proxy
+getent group gnupg-pkcs11 >/dev/null || groupadd -r gnupg-pkcs11
+getent passwd gnupg-pkcs11-scd-proxy >/dev/null || \
+	useradd -r -g gnupg-pkcs11-scd-proxy -G gnupg-pkcs11 -s /sbin/nologin \
+		-d / -c "gnupg-pkcs11-scd-proxy" gnupg-pkcs11-scd-proxy
+%post proxy
+%systemd_post gnupg-pkcs11-scd-proxy.service
+%preun proxy
+%systemd_preun gnupg-pkcs11-scd-proxy.service
+%postun proxy
+%systemd_postun gnupg-pkcs11-scd-proxy.service
+
 %prep
 %setup -q
 
 %build
-%configure
+%configure \
+	--enable-proxy \
+	--with-proxy-socket=/run/gnupg-pkcs11-scd-proxy/cmd \
+	%{nil}
 %{__make} %{?_smp_mflags}
 
 %install
 %{__make} %{?_smp_mflags} install DESTDIR="%{?buildroot}"
+install -dm 755 "%{buildroot}%{_unitdir}"
+install -m 644 "gnupg-pkcs11-scd-proxy/gnupg-pkcs11-scd-proxy.service" "%{buildroot}%{_unitdir}/"
 
 %files
-%{_bindir}/*
-%{_mandir}/man1/*
-%{_docdir}/%{name}/*
+%{_bindir}/gnupg-pkcs11-scd
+%{_mandir}/man1/gnupg-pkcs11-scd.*
+%{_docdir}/%{name}/COPYING
+%{_docdir}/%{name}/README
+%{_docdir}/%{name}/gnupg-pkcs11-scd.conf.example
+
+%files proxy
+%{_bindir}/gnupg-pkcs11-scd-proxy
+%{_bindir}/gnupg-pkcs11-scd-proxy-server
+%{_mandir}/man1/gnupg-pkcs11-scd-proxy.*
+%{_unitdir}/gnupg-pkcs11-scd-proxy.service
 
 %changelog
 * Mon Jan 15 2007 Eddy Nigg <eddy_nigg@startcom.org>

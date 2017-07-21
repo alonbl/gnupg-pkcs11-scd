@@ -6,6 +6,8 @@ Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
  * Avoid dup of stdin/stdout so that the terminate assuan hack operational
    again.
+ * Introduce gnupg-pkcs11-scd-proxy to allow isolation of the PKCS#11
+   provider.
 
 2017-07-15 - Version 0.8.0
 

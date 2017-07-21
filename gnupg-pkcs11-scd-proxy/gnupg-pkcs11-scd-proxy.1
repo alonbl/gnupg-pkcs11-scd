@@ -1,0 +1,117 @@
+.\"
+.\" Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
+.\" Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\"     o Redistributions of source code must retain the above copyright notice,
+.\"       this list of conditions and the following disclaimer.
+.\"     o Redistributions in binary form must reproduce the above copyright
+.\"       notice, this list of conditions and the following disclaimer in the
+.\"       documentation and/or other materials provided with the distribution.
+.\"     o Neither the name of the <ORGANIZATION> nor the names of its
+.\"       contributors may be used to endorse or promote products derived from
+.\"       this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd October 15, 2017
+.Os POSIX-compatible
+.Dt gnupg-pkcs11-scd-proxy 1
+.Sh NAME
+.Nm gnupg-pkcs11-scd-proxy
+.Nd GnuPG-compatible smart-card proxy daemon
+.Nm gnupg-pkcs11-scd-proxy-server
+.Nd GnuPG-compatible smart-card proxy server daemon
+.Sh SYNOPSIS
+.Nm gnupg-pkcs11-scd-proxy
+.Op --multi-server
+.Op --socket Ar file
+.Op --verbose
+.Op --log-file Ar file
+.Op --help
+.Nm gnupg-pkcs11-scd-proxy-server
+.Op --socket Ar file
+.Op --socket-group Ar group
+.Op --scd Ar file
+.Op --scd-config Ar file
+.Op --verbose
+.Op --log-file Ar file
+.Op --help
+.Sh DESCRIPTION
+.Nm gnupg-pkcs11-scd-proxy
+is a drop-in replacement for the smart-card daemon (scd) shipped with the
+next-generation GnuPG (gnupg-2). The daemon is a proxy into
+.Nm gnupg-pkcs11-scd-proxy-server
+which can be run within different security context to load the
+.Nm gnupg-pkcs11-scd
+smart-card daemon.
+.Pp
+The communications between the proxy and the server is unix socket based.
+The assuan socket is created as world readable but with a specific user
+ACL, so that only initiating user can connect to the daemon.
+.Pp
+The recommended version of gnupg is 2.1 since in this version the
+.Nm gnupg-pkcs11-scd
+configuration does not specify any specific key information and can be
+used as generic for all users.
+.Pp
+The following options are available:
+.Bl -tag -width "AA"
+.It --multi-server
+Run in multi-server mode (foreground). In addition to communicating over
+stdin/stdout, the server also opens an additional listening UNIX socket.
+.It --socket Ar file
+Socket name, default should be sufficient.
+.It --socket-group Ar group
+A custom group to set for the proxy server socket, this may serve first
+level of access control.
+.It --scd Ar file
+The smartcard daemon location, default should be sufficient.
+.It --scd-config Ar file
+The smartcard daemon configuration, required parameter.
+.It --verbose
+Be verbose while running.
+.It --no-detach
+Do not detach from console (useful for debugging purposes).
+.It --log-file Ar file
+Output log to
+.Ar file .
+.It --help
+Print help information.
+.El
+.Pp
+When the daemon receives any of the SIGHUP, SIGTERM and SIGINT signals,
+it cleans up and exits.
+.Sh SEE ALSO
+.Xr gnupg-pkcs11-scd 1
+.Rs
+.%T "gnupg-pkcs11 Home Page"
+.%O http://gnupg-pkcs11.sourceforge.net
+.Re
+.Sh AUTHORS AND COPYRIGHT
+Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
+.Pp
+Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
+.Pp
+All rights reserved.
+.Pp
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
