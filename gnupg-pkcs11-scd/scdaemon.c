@@ -639,6 +639,7 @@ static void usage (const char * const argv0)
 " -c, --csh                 csh-style command output\n"
 "     --options             read options from file\n"
 "     --no-detach           do not detach from the console\n"
+"     --homedir             specify home directory\n"
 "     --log-file            use a log file for the server\n"
 "     --help                print this information\n"
 		),

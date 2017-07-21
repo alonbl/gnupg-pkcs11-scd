@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 15, 2006
+.Dd October 15, 2017
 .Os POSIX-compatible
 .Dt gnupg-pkcs11-scd 1
 .Sh NAME
@@ -38,6 +38,7 @@
 .Op --server
 .Op --multi-server
 .Op --daemon
+.Op --homedir Ar dir
 .Op --verbose
 .Op --quiet
 .Op --sh
@@ -70,6 +71,8 @@ Run in multi-server mode (foreground). In addition to communicating over
 stdin/stdout, the server also opens an additional listening UNIX socket.
 .It --daemon
 Detach and run in background.
+.It --homedir Ar dir
+Use this home directory instead of guessing.
 .It --verbose
 Be verbose while running.
 .It --quiet
