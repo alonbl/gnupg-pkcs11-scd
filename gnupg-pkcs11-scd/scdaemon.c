@@ -73,26 +73,35 @@ typedef enum {
 	ACCEPT_THREAD_CLEAN
 } accept_command_t;
 
+struct global_s;
+
 #if !defined(HAVE_W32_SYSTEM)
 typedef struct thread_list_s {
 	struct thread_list_s *next;
 	int fd;
 	pthread_t thread;
 	int stopped;
-	dconfig_data_t *config;
+	struct global_s *global;
 } *thread_list_t;
+#endif
+
+typedef struct global_s {
+	dconfig_data_t config;
+	char *socket_name;
+#if !defined(HAVE_W32_SYSTEM)
+	thread_list_t *threads;
+	char *socket_dir;
+	int fd_accept_terminate[2];
+#endif
+
+} global_t;
+
+#if !defined(HAVE_W32_SYSTEM)
+static int s_parent_pid = -1;
 #endif
 
 #define ALARM_INTERVAL 10
 #define SOCKET_DIR_TEMPLATE ( "/tmp/" PACKAGE ".XXXXXX" )
-
-static char *s_socket_name = NULL;
-
-#if !defined(HAVE_W32_SYSTEM)
-static char *s_socket_dir = NULL;
-static int s_fd_accept_terminate[2] = {-1, -1};
-static int s_parent_pid = -1;
-#endif
 
 /** Register commands with assuan. */
 static
@@ -159,15 +168,15 @@ register_commands (const assuan_context_t ctx)
 */
 static
 void
-command_handler (const int fd, dconfig_data_t *config)
+command_handler (global_t *global, const int fd)
 {
 	assuan_context_t ctx = NULL;
 	cmd_data_t data;
 	int ret;
 
 	memset (&data, 0, sizeof (data));
-	data.config = config;
-	data.socket_name = s_socket_name;
+	data.config = &global->config;
+	data.socket_name = global->socket_name;
 
 	if ((ret = assuan_new(&ctx)) != 0) {
 		common_log (LOG_ERROR,"failed to create assuan context %s", gpg_strerror (ret));
@@ -191,7 +200,7 @@ command_handler (const int fd, dconfig_data_t *config)
 		goto cleanup;
 	}
 
-	if (config->verbose) {
+	if (global->config.verbose) {
 		assuan_set_log_stream (ctx, common_get_log_stream());
 	}
 
@@ -224,46 +233,46 @@ cleanup:
 #if !defined(HAVE_W32_SYSTEM)
 static
 void
-server_socket_close (const int fd) {
+server_socket_close (global_t *global, const int fd) {
 	if (fd != -1) {
 		assuan_sock_close (fd);
 	}
-	if (s_socket_name != NULL) {
-		unlink (s_socket_name);
-		free (s_socket_name);
-		s_socket_name = NULL;
+	if (global->socket_name != NULL) {
+		unlink (global->socket_name);
+		free (global->socket_name);
+		global->socket_name = NULL;
 	}
-	if (s_socket_dir != NULL) {
-		rmdir (s_socket_dir);
-		free (s_socket_dir);
-		s_socket_dir = NULL;
+	if (global->socket_dir != NULL) {
+		rmdir (global->socket_dir);
+		free (global->socket_dir);
+		global->socket_dir = NULL;
 	}
 	assuan_sock_deinit();
 }
 
 static
 void
-server_socket_create_name (void) {
+server_socket_create_name (global_t *global) {
 
-	if ((s_socket_dir = strdup (SOCKET_DIR_TEMPLATE)) == NULL) {
+	if ((global->socket_dir = strdup (SOCKET_DIR_TEMPLATE)) == NULL) {
 		common_log (LOG_FATAL, "strdup");
 	}
 
-	if (mkdtemp (s_socket_dir) == NULL) {
+	if (mkdtemp (global->socket_dir) == NULL) {
 		common_log (LOG_FATAL, "Cannot mkdtemp");
 	}
 
-	if ((s_socket_name = (char *)malloc (strlen (s_socket_dir) + 100)) == NULL) {
+	if ((global->socket_name = (char *)malloc (strlen (global->socket_dir) + 100)) == NULL) {
 		common_log (LOG_FATAL, "Cannot malloc");
 	}
 
-	sprintf (s_socket_name, "%s/agent.S", s_socket_dir);
+	sprintf (global->socket_name, "%s/agent.S", global->socket_dir);
 
 }
 
 static
 int
-server_socket_create (void) {
+server_socket_create (global_t *global) {
 	struct sockaddr_un serv_addr;
 	int fd = -1;
 	int rc = -1;
@@ -275,21 +284,21 @@ server_socket_create (void) {
 
 	memset (&serv_addr, 0, sizeof (serv_addr));
 	serv_addr.sun_family = AF_UNIX;
-	assert (strlen (s_socket_name) + 1 < sizeof (serv_addr.sun_path));
-	strcpy (serv_addr.sun_path, s_socket_name);
+	assert (strlen (global->socket_name) + 1 < sizeof (serv_addr.sun_path));
+	strcpy (serv_addr.sun_path, global->socket_name);
 
 	if ((fd = assuan_sock_new (AF_UNIX, SOCK_STREAM, 0)) == -1) {
-		common_log (LOG_ERROR, "Cannot create  socket", s_socket_name);
+		common_log (LOG_ERROR, "Cannot create  socket", global->socket_name);
 		goto cleanup;
 	}
 
 	if ((rc = assuan_sock_bind (fd, (struct sockaddr*)&serv_addr, sizeof (serv_addr))) == -1) {
-		common_log (LOG_ERROR, "Cannot bing to  socket '%s'", s_socket_name);
+		common_log (LOG_ERROR, "Cannot bing to  socket '%s'", global->socket_name);
 		goto cleanup;
 	}
 
 	if ((rc = listen (fd, SOMAXCONN)) == -1) {
-		common_log (LOG_ERROR, "Cannot listen to socket '%s'", s_socket_name);
+		common_log (LOG_ERROR, "Cannot listen to socket '%s'", global->socket_name);
 		goto cleanup;
 	}
 
@@ -298,11 +307,11 @@ server_socket_create (void) {
 cleanup:
 
 	if (rc != 0) {
-		server_socket_close (fd);
+		server_socket_close (global, fd);
 		common_log (LOG_FATAL, "Cannot handle socket");
 	}
 
-	common_log (LOG_INFO, "Listening to socket '%s'", s_socket_name);
+	common_log (LOG_INFO, "Listening to socket '%s'", global->socket_name);
 
 	return fd;
 }
@@ -313,10 +322,10 @@ _server_socket_command_handler (void *arg) {
 	thread_list_t entry = (thread_list_t)arg;
 	accept_command_t clean = ACCEPT_THREAD_CLEAN;
 
-	command_handler (entry->fd, entry->config);
+	command_handler (entry->global, entry->fd);
 	entry->stopped = 1;
 
-	if (write (s_fd_accept_terminate[1], &clean, sizeof (clean)) == -1) {
+	if (write (entry->global->fd_accept_terminate[1], &clean, sizeof (clean)) == -1) {
 		common_log (LOG_FATAL, "write failed");
 	}
 
@@ -327,7 +336,7 @@ static
 void *
 _server_socket_accept (void *arg) {
 	thread_list_t _entry = (thread_list_t)arg;
-	dconfig_data_t *config = _entry->config;
+	global_t *global = _entry->global;
 	int fd = _entry->fd;
 	thread_list_t thread_list_head = NULL;
 	int rc = 0;
@@ -335,7 +344,7 @@ _server_socket_accept (void *arg) {
 	free (_entry);
 	_entry = NULL;
 
-	if (pipe (s_fd_accept_terminate) == -1) {
+	if (pipe (global->fd_accept_terminate) == -1) {
 		common_log (LOG_FATAL, "pipe failed");
 	}
 
@@ -343,18 +352,18 @@ _server_socket_accept (void *arg) {
 		fd_set fdset;
 
 		FD_ZERO (&fdset);
-		FD_SET (s_fd_accept_terminate[0], &fdset);
+		FD_SET (global->fd_accept_terminate[0], &fdset);
 		FD_SET (fd, &fdset);
 
 		rc = select (FD_SETSIZE, &fdset, NULL, NULL, NULL);
 
 		if (rc != -1 && rc != 0) {
-			if (FD_ISSET (s_fd_accept_terminate[0], &fdset)) {
+			if (FD_ISSET (global->fd_accept_terminate[0], &fdset)) {
 				accept_command_t cmd;
 
 				if (
 					(rc = read (
-						s_fd_accept_terminate[0],
+						global->fd_accept_terminate[0],
 						&cmd,
 						sizeof (cmd))
 					) == sizeof (cmd)
@@ -410,7 +419,7 @@ _server_socket_accept (void *arg) {
 					memset (entry, 0, sizeof (struct thread_list_s));
 					entry->next = thread_list_head;
 					entry->fd = fd2;
-					entry->config = config;
+					entry->global = global;
 					thread_list_head = entry;
 
 					if (
@@ -444,11 +453,11 @@ _server_socket_accept (void *arg) {
 
 static
 void
-server_socket_accept (const int fd, pthread_t *thread, dconfig_data_t *config) {
+server_socket_accept (global_t *global, const int fd, pthread_t *thread) {
 	thread_list_t entry = malloc (sizeof (struct thread_list_s));
 	memset (entry, 0, sizeof (struct thread_list_s));
 	entry->fd = fd;
-	entry->config = config;
+	entry->global = global;
 	if (pthread_create (thread, NULL, _server_socket_accept, (void *)entry)) {
 		common_log (LOG_FATAL, "pthread failed");
 	}
@@ -456,14 +465,14 @@ server_socket_accept (const int fd, pthread_t *thread, dconfig_data_t *config) {
 
 static
 void
-server_socket_accept_terminate (pthread_t thread) {
+server_socket_accept_terminate (global_t *global, pthread_t thread) {
 	accept_command_t stop = ACCEPT_THREAD_STOP;
-	if (write (s_fd_accept_terminate[1], &stop, sizeof (stop)) == -1) {
+	if (write (global->fd_accept_terminate[1], &stop, sizeof (stop)) == -1) {
 		common_log (LOG_FATAL, "write failed");
 	}
 	pthread_join (thread, NULL);
-	close (s_fd_accept_terminate[0]);
-	close (s_fd_accept_terminate[1]);
+	close (global->fd_accept_terminate[0]);
+	close (global->fd_accept_terminate[1]);
 }
 #endif				/* HAVE_W32_SYSTEM */
 
@@ -768,7 +777,7 @@ int main (int argc, char *argv[])
 	int i;
 	CK_RV rv;
 
-	dconfig_data_t config;
+	global_t global;
 
 	const char * CONFIG_SUFFIX = ".conf";
 	char *default_config_file = NULL;
@@ -776,8 +785,12 @@ int main (int argc, char *argv[])
 	/* unused intentionally */
 	(void)log_quiet;
 
+	memset(&global, 0, sizeof(global));
+
 #if !defined(HAVE_W32_SYSTEM)
 	s_parent_pid = getpid ();
+	global.fd_accept_terminate[0] = -1;
+	global.fd_accept_terminate[1] = -1;
 #endif
 
 	if ((default_config_file = (char *)malloc (strlen (PACKAGE)+strlen (CONFIG_SUFFIX)+1)) == NULL) {
@@ -884,23 +897,23 @@ int main (int argc, char *argv[])
 	}
 
 	if (
-		!dconfig_read (config_file, &config) &&
-		!dconfig_read (CONFIG_SYSTEM_CONFIG, &config)
+		!dconfig_read (config_file, &global.config) &&
+		!dconfig_read (CONFIG_SYSTEM_CONFIG, &global.config)
 	) {
 		common_log (LOG_FATAL, "Cannot open configuration file");
 	}
 
 	if (log_file != NULL) {
-		if (config.log_file != NULL) {
-			free (config.log_file);
+		if (global.config.log_file != NULL) {
+			free (global.config.log_file);
 		}
-		if ((config.log_file = strdup (log_file)) == NULL) {
+		if ((global.config.log_file = strdup (log_file)) == NULL) {
 			common_log (LOG_FATAL, "strdup failed");
 		}
 	}
 
 	if (log_verbose) {
-		config.verbose = 1;
+		global.config.verbose = 1;
 	}
 
 #if !defined(HAVE_W32_SYSTEM)
@@ -918,17 +931,17 @@ int main (int argc, char *argv[])
 			}
 		}
 	}
-	else if (config.log_file != NULL) {
-		if (strcmp (config.log_file, "stderr")) {
-			if ((fp_log = fopen (config.log_file, "a")) != NULL) {
+	else if (global.config.log_file != NULL) {
+		if (strcmp (global.config.log_file, "stderr")) {
+			if ((fp_log = fopen (global.config.log_file, "a")) != NULL) {
 				common_set_log_stream (fp_log);
 			}
 		}
 	}
 
-	if (config.debug) {
+	if (global.config.debug) {
 		common_log (LOG_DEBUG, "version: %s", PACKAGE_VERSION);
-		dconfig_print (&config);
+		dconfig_print (&global.config);
 		common_log (LOG_DEBUG, "run_mode: %d", run_mode);
 		common_log (LOG_DEBUG, "crypto: %s",
 #if defined(ENABLE_OPENSSL)
@@ -949,7 +962,7 @@ int main (int argc, char *argv[])
 
 #if !defined(HAVE_W32_SYSTEM)
 	if (run_mode == RUN_MODE_DAEMON || run_mode == RUN_MODE_MULTI_SERVER) {
-		server_socket_create_name ();
+		server_socket_create_name (&global);
 	}
 
 	/*
@@ -968,7 +981,7 @@ int main (int argc, char *argv[])
 		if (pid != 0) {
 			static const char *key = "SCDAEMON_INFO";
 			char env[1024];
-			snprintf (env, sizeof (env), "%s:%lu:1", s_socket_name, (unsigned long)pid);
+			snprintf (env, sizeof (env), "%s:%lu:1", global.socket_name, (unsigned long)pid);
 
 			if (argc - base_argc > 0) {
 				setenv(key, env, 1);
@@ -1034,7 +1047,7 @@ int main (int argc, char *argv[])
 		common_log (LOG_FATAL, "Cannot initialize PKCS#11: %s", pkcs11h_getMessage (rv));
 	}
 
-	pkcs11h_setLogLevel (config.verbose ? PKCS11H_LOG_DEBUG2 : PKCS11H_LOG_INFO);
+	pkcs11h_setLogLevel (global.config.verbose ? PKCS11H_LOG_DEBUG2 : PKCS11H_LOG_INFO);
 	pkcs11h_setLogHook (pkcs11_log_hook, NULL);
 	pkcs11h_setTokenPromptHook (pkcs11_token_prompt_hook, NULL);
 	pkcs11h_setPINPromptHook (pkcs11_pin_prompt_hook, NULL);
@@ -1042,21 +1055,21 @@ int main (int argc, char *argv[])
 
 	for (i=0;i<DCONFIG_MAX_PROVIDERS;i++) {
 		if (
-			config.providers[i].name != NULL &&
-			config.providers[i].library != NULL
+			global.config.providers[i].name != NULL &&
+			global.config.providers[i].library != NULL
 		) {
 			if (
 				(rv = pkcs11h_addProvider (
-					config.providers[i].name,
-					config.providers[i].library,
-					config.providers[i].allow_protected,
-					config.providers[i].private_mask,
+					global.config.providers[i].name,
+					global.config.providers[i].library,
+					global.config.providers[i].allow_protected,
+					global.config.providers[i].private_mask,
 					PKCS11H_SLOTEVENT_METHOD_POLL,
 					0,
-					config.providers[i].cert_is_private
+					global.config.providers[i].cert_is_private
 				)) != CKR_OK
 			) {
-				common_log (LOG_WARNING, "Cannot add PKCS#11 provider '%s': %ld-'%s'", config.providers[i].name, rv, pkcs11h_getMessage (rv));
+				common_log (LOG_WARNING, "Cannot add PKCS#11 provider '%s': %ld-'%s'", global.config.providers[i].name, rv, pkcs11h_getMessage (rv));
 			}
 			else {
 				have_at_least_one_provider = 1;
@@ -1069,16 +1082,16 @@ int main (int argc, char *argv[])
 	}
 
 #if defined(HAVE_W32_SYSTEM)
-	command_handler (-1, &config);
+	command_handler (&global, -1);
 #else
 {
 	pthread_t accept_thread = 0;
 	int accept_socket = -1;
 
 	if (run_mode == RUN_MODE_DAEMON || run_mode == RUN_MODE_MULTI_SERVER) {
-		accept_socket = server_socket_create ();
+		accept_socket = server_socket_create (&global);
 
-		server_socket_accept (accept_socket, &accept_thread, &config);
+		server_socket_accept (&global, accept_socket, &accept_thread);
 	}
 
 	if (run_mode == RUN_MODE_DAEMON) {
@@ -1097,12 +1110,12 @@ int main (int argc, char *argv[])
 		close (fds[1]);
 	}
 	else {
-		command_handler (-1, &config);
+		command_handler (&global, -1);
 	}
 
 	if (run_mode == RUN_MODE_DAEMON || run_mode == RUN_MODE_MULTI_SERVER) {
-		server_socket_accept_terminate (accept_thread);
-		server_socket_close (accept_socket);
+		server_socket_accept_terminate (&global, accept_thread);
+		server_socket_close (&global, accept_socket);
 	}
 }
 #endif
@@ -1113,7 +1126,7 @@ int main (int argc, char *argv[])
 	gnutls_global_deinit ();
 #endif
 
-	dconfig_free (&config);
+	dconfig_free (&global.config);
 
 	if (log_file != NULL) {
 		free (log_file);
