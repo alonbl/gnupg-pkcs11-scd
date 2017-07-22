@@ -28,9 +28,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-AUTOMAKE_OPTIONS=foreign dist-bzip2
+AUTOMAKE_OPTIONS = foreign dist-bzip2
 
-MAINTAINERCLEANFILES= \
+MAINTAINERCLEANFILES = \
 	config.log config.status \
 	$(srcdir)/Makefile.in \
 	$(srcdir)/config.h.in $(srcdir)/config.h.in~ $(srcdir)/configure \
@@ -40,16 +40,14 @@ MAINTAINERCLEANFILES= \
 	$(srcdir)/m4/ltsugar.m4 $(srcdir)/m4/libtool.m4 \
 	$(srcdir)/m4/ltversion.m4 $(srcdir)/m4/lt~obsolete.m4 \
 	$(srcdir)/m4/ltoptions.m4 \
-	$(srcdir)/gnupg-pkcs11-scd.spec
+	$(NULL)
 
-SUBDIRS=\
+SUBDIRS = \
 	gnupg-pkcs11-scd \
-	distro
+	distro \
+	$(NULL)
 
-doc_DATA=README COPYING
-
-#
-# gnupg-pkcs11-scd.spec must be on root for invalid RPM
-#
-dist-hook:
-	ln -s distro/rpm/gnupg-pkcs11-scd.spec "$(distdir)/gnupg-pkcs11-scd.spec"
+doc_DATA = \
+	COPYING \
+	README \
+	$(NULL)

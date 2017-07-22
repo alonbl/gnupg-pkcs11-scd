@@ -28,12 +28,19 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-MAINTAINERCLEANFILES= \
-	$(srcdir)/Makefile.in
-CLEANFILES=gnupg-pkcs11-scd.1.html
+MAINTAINERCLEANFILES = \
+	$(srcdir)/Makefile.in \
+	$(NULL)
+CLEANFILES = \
+	gnupg-pkcs11-scd.1.html \
+	$(NULL)
 
-bin_PROGRAMS=gnupg-pkcs11-scd
-dist_doc_DATA=gnupg-pkcs11-scd.conf.example
+bin_PROGRAMS = \
+	gnupg-pkcs11-scd \
+	$(NULL)
+dist_doc_DATA = \
+	gnupg-pkcs11-scd.conf.example \
+	$(NULL)
 
 gnupg_pkcs11_scd_SOURCES= \
 	common.h \
@@ -42,15 +49,22 @@ gnupg_pkcs11_scd_SOURCES= \
 	command.h command.c \
 	encoding.h encoding.c \
 	keyutil.h keyutil.c \
-	dconfig.h dconfig.c
+	dconfig.h dconfig.c \
+	$(NULL)
 
 if HAVE_W32_SYSTEM
-dist_man_MANS=
-EXTRA_DIST=gnupg-pkcs11-scd.1
-nodist_html_DATA=gnupg-pkcs11-scd.1.html
+EXTRA_DIST = \
+	gnupg-pkcs11-scd.1 \
+	$(NULL)
+dist_man_MANS =
+nodist_html_DATA = \
+	gnupg-pkcs11-scd.1.html \
+	$(NULL)
 
 gnupg-pkcs11-scd.1.html: gnupg-pkcs11-scd.1
 	$(MAN2HTML) < "$^" > "$@"
 else
-dist_man_MANS=gnupg-pkcs11-scd.1
+dist_man_MANS = \
+	gnupg-pkcs11-scd.1 \
+	$(NULL)
 endif
