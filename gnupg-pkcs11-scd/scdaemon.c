@@ -656,7 +656,6 @@ static void usage (const char * const argv0)
 		PACKAGE_VERSION,
 		argv0
 	);
-	exit(1);
 }
 
 static char *get_home_dir (void) {
@@ -755,10 +754,7 @@ int main (int argc, char *argv[])
 		{ "help", no_argument, NULL, OPT_HELP },
 		{ NULL, 0, NULL, 0 }
 	};
-	int long_options_ret;
-	int base_argc = 1;
-
-	int usage_ok = 1;
+	int opt;
 	enum {
 		RUN_MODE_NONE,
 		RUN_MODE_SERVER,
@@ -800,10 +796,8 @@ int main (int argc, char *argv[])
 
 	common_set_log_stream (stderr);
 
-	while ((long_options_ret = getopt_long (argc, argv, "vqsc", long_options, NULL)) != -1) {
-		base_argc++;
-
-		switch (long_options_ret) {
+	while ((opt = getopt_long (argc, argv, "vqsc", long_options, NULL)) != -1) {
+		switch (opt) {
 			case OPT_SERVER:
 				run_mode = RUN_MODE_SERVER;
 			break;
@@ -829,7 +823,6 @@ int main (int argc, char *argv[])
 				env_is_csh = 1;
 			break;
 			case OPT_OPTIONS:
-				base_argc++;
 				config_file = strdup (optarg);
 			break;
 			case OPT_NO_DETACH:
@@ -839,8 +832,7 @@ int main (int argc, char *argv[])
 				home_dir = strdup (optarg);
 			break;
 			case OPT_LOG_FILE:
-				base_argc++;
-				log_file = strdup (optarg);
+				log_file = optarg;
 			break;
 			case OPT_VERSION:
 				printf (
@@ -854,25 +846,17 @@ int main (int argc, char *argv[])
 					PACKAGE,
 					PACKAGE_VERSION
 				);
-				exit (1);
+				exit (0);
 			break;
 			case OPT_HELP:
-				usage_ok = 0;
+				usage(argv[0]);
+				exit(0);
 			break;
 			default:
-				usage_ok = 0;
+				fprintf(stderr, "Invalid usage\n");
+				exit(1);
 			break;
 		}
-	}
-
-	if (base_argc < argc) {
-		if (!strcmp (argv[base_argc], "--")) {
-			base_argc++;
-		}
-	}
-
-	if (!usage_ok) {
-		usage (argv[0]);
 	}
 
 	if (run_mode == RUN_MODE_NONE) {
@@ -983,9 +967,9 @@ int main (int argc, char *argv[])
 			char env[1024];
 			snprintf (env, sizeof (env), "%s:%lu:1", global.socket_name, (unsigned long)pid);
 
-			if (argc - base_argc > 0) {
+			if (optind < argc) {
 				setenv(key, env, 1);
-				execvp (argv[base_argc], &(argv[base_argc]));
+				execvp (argv[optind], &(argv[optind]));
 				kill (pid, SIGTERM);
 				exit (1);
 			}
@@ -1019,7 +1003,7 @@ int main (int argc, char *argv[])
 			common_log (LOG_FATAL, "chdir failed");
 		}
 
-		if (argc - base_argc > 0) {
+		if (optind < argc) {
 			struct sigaction sa;
 
 			memset (&sa, 0, sizeof (sa));
@@ -1127,11 +1111,6 @@ int main (int argc, char *argv[])
 #endif
 
 	dconfig_free (&global.config);
-
-	if (log_file != NULL) {
-		free (log_file);
-		log_file = NULL;
-	}
 
 	if (config_file != NULL) {
 		free (config_file);
