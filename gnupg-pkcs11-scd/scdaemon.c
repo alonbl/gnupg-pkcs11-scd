@@ -887,15 +887,6 @@ int main (int argc, char *argv[])
 		common_log (LOG_FATAL, "Cannot open configuration file");
 	}
 
-	if (log_file != NULL) {
-		if (global.config.log_file != NULL) {
-			free (global.config.log_file);
-		}
-		if ((global.config.log_file = strdup (log_file)) == NULL) {
-			common_log (LOG_FATAL, "strdup failed");
-		}
-	}
-
 	if (log_verbose) {
 		global.config.verbose = 1;
 	}
@@ -908,16 +899,14 @@ int main (int argc, char *argv[])
 	signal (SIGHUP, on_signal);
 #endif
 
-	if (log_file != NULL) {
-		if (strcmp (log_file, "stderr")) {
-			if ((fp_log = fopen (log_file, "a")) != NULL) {
-				common_set_log_stream (fp_log);
-			}
-		}
+	if (log_file == NULL) {
+		log_file = global.config.log_file;
 	}
-	else if (global.config.log_file != NULL) {
-		if (strcmp (global.config.log_file, "stderr")) {
-			if ((fp_log = fopen (global.config.log_file, "a")) != NULL) {
+
+	if (log_file != NULL) {
+		if (strcmp (log_file, "stderr") != 0) {
+			if ((fp_log = fopen (log_file, "a")) != NULL) {
+				fchmod(fileno(fp_log), 0600);
 				common_set_log_stream (fp_log);
 			}
 		}
