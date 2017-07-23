@@ -941,6 +941,12 @@ int main (int argc, char *argv[])
 		);
 	}
 
+	if (!gcry_check_version (GCRYPT_VERSION)) {
+		common_log (LOG_FATAL, "Cannot initialize libcrypt");
+	}
+	gcry_control (GCRYCTL_DISABLE_SECMEM, 0);
+	gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+
 #if !defined(HAVE_W32_SYSTEM)
 	if (run_mode == RUN_MODE_DAEMON || run_mode == RUN_MODE_MULTI_SERVER) {
 		server_socket_create_name ();
