@@ -184,7 +184,7 @@ command_handler (global_t *global, const int fd)
 	}
 
 	if(fd < 0) {
-		assuan_fd_t fds[2] = {assuan_fdopen(0), assuan_fdopen(1)};
+		assuan_fd_t fds[2] = {INT2FD(0), INT2FD(1)};
 		ret = assuan_init_pipe_server (ctx, fds);
 	} else {
 		ret = assuan_init_socket_server (ctx, INT2FD(fd), ASSUAN_SOCKET_SERVER_ACCEPTED);
@@ -614,6 +614,7 @@ static RETSIGTYPE on_signal (int signo)
 	 * assuan to return from its main loop...
 	 */
 	close (0);
+	close (1);
 
 #if RETSIGTYPE != void
 	return 0
@@ -1085,6 +1086,8 @@ int main (int argc, char *argv[])
 	else {
 		command_handler (&global, -1);
 	}
+
+	common_log (LOG_DEBUG, "Terminating");
 
 	if (run_mode == RUN_MODE_DAEMON || run_mode == RUN_MODE_MULTI_SERVER) {
 		server_socket_accept_terminate (&global, accept_thread);

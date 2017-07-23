@@ -4,6 +4,8 @@ Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
 ????-??-?? - Version 0.8.1
 
+ * Avoid dup of stdin/stdout so that the terminate assuan hack operational
+   again.
 
 2017-07-15 - Version 0.8.0
 
