@@ -894,10 +894,15 @@ int main (int argc, char *argv[])
 
 #if !defined(HAVE_W32_SYSTEM)
 	signal (SIGPIPE, SIG_IGN);
-	signal (SIGINT, on_signal);
-	signal (SIGTERM, on_signal);
-	signal (SIGABRT, on_signal);
-	signal (SIGHUP, on_signal);
+	{
+		struct sigaction action;
+		memset(&action, 0, sizeof(action));
+		action.sa_handler = on_signal;
+		sigaction(SIGINT, &action, NULL);
+		sigaction(SIGTERM, &action, NULL);
+		sigaction(SIGABRT, &action, NULL);
+		sigaction(SIGHUP, &action, NULL);
+	}
 #endif
 
 	if (log_file == NULL) {
