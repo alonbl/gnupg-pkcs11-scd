@@ -173,7 +173,6 @@ AC_CHECK_FUNCS([ \
 	snprintf timegm unsetenv \
 ])
 
-AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([pthread], [pthread_create])
 
 AC_ARG_VAR([LIBGPG_ERROR_CFLAGS], [C compiler flags for libgpg-error])
