@@ -224,9 +224,6 @@ PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4], [HAVE_GNUTLS="yes"], [HAVE_GNUTLS="
 PKG_CHECK_MODULES([PKCS11_HELPER], [libpkcs11-helper-1 >= 1.02],, [AC_MSG_ERROR([Cannot locate pkcs11-helper])])
 PKCS11_HELPER_1_CHECK_FEATURES([threading token certificate engine_crypto])
 
-CFLAGS="${CFLAGS} ${LIBGPG_ERROR_CFLAGS} ${LIBASSUAN_CFLAGS} ${LIBGCRYPT_CFLAGS} ${PKCS11_HELPER_CFLAGS}"
-LIBS="${LIBS} ${LIBGPG_ERROR_LIBS} ${LIBASSUAN_LIBS} ${LIBGCRYPT_LIBS} ${PKCS11_HELPER_LIBS}"
-
 AC_MSG_CHECKING([cryptographic library to use])
 
 if test "${with_openssl}" = "yes" -a "${HAVE_OPENSSL}" != "yes"; then
@@ -244,14 +241,16 @@ fi
 if test "${with_openssl}" = "yes"; then
 	AC_MSG_RESULT([Using OpenSSL])
 	AC_DEFINE([ENABLE_OPENSSL], [1], [Use OpenSSL library])
-	CFLAGS="${CFLAGS} ${OPENSSL_CFLAGS}"
-	LIBS="${LIBS} ${OPENSSL_LIBS}"
+	CRYPTO_CFLAGS="${OPENSSL_CFLAGS}"
+	CRYPTO_LIBS="${OPENSSL_LIBS}"
 else
 	AC_MSG_RESULT([Using GNUTLS])
 	AC_DEFINE([ENABLE_GNUTLS], [1], [Use GNUTLS library])
-	CFLAGS="${CFLAGS} ${GNUTLS_CFLAGS}"
-	LIBS="${LIBS} ${GNUTLS_LIBS}"
+	CRYPTO_CFLAGS="${GNUTLS_CFLAGS}"
+	CRYPTO_LIBS="${GNUTLS_LIBS}"
 fi
+AC_SUBST([CRYPTO_CFLAGS])
+AC_SUBST([CRYPTO_LIBS])
 
 if test "${HAVE_W32_SYSTEM}" = "yes"; then
 	AC_DEFINE([CONFIG_PATH_SEPARATOR], ['\\'], [System path separator])

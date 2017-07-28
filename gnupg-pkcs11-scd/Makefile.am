@@ -35,6 +35,21 @@ CLEANFILES = \
 	gnupg-pkcs11-scd.1.html \
 	$(NULL)
 
+AM_CFLAGS = \
+	$(LIBGPG_ERROR_CFLAGS) \
+	$(LIBASSUAN_CFLAGS) \
+	$(LIBGCRYPT_CFLAGS) \
+	$(PKCS11_HELPER_CFLAGS) \
+	$(CRYPTO_CFLAGS) \
+	$(NULL)
+LDADD = \
+	$(LIBGPG_ERROR_LIBS) \
+	$(LIBASSUAN_LIBS) \
+	$(LIBGCRYPT_LIBS) \
+	$(PKCS11_HELPER_LIBS) \
+	$(CRYPTO_LIBS) \
+	$(NULL)
+
 bin_PROGRAMS = \
 	gnupg-pkcs11-scd \
 	$(NULL)
