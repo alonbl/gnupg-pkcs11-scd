@@ -29,6 +29,7 @@
 #
 
 AUTOMAKE_OPTIONS = foreign dist-bzip2
+ACLOCAL_AMFLAGS = -I m4
 
 MAINTAINERCLEANFILES = \
 	config.log config.status \

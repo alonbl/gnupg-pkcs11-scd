@@ -173,7 +173,8 @@ AC_CHECK_FUNCS([ \
 	snprintf timegm unsetenv \
 ])
 
-AC_CHECK_LIB([pthread], [pthread_create])
+AX_PTHREAD(, [AC_MSG_ERROR([Cannot find pthreads])])
+CC="${PTHREAD_CC}"
 
 AC_ARG_VAR([LIBGPG_ERROR_CFLAGS], [C compiler flags for libgpg-error])
 AC_ARG_VAR([LIBGPG_ERROR_LIBS], [linker flags for libgpg-error])
