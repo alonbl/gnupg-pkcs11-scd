@@ -2,6 +2,9 @@ gnupg-pkcs11-scd
 Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
 Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
+????-??-?? - Version 0.9.1
+
+
 2017-08-25 - Version 0.9.0
 
  * Avoid dup of stdin/stdout so that the terminate assuan hack operational
