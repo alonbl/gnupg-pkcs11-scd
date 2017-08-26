@@ -18,6 +18,9 @@
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#ifdef HAVE_SYS_UCRED_H
+#include <sys/ucred.h>
+#endif
 
 static volatile int s_stop = 0;
 
@@ -210,8 +213,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	while(!s_stop) {
-		struct ucred ucred;
-		socklen_t len = sizeof(ucred);
+		uid_t peeruid;
 		int accepted = -1;
 		pid_t pid;
 
@@ -223,10 +225,34 @@ int main(int argc, char *argv[]) {
 			goto cleanup1;
 		}
 
-		if (getsockopt(accepted, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
-			perror("getsockopt");
-			goto cleanup1;
+#if HAVE_DECL_LOCAL_PEERCRED
+		{
+			struct xucred xucred;
+			socklen_t len = sizeof(xucred);
+			if (getsockopt(fd, SOL_SOCKET, LOCAL_PEERCRED, &xucred, &len) == -1) {
+				perror("getsockopt");
+				goto cleanup1;
+			}
+			if (xucred.cr_version != XUCRED_VERSION) {
+				fprintf(stderr, "Mismatch credentials version actual %d expected %d", xucred.cr_version, XUCRED_VERSION);
+				goto cleanup1;
+			}
+			peeruid = xucred.cr_uid;
 		}
+#elif HAVE_DECL_SO_PEERCRED
+		{
+			struct ucred ucred;
+			socklen_t len = sizeof(ucred);
+			if (getsockopt(accepted, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
+				perror("getsockopt");
+				goto cleanup1;
+			}
+			peeruid = ucred.uid;
+		}
+#else
+		fprintf(stderr, "Cannot determine credentials\n");
+		goto cleanup;
+#endif
 
 		if ((pid = fork()) == -1) {
 			perror("fork");
@@ -243,7 +269,7 @@ int main(int argc, char *argv[]) {
 				exit(1);
 			}
 
-			sprintf(uid_string, "%d", ucred.uid);
+			sprintf(uid_string, "%d", peeruid);
 			dup2(accepted, 0);
 			dup2(accepted, 1);
 
