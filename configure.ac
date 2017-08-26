@@ -318,6 +318,27 @@ AC_CHECK_HEADERS([ \
 	dlfcn.h \
 	unistd.h \
 ])
+AC_CHECK_HEADERS([sys/ucred.h])
+
+AC_CHECK_DECLS(
+	[SO_PEERCRED],,,
+	[[
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		#include <sys/un.h>
+	]]
+)
+AC_CHECK_DECLS(
+	[LOCAL_PEERCRED],,,
+	[[
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		#include <sys/un.h>
+		#ifdef HAVE_SYS_UCRED_H
+		#include <sys/ucred.h>
+		#endif
+	]]
+)
 
 AC_DEFINE_UNQUOTED([CONFIG_GPG_HOME], ["${GNUPG_HOME}"], [gnupg home])
 AC_DEFINE_UNQUOTED([CONFIG_SYSTEM_CONFIG], ["${SYSTEM_CONFIG}"], [system config])

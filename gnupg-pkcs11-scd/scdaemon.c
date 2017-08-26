@@ -51,6 +51,9 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/select.h>
+#ifdef HAVE_SYS_UCRED_H
+#include <sys/ucred.h>
+#endif
 #endif
 
 #if defined(USE_GNUTLS)
@@ -177,15 +180,30 @@ command_handler (global_t *global, const int fd)
 	int ret;
 
 	if (fd != -1 && global->uid_acl != (uid_t)-1) {
+		uid_t peeruid = -1;
+#if HAVE_DECL_LOCAL_PEERCRED
+		struct xucred xucred;
+		socklen_t len = sizeof(xucred);
+		if (getsockopt(fd, SOL_SOCKET, LOCAL_PEERCRED, &xucred, &len) == -1) {
+			common_log (LOG_WARNING, "Cannot get socket credentials: %s", strerror (errno));
+			goto cleanup;
+		}
+		if (xucred.cr_version != XUCRED_VERSION) {
+			common_log (LOG_WARNING, "Mismatch credentials version actual %d expected %d", xucred.cr_version, XUCRED_VERSION);
+			goto cleanup;
+		}
+		peeruid = xucred.cr_uid;
+#elif HAVE_DECL_SO_PEERCRED
 		struct ucred ucred;
 		socklen_t len = sizeof(ucred);
-
 		if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
 			common_log (LOG_WARNING, "Cannot get socket credentials: %s", strerror (errno));
 			goto cleanup;
 		}
-		if (ucred.uid != global->uid_acl) {
-			common_log (LOG_WARNING, "Mismatch credentials actual %d expected %d", ucred.uid, global->uid_acl);
+		peeruid = ucred.uid;
+#endif
+		if (peeruid != global->uid_acl) {
+			common_log (LOG_WARNING, "Mismatch credentials actual %d expected %d", peeruid, global->uid_acl);
 			goto cleanup;
 		}
 	}
