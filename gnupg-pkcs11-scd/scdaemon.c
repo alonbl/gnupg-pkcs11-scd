@@ -106,7 +106,7 @@ static int s_parent_pid = -1;
 #endif
 
 #define ALARM_INTERVAL 10
-#define SOCKET_DIR_TEMPLATE ( "/tmp/" PACKAGE ".XXXXXX" )
+#define SOCKET_DIR_TEMPLATE ( PACKAGE ".XXXXXX" )
 
 /** Register commands with assuan. */
 static
@@ -296,9 +296,18 @@ static
 void
 server_socket_create_name (global_t *global) {
 
-	if ((global->socket_dir = strdup (SOCKET_DIR_TEMPLATE)) == NULL) {
-		common_log (LOG_FATAL, "strdup");
+	char *socketdir = getenv("GNUPG_PKCS11_SOCKETDIR");
+	if (socketdir == NULL) {
+		socketdir = getenv("TMPDIR");
 	}
+	if (socketdir == NULL) {
+		socketdir = "/tmp";
+	}
+
+	if ((global->socket_dir = malloc(strlen(socketdir) + strlen(SOCKET_DIR_TEMPLATE) + 100)) == NULL) {
+		common_log (LOG_FATAL, "malloc");
+	}
+	sprintf(global->socket_dir, "%s/%s", socketdir, SOCKET_DIR_TEMPLATE);
 
 	if (mkdtemp (global->socket_dir) == NULL) {
 		common_log (LOG_FATAL, "Cannot mkdtemp");

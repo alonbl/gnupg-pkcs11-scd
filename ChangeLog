@@ -5,6 +5,7 @@ Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 ????-??-?? - Version 0.9.1
 
  * Support unix domain socket credentials on FreeBSD.
+ * Introduce GNUPG_PKCS11_SOCKETDIR to instruct where sockets are created.
 
 2017-08-25 - Version 0.9.0
 
