@@ -2,6 +2,9 @@ gnupg-pkcs11-scd
 Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
 Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
+????-??-?? - Version 0.9.2
+
+
 2017-09-26 - Version 0.9.1
 
  * Support unix domain socket credentials on FreeBSD.
