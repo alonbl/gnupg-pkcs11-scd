@@ -15,6 +15,7 @@ RuntimeDirectory=gnupg-pkcs11-scd-proxy
 RuntimeDirectoryMode=0750
 User=@CONFIG_PROXY_USER@
 Group=@CONFIG_PROXY_GROUP@
+SupplementaryGroups=@CONFIG_PROXY_USER_GROUP@
 
 [Install]
 WantedBy=multi-user.target

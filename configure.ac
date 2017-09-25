@@ -125,6 +125,13 @@ AC_ARG_WITH(
 )
 
 AC_ARG_WITH(
+	[proxy-user-group],
+	[AC_HELP_STRING([--with-proxy-user-group=GROUP], [set proxy user group @<:@gnupg-pkcs11-scd-proxy@:>@])],
+	,
+	[with_proxy_user_group="gnupg-pkcs11-scd-proxy"]
+)
+
+AC_ARG_WITH(
 	[proxy-group],
 	[AC_HELP_STRING([--with-proxy-group=GROUP], [set proxy group @<:@gnupg-pkcs11@:>@])],
 	,
@@ -270,6 +277,7 @@ fi
 
 AC_SUBST([CONFIG_PROXY_SOCKET], [${with_proxy_socket}])
 AC_SUBST([CONFIG_PROXY_USER], [${with_proxy_user}])
+AC_SUBST([CONFIG_PROXY_USER_GROUP], [${with_proxy_user_group}])
 AC_SUBST([CONFIG_PROXY_GROUP], [${with_proxy_group}])
 AC_DEFINE_UNQUOTED([CONFIG_PROXY_GROUP], ["${with_proxy_group}"], [proxy group])
 AM_CONDITIONAL([ENABLE_PROXY], [test "${enable_proxy}" = "yes"])
