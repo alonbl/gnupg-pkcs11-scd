@@ -44,6 +44,21 @@ typedef unsigned char *my_openssl_d2i_t;
 #else
 typedef const unsigned char *my_openssl_d2i_t;
 #endif
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const BIGNUM **d) {
+	if (n != NULL) {
+		*n = r->n;
+	}
+	if (e != NULL) {
+		*e = r->e;
+	}
+	if (d != NULL) {
+		*d = r->d;
+	}
+}
+#endif
+
 #endif
 
 gpg_err_code_t
@@ -63,6 +78,8 @@ keyutil_get_cert_mpi (
 #elif defined(ENABLE_OPENSSL)
 	X509 *x509 = NULL;
 	EVP_PKEY *pubkey = NULL;
+	RSA *rsa = NULL;
+	const BIGNUM *n, *e;
 	char *n_hex = NULL, *e_hex = NULL;
 #endif
 
@@ -106,13 +123,15 @@ keyutil_get_cert_mpi (
 		goto cleanup;
 	}
  
-	if (pubkey->type != EVP_PKEY_RSA) {
+	if ((rsa = EVP_PKEY_get1_RSA(pubkey)) == NULL) {
 		error = GPG_ERR_WRONG_PUBKEY_ALGO;
 		goto cleanup;
 	}
 
-	n_hex = BN_bn2hex (pubkey->pkey.rsa->n);
-	e_hex = BN_bn2hex (pubkey->pkey.rsa->e);
+	RSA_get0_key(rsa, &n, &e, NULL);
+
+	n_hex = BN_bn2hex (n);
+	e_hex = BN_bn2hex (e);
 
 	if(n_hex == NULL || e_hex == NULL) {
 		error = GPG_ERR_BAD_KEY;
@@ -175,6 +194,11 @@ cleanup:
 	if (pubkey != NULL) {
 		EVP_PKEY_free(pubkey);
 		pubkey = NULL;
+	}
+
+	if (rsa != NULL) {
+		RSA_free(rsa);
+		rsa = NULL;
 	}
 
 	if (n_hex != NULL) {
