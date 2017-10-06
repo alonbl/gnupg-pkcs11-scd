@@ -64,6 +64,10 @@ keyutil_get_cert_mpi (
 	X509 *x509 = NULL;
 	EVP_PKEY *pubkey = NULL;
 	char *n_hex = NULL, *e_hex = NULL;
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	const BIGNUM *n;
+	const BIGNUM *e;
+#endif
 #endif
 
 	*p_n_mpi = NULL;
@@ -106,6 +110,7 @@ keyutil_get_cert_mpi (
 		goto cleanup;
 	}
  
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	if (pubkey->type != EVP_PKEY_RSA) {
 		error = GPG_ERR_WRONG_PUBKEY_ALGO;
 		goto cleanup;
@@ -113,6 +118,18 @@ keyutil_get_cert_mpi (
 
 	n_hex = BN_bn2hex (pubkey->pkey.rsa->n);
 	e_hex = BN_bn2hex (pubkey->pkey.rsa->e);
+#else
+/* openssl >= 1.1.0 */
+	if (EVP_PKEY_base_id(pubkey) != EVP_PKEY_RSA) {
+		error = GPG_ERR_WRONG_PUBKEY_ALGO;
+		goto cleanup;
+	}
+
+	RSA_get0_key(pubkey, &n, &e, NULL);
+
+	n_hex = BN_bn2hex (n);
+	e_hex = BN_bn2hex (e);
+#endif
 
 	if(n_hex == NULL || e_hex == NULL) {
 		error = GPG_ERR_BAD_KEY;
