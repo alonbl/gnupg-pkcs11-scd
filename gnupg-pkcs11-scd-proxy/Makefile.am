@@ -1,5 +1,4 @@
 #
-# Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
 # Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 # All rights reserved.
 #
