@@ -264,7 +264,7 @@ Signing, verification, etc. work as usual with gpgsm.
 Typical steps to set up a card for gpg-2.0 usage:
 .Bl -enum
 .It
-Aquire key ids:
+Acquire key ids:
 .Dl gpg-agent --server gpg-connect-agent
 Enter "SCD LEARN" and look for "KEY-FRIEDNLY" responses, the first field is the hash, the second
 is the subject name.
@@ -301,7 +301,7 @@ Typical steps to set up a card for >=gpg-2.1.19 usage:
 Refresh local key store:
 .Dl gpg --card-status
 .It
-Aquire key ids:
+Acquire key ids:
 .Dl gpg-agent --server gpg-connect-agent
 Enter "SCD LEARN" and look for "KEY-FRIEDNLY" responses, the first field is the keygrip, the second
 is the subject name.
