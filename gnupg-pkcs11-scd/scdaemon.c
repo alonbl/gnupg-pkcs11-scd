@@ -1105,6 +1105,7 @@ int main (int argc, char *argv[])
 	pkcs11h_setTokenPromptHook (pkcs11_token_prompt_hook, NULL);
 	pkcs11h_setPINPromptHook (pkcs11_pin_prompt_hook, NULL);
 	pkcs11h_setProtectedAuthentication (TRUE);
+	pkcs11h_setPINCachePeriod(global.config.pin_cache);
 
 	for (i=0;i<DCONFIG_MAX_PROVIDERS;i++) {
 		if (
