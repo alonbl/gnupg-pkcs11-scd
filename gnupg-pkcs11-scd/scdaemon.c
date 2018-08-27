@@ -179,6 +179,7 @@ command_handler (global_t *global, const int fd)
 	cmd_data_t data;
 	int ret;
 
+#if !defined(HAVE_W32_SYSTEM)
 	if (fd != -1 && global->uid_acl != (uid_t)-1) {
 		uid_t peeruid = -1;
 #if HAVE_DECL_LOCAL_PEERCRED
@@ -207,6 +208,7 @@ command_handler (global_t *global, const int fd)
 			goto cleanup;
 		}
 	}
+#endif
 
 	memset (&data, 0, sizeof (data));
 	data.config = &global->config;
@@ -218,7 +220,11 @@ command_handler (global_t *global, const int fd)
 	}
 
 	if(fd < 0) {
+#if !defined(HAVE_W32_SYSTEM)
 		assuan_fd_t fds[2] = {INT2FD(0), INT2FD(1)};
+#else
+		assuan_fd_t fds[2] = {GetStdHandle(STD_INPUT_HANDLE), GetStdHandle(STD_OUTPUT_HANDLE)};
+#endif
 		ret = assuan_init_pipe_server (ctx, fds);
 	} else {
 		ret = assuan_init_socket_server (ctx, INT2FD(fd), ASSUAN_SOCKET_SERVER_ACCEPTED);
@@ -715,7 +721,9 @@ static void usage (const char * const argv0)
 "     --options             read options from file\n"
 "     --no-detach           do not detach from the console\n"
 "     --homedir             specify home directory\n"
+#if !defined(HAVE_W32_SYSTEM)
 "     --uid-acl             accept only this uid, implies world read/write socket\n"
+#endif
 "     --log-file            use a log file for the server\n"
 "     --help                print this information\n"
 		),
@@ -800,7 +808,9 @@ int main (int argc, char *argv[])
 		OPT_OPTIONS,
 		OPT_NO_DETACH,
 		OPT_HOMEDIR,
+#if !defined(HAVE_W32_SYSTEM)
 		OPT_UID_ACL,
+#endif
 		OPT_LOG_FILE,
 		OPT_VERSION,
 		OPT_HELP
@@ -817,7 +827,9 @@ int main (int argc, char *argv[])
 		{ "options", required_argument, NULL, OPT_OPTIONS },
 		{ "no-detach", no_argument, NULL, OPT_NO_DETACH },
 		{ "homedir", required_argument, NULL, OPT_HOMEDIR },
+#if !defined(HAVE_W32_SYSTEM)
 		{ "uid-acl", required_argument, NULL, OPT_UID_ACL },
+#endif
 		{ "log-file", required_argument, NULL, OPT_LOG_FILE },
 		{ "version", no_argument, NULL, OPT_VERSION },
 		{ "help", no_argument, NULL, OPT_HELP },
@@ -986,7 +998,11 @@ int main (int argc, char *argv[])
 	if (log_file != NULL) {
 		if (strcmp (log_file, "stderr") != 0) {
 			if ((fp_log = fopen (log_file, "a")) != NULL) {
+#if !defined(HAVE_W32_SYSTEM)
 				fchmod(fileno(fp_log), 0600);
+#else
+				_chmod(log_file, 0600);
+#endif
 				common_set_log_stream (fp_log);
 			}
 		}

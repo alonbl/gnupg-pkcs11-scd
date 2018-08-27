@@ -4,6 +4,7 @@ Copyright (c) 2006-2017 Alon Bar-Lev <alon.barlev@gmail.com>
 
 ????-??-?? - Version 0.9.2
 
+ * Fixu Windows build issues, thanks Luka Logar.
  * Use pin-cache configuration, thanks Luka Logar.
  * Support openssl-1.1, thanks Thorsten Alteholz, W. Michael Petullo.
 
