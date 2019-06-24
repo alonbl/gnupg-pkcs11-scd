@@ -1324,17 +1324,38 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 	 */
 	_data.data = data->data;
 	_data.size = data->size;
-	if (
+	
+	if (_data.size >= (128-16) && _data.size < 128) /* 1024 bit key */
+		fixuplen = 128 - _data.size;
+	else if (_data.size >= (192-16) && _data.size < 192) /* 1536 bit key.  */
+        	fixuplen = 192 - _data.size;
+    	else if (_data.size >= (256-16) && _data.size < 256) /* 2048 bit key.  */
+        	fixuplen = 256 - _data.size;
+    	else if (_data.size >= (384-16) && _data.size < 384) /* 3072 bit key.  */
+        	fixuplen = 384 - _data.size;
+    	else if (_data.size >= (512-16) && _data.size < 512) /* 4096 bit key.  */
+        	fixuplen = 512 - _data.size;
+	else if (
 		*_data.data == 0 && (
 			_data.size == 129 ||
 			_data.size == 193 ||
 			_data.size == 257 ||
 			_data.size == 385 ||
-			_data.size == 513
-		)
-	) {
+			_data.size == 513)) 
+	{
 		_data.data++;
 		_data.size--;
+	}
+	else
+		fixuplen = 0;
+
+	if (fixuplen > 0)
+	{
+		newdata = malloc(fixuplen + _data.size);
+		memset(newdata, 0, fixuplen);
+		memcpy(newdata + fixuplen, _data.data, _data.size);
+		_data.size = fixuplen + _data.size;
+		_data.data = newdata;
 	}
 
 	if (
