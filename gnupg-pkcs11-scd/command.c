@@ -1326,13 +1326,13 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 	if (_data.size >= (128-16) && _data.size < 128) /* 1024 bit key */
 		fixuplen = 128 - _data.size;
 	else if (_data.size >= (192-16) && _data.size < 192) /* 1536 bit key.  */
-        fixuplen = 192 - _data.size;
-    else if (_data.size >= (256-16) && _data.size < 256) /* 2048 bit key.  */
-        fixuplen = 256 - _data.size;
-    else if (_data.size >= (384-16) && _data.size < 384) /* 3072 bit key.  */
-        fixuplen = 384 - _data.size;
-    else if (_data.size >= (512-16) && _data.size < 512) /* 4096 bit key.  */
-        fixuplen = 512 - _data.size;
+        	fixuplen = 192 - _data.size;
+    	else if (_data.size >= (256-16) && _data.size < 256) /* 2048 bit key.  */
+        	fixuplen = 256 - _data.size;
+    	else if (_data.size >= (384-16) && _data.size < 384) /* 3072 bit key.  */
+        	fixuplen = 384 - _data.size;
+    	else if (_data.size >= (512-16) && _data.size < 512) /* 4096 bit key.  */
+        	fixuplen = 512 - _data.size;
 	else if (
 		*_data.data == 0 && (
 			_data.size == 129 ||
