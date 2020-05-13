@@ -194,6 +194,11 @@ file (lines beginning with # are comments):
 # Pin cache period in seconds; default is infinite.
 #pin-cache 20
 
+# The PKCS#11 library will return padded decrypted data.
+# A symptom that you might need to set this is signing
+# working but decryption failing.
+#has-padding
+
 # Comma-separated list of available provider names. Then set
 # attributes for each provider using the provider-[name]-attribute
 # syntax.

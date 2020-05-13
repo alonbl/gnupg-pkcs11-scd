@@ -38,6 +38,7 @@ typedef struct {
 	int debug;
 	int verbose;
 	int pin_cache;
+        int has_padding;
 
 	char *openpgp_sign;
 	char *openpgp_encr;
@@ -48,7 +49,7 @@ typedef struct {
 		char *library;
 		int allow_protected;
 		int cert_is_private;
-		unsigned private_mask;
+	        unsigned private_mask;
 	} providers[DCONFIG_MAX_PROVIDERS];
 } dconfig_data_t;
 

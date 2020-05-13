@@ -1403,7 +1403,10 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 				&ptext_len
 			)
 		)) != GPG_ERR_NO_ERROR ||
-		(error = assuan_write_status(ctx, "PADDING", "0")) != GPG_ERR_NO_ERROR ||
+		(error = assuan_write_status(
+			ctx,
+		        "PADDING",
+			data->config->has_padding? "1" : "0")) != GPG_ERR_NO_ERROR ||
 		(error = assuan_send_data(ctx, ptext, ptext_len)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;

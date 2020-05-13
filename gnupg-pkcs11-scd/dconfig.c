@@ -149,6 +149,9 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 			trim (p);
 			config->openpgp_auth = strdup (p);
 		}
+		else if (prefix_is (line, "has_padding")) {
+		        config->has_padding = 1;
+		}
 		else if (prefix_is (line, "provider-")) {
 			char *name = strchr (line, '-')+1;
 			char *p;
@@ -218,7 +221,7 @@ dconfig_print (const dconfig_data_t * const config) {
 	int entry;
 
 	common_log (LOG_DEBUG, "config: debug=%d, verbose=%d", config->debug, config->verbose);
-	common_log (LOG_DEBUG, "config: pin_cache=%d", config->pin_cache);
+	common_log (LOG_DEBUG, "config: pin_cache=%d has_padding=%d", config->pin_cache, config->has_padding);
 
 	for (entry = 0;entry < DCONFIG_MAX_PROVIDERS;entry++) {
 		if (config->providers[entry].name != NULL) {
