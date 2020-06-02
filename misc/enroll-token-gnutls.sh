@@ -1,19 +1,6 @@
 #!/bin/sh
 
-PIN=user
-#SOPIN=sopin
-TOKEN=test1
-OBJECT=key
-ID=0
-KEY_SIZE=2048
-TEMPLATE=my.template
-
-for PROVIDER in /usr/lib64/pkcs11/libsofthsm2.so /usr/lib64/softhsm/libsofthsm2.so; do
-	[ -f "${PROVIDER}" ] && break
-done
-for P11ENGINE in /usr/lib64/engines-1.1/pkcs11.so /usr/lib64/engines/pkcs11.so; do
-	[ -f "${P11ENGINE}" ] && break
-done
+. "$(dirname "$0")/vars"
 
 die() {
 	local m="$1"
@@ -27,8 +14,6 @@ cleanup() {
 	[ -n "${MYTMP}" ] && rm -fr "${MYTMP}"
 }
 MYTMP="$(mktemp -d)"
-
-#softhsm2-util --init-token --label "${TOKEN}" --free --so-pin "${SOPIN}" --pin "${PIN}"
 
 export GNUTLS_PIN="${PIN}"
 
