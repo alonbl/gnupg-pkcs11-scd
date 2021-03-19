@@ -974,8 +974,8 @@ cleanup:
 	return gpg_error (error);
 }
 
-/** Sign data (set by SETDATA) with certificate id in line. */
-gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
+static
+gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 {
 	static const unsigned char rmd160_prefix[] = /* (1.3.36.3.2.1) */
 		{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x24, 0x03,
@@ -1134,6 +1134,13 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 			 * gnupg's scdaemon forces to SHA1
 			 */
 			inject = INJECT_SHA1;
+
+			/* When doing auth operation, hash algorithm prefix detection does not work
+			 * but data always comes with algorithm appended, so do not append anything
+			 * by default. */
+			if (typehint == OPENPGP_AUTH) {
+				inject = INJECT_NONE;
+			}
 		}
 	}
 
@@ -1197,7 +1204,7 @@ gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
 		(error = _get_certificate_by_name (
 			ctx,
 			line,
-			OPENPGP_SIGN,
+			typehint,
 			&cert_id,
 			NULL
 		)) != GPG_ERR_NO_ERROR
@@ -1296,6 +1303,18 @@ cleanup:
 	}
 
 	return gpg_error (error);
+}
+
+/** Sign data (set by SETDATA) with certificate id in line. */
+gpg_error_t cmd_pksign (assuan_context_t ctx, char *line)
+{
+	return _cmd_pksign_type(ctx, line, OPENPGP_SIGN);
+}
+
+/** Sign data (set by SETDATA) with certificate id in line. */
+gpg_error_t cmd_pkauth (assuan_context_t ctx, char *line)
+{
+	return _cmd_pksign_type(ctx, line, OPENPGP_AUTH);
 }
 
 /** Decrypt data (set by SETDATA) with certificate id in line. */

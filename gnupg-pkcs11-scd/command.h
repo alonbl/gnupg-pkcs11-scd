@@ -49,6 +49,7 @@ gpg_error_t cmd_readcert (assuan_context_t ctx, char *line);
 gpg_error_t cmd_readkey (assuan_context_t ctx, char *line);
 gpg_error_t cmd_setdata (assuan_context_t ctx, char *line);
 gpg_error_t cmd_pksign (assuan_context_t ctx, char *line);
+gpg_error_t cmd_pkauth (assuan_context_t ctx, char *line);
 gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line);
 gpg_error_t cmd_random (assuan_context_t ctx, char *line);
 gpg_error_t cmd_checkpin (assuan_context_t ctx, char *line);
