@@ -100,7 +100,7 @@ keyutil_get_cert_mpi (
 	}
 
 	if (gnutls_x509_crt_get_pk_rsa_raw (cert, &m, &e) != GNUTLS_E_SUCCESS) {
-		error = GPG_ERR_BAD_KEY;
+		error = GPG_ERR_WRONG_PUBKEY_ALGO;
 		m.data = NULL;
 		e.data = NULL;
 		goto cleanup;
