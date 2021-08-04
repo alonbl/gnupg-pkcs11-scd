@@ -516,6 +516,10 @@ send_certificate_list (
 			nameinfo = NULL;
 		}
 
+		if (error == GPG_ERR_WRONG_PUBKEY_ALGO) {
+			error = GPG_ERR_NO_ERROR;
+		}
+
 		if (error != GPG_ERR_NO_ERROR) {
 			goto cleanup;
 		}
