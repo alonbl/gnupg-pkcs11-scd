@@ -517,7 +517,13 @@ send_certificate_list (
 		}
 
 		if (error != GPG_ERR_NO_ERROR) {
-			goto cleanup;
+			// May want to add some config varibale here to either keep old behaviour
+			// and stop the for loop or to retry after reciving a GPG_ERR_WRONG_PUBKEY_ALGO
+			if (error == GPG_ERR_WRONG_PUBKEY_ALGO) {
+				continue;
+			} else {
+				goto cleanup;
+			}
 		}
 	}
 
