@@ -60,7 +60,6 @@ dist_doc_DATA = \
 	$(NULL)
 
 gnupg_pkcs11_scd_SOURCES= \
-	common.h \
 	scdaemon.c \
 	common.h common.c \
 	command.h command.c \
