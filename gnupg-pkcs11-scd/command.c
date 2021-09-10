@@ -29,6 +29,7 @@
  */
 
 #include "common.h"
+#include "strgetopt.h"
 #include <pkcs11-helper-1.0/pkcs11h-token.h>
 #include <pkcs11-helper-1.0/pkcs11h-certificate.h>
 #include "command.h"
@@ -532,7 +533,7 @@ cleanup:
 	return error;
 }
 
-int _get_certificate_by_name (assuan_context_t ctx, char *name, int typehint, pkcs11h_certificate_id_t *p_cert_id, char **p_key) {
+int _get_certificate_by_name (assuan_context_t ctx, const char *name, int typehint, pkcs11h_certificate_id_t *p_cert_id, const char **p_key) {
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_BAD_KEY;
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
@@ -540,7 +541,7 @@ int _get_certificate_by_name (assuan_context_t ctx, char *name, int typehint, pk
 	pkcs11h_certificate_id_t cert_id = NULL;
 	char *key_hexgrip = NULL;
 	gcry_sexp_t sexp = NULL;
-	char *key = NULL;
+	const char *key = NULL;
 	int type;
 
 	*p_cert_id = NULL;
@@ -689,6 +690,8 @@ gpg_error_t cmd_serialno (assuan_context_t ctx, char *line)
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	char *serial = NULL;
 
+	(void)line;
+
 	if (
 		(error = get_serial(ctx, &serial)) != GPG_ERR_NO_ERROR
 	) {
@@ -811,11 +814,14 @@ gpg_error_t cmd_readcert (assuan_context_t ctx, char *line)
 	pkcs11h_certificate_t cert = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
+	const char *l;
+
+	l = strgetopt_getopt(line, NULL);
 
 	if (
 		(error = _get_certificate_by_name (
 			ctx,
-			line,
+			l,
 			0,
 			&cert_id,
 			NULL
@@ -856,11 +862,14 @@ gpg_error_t cmd_readkey (assuan_context_t ctx, char *line)
 	gcry_sexp_t sexp = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
+	const char *l;
+
+	l = strgetopt_getopt(line, NULL);
 
 	if (
 		(error = _get_certificate_by_name (
 			ctx,
-			line,
+			l,
 			0,
 			&cert_id,
 			NULL
@@ -925,32 +934,20 @@ gpg_error_t cmd_setdata (assuan_context_t ctx, char *line)
 	int append = 0;
 	int index;
 	size_t len;
+	const char *l;
 
-	while (*line != '\x0' && (isspace (*line) || *line == '-')) {
-		if (*line == '-') {
-			static const char *appendprm = "--append ";
-			char *p = line;
+	const struct strgetopt_option options[] = {
+		{"append", strgtopt_no_argument, NULL, &append},
+		{NULL, 0, NULL, NULL}
+	};
 
-			while (*line != '\x0' && !isspace (*line)) {
-				line++;
-			}
-			line++;
-
-			if (!strncmp (p, appendprm, strlen (appendprm))) {
-				p += strlen (appendprm);
-				append = 1;
-			}
-		}
-		else {
-			line++;
-		}
-	}
+	l = strgetopt_getopt(line, options);
 
 	if (!append) {
 		cmd_free_data (ctx);
 	}
 
-	if (!encoding_hex2bin(line, NULL, &len)) {
+	if (!encoding_hex2bin(l, NULL, &len)) {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
@@ -966,7 +963,7 @@ gpg_error_t cmd_setdata (assuan_context_t ctx, char *line)
 		data->data = (unsigned char *)realloc(data->data, data->size);
 	}
 
-	if (!encoding_hex2bin (line, data->data + index, NULL)) {
+	if (!encoding_hex2bin (l, data->data + index, NULL)) {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
@@ -974,6 +971,8 @@ gpg_error_t cmd_setdata (assuan_context_t ctx, char *line)
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
+
+	strgetopt_free(options);
 
 	return gpg_error (error);
 }
@@ -1016,7 +1015,6 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	int session_locked = 0;
 	unsigned char *sig = NULL;
 	size_t sig_len;
-	char hash[100] = "";
 	enum {
 		INJECT_NONE,
 		INJECT_RMD160,
@@ -1027,34 +1025,21 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		INJECT_SHA384,
 		INJECT_SHA512
 	} inject = INJECT_NONE;
+	char *hash = NULL;
+	const char *l;
+	const struct strgetopt_option options[] = {
+		{"hash", strgtopt_required_argument, &hash, NULL},
+		{NULL, 0, NULL, NULL}
+	};
 
 	if (data->data == NULL) {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
 
-	while (*line != '\x0' && (isspace (*line) || *line == '-')) {
-		if (*line == '-') {
-			static const char *hashprm = "--hash=";
-			char *p = line;
+	l = strgetopt_getopt(line, options);
 
-			while (*line != '\x0' && !isspace (*line)) {
-				line++;
-			}
-			line++;
-
-			if (!strncmp (p, hashprm, strlen (hashprm))) {
-				p += strlen (hashprm);
-				*(line-1) = '\0';
-				snprintf (hash, sizeof(hash), "%s", p);
-			}
-		}
-		else {
-			line++;
-		}
-	}
-
-	if (*line == '\x0') {
+	if (*l == '\x0') {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
@@ -1207,7 +1192,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	if (
 		(error = _get_certificate_by_name (
 			ctx,
-			line,
+			l,
 			typehint,
 			&cert_id,
 			NULL
@@ -1306,6 +1291,8 @@ cleanup:
 		_data = NULL;
 	}
 
+	strgetopt_free(options);
+
 	return gpg_error (error);
 }
 
@@ -1332,6 +1319,9 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 	int session_locked = 0;
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	cmd_data_t _data;
+	const char *l;
+
+	l = strgetopt_getopt(line, NULL);
 
 	if (
 		data == NULL ||
@@ -1363,7 +1353,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 	if (
 		(error = _get_certificate_by_name (
 			ctx,
-			line,
+			l,
 			OPENPGP_ENCR,
 			&cert_id,
 			NULL
@@ -1484,17 +1474,20 @@ gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line)
 {
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	gpg_err_code_t error = GPG_ERR_GENERAL;
+	const char *l;
 
-	if (!strcmp (line, "version")) {
+	l = strgetopt_getopt(line, NULL);
+
+	if (!strcmp (l, "version")) {
 		char *s = PACKAGE_VERSION;
 		error = assuan_send_data(ctx, s, strlen (s));
 	}
-	else if (!strcmp (line, "pid")) {
+	else if (!strcmp (l, "pid")) {
 		char buf[50];
 		snprintf (buf, sizeof (buf), "%lu", (unsigned long)getpid());
 		error = assuan_send_data(ctx, buf, strlen (buf));
 	}
-	else if (!strcmp (line, "socket_name")) {
+	else if (!strcmp (l, "socket_name")) {
 		const char *s = data->socket_name;
 
 		if (s == NULL) {
@@ -1504,7 +1497,7 @@ gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line)
 			error = assuan_send_data(ctx, s, strlen (s));
 		}
 	}
-	else if (!strcmp (line, "status")) {
+	else if (!strcmp (l, "status")) {
 		pkcs11h_certificate_id_list_t user_certificates = NULL;
 		char flag = 'r';
 
@@ -1529,7 +1522,7 @@ gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line)
 
 		error = assuan_send_data(ctx, &flag, 1);
 	}
-	else if (!strcmp (line, "reader_list")) {
+	else if (!strcmp (l, "reader_list")) {
 		error = GPG_ERR_NO_DATA;
 	}
 	else {
@@ -1552,8 +1545,11 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
 	char *serial = NULL;
 	gpg_err_code_t error = GPG_ERR_GENERAL;
+	const char *l;
 
-	if (!strcmp (line, "SERIALNO")) {
+	l = strgetopt_getopt(line, NULL);
+
+	if (!strcmp (l, "SERIALNO")) {
 		if (
 			(error = get_serial(ctx, &serial)) != GPG_ERR_NO_ERROR
 		) {
@@ -1572,7 +1568,7 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 			}
 		}
 	}
-	else if (!strcmp (line, "KEY-FPR")) {
+	else if (!strcmp (l, "KEY-FPR")) {
 		if (
 			(error = common_map_pkcs11_error (
 				pkcs11h_certificate_enumCertificateIds (
@@ -1592,7 +1588,7 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 			goto cleanup;
 		}
 	}
-	else if (!strcmp (line, "CHV-STATUS")) {
+	else if (!strcmp (l, "CHV-STATUS")) {
 		if (
 			(error = assuan_write_status(
 				ctx,
@@ -1603,7 +1599,7 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 			goto cleanup;
 		}
 	}
-	else if (!strcmp (line, "DISP-NAME")) {
+	else if (!strcmp (l, "DISP-NAME")) {
 		if (
 			(error = assuan_write_status(
 				ctx,
@@ -1614,7 +1610,7 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 			goto cleanup;
 		}
 	}
-	else if (!strcmp (line, "KEY-ATTR")) {
+	else if (!strcmp (l, "KEY-ATTR")) {
 		int i;
 		for (i=0;i<3;i++) {
 			char buffer[1024];
@@ -1633,7 +1629,7 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 			}
 		}
 	}
-	else if (!strcmp (line, "EXTCAP")) {
+	else if (!strcmp (l, "EXTCAP")) {
 		int i;
 		for (i=0;i<3;i++) {
 			char buffer[1024];
@@ -1678,8 +1674,11 @@ cleanup:
 gpg_error_t cmd_setattr (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
+	const char *l;
 
-	if (!strncmp (line, "CHV-STATUS-1 ", 13)) {
+	l = strgetopt_getopt(line, NULL);
+
+	if (!strncmp (l, "CHV-STATUS-1 ", 13)) {
 	}
 	else {
 		error = GPG_ERR_INV_DATA;
@@ -1705,44 +1704,34 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 	char *e_resp = strdup ("e ");
 	unsigned char *blob = NULL;
 	char *serial = NULL;
-	char *key = NULL;
+	const char *key = NULL;
 	size_t blob_size;
-	char timestamp[100] = {0};
+	char *timestamp = NULL;
+	char _timestamp[100];
+	const char *l;
 
-	while (*line != '\x0' && !isdigit (*line)) {
-		if (*line == '-') {
-			static const char *ts = "--timestamp=";
-			char *p = line;
+	const struct strgetopt_option options[] = {
+		{"timestamp", strgtopt_required_argument, &timestamp, NULL},
+		{NULL, 0, NULL, NULL}
+	};
 
-			while (*line != '\x0' && !isspace (*line)) {
-				line++;
-			}
-			line++;
+	l = strgetopt_getopt(line, options);
 
-			if (!strncmp (p, ts, strlen (ts))) {
-				p += strlen (ts);
-				sprintf (timestamp, "%d", (int)isotime2epoch (p));
-			}
-		}
-		else {
-			line++;
-		}
-	}
-
-	if (*line == '\x0') {
+	if (*l == '\x0') {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
 
-	if (strlen (timestamp) == 0) {
-		sprintf (timestamp, "%d", (int)time (NULL));
+	if (timestamp == NULL) {
+		sprintf (_timestamp, "%d", (int)time (NULL));
+		timestamp = _timestamp;
 	}
 
 	if (
 		(error = _get_certificate_by_name (
 			ctx,
 			NULL,
-			atoi(line),
+			atoi(l),
 			&cert_id,
 			&key
 		)) != GPG_ERR_NO_ERROR
@@ -1885,6 +1874,8 @@ cleanup:
 		free(serial);
 		serial = NULL;
 	}
+
+	strgetopt_free(options);
 
 	return gpg_error (error);
 }

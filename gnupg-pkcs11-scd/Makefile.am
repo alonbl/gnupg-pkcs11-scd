@@ -62,6 +62,7 @@ dist_doc_DATA = \
 gnupg_pkcs11_scd_SOURCES= \
 	scdaemon.c \
 	common.h common.c \
+	strgetopt.h strgetopt.c \
 	command.h command.c \
 	encoding.h encoding.c \
 	keyutil.h keyutil.c \

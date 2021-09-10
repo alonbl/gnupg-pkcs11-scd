@@ -6,6 +6,7 @@ Copyright (c) 2006-2019 Alon Bar-Lev <alon.barlev@gmail.com>
 
  * Ignore unsupported public keys, thanks to Manon Goo.
  * Support PKAUTH command, thanks Mateusz Gozdek
+ * Parse all commands using strgetopt.
 
 2019-01-05 - Version 0.9.2
 
