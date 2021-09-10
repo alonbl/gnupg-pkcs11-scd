@@ -7,6 +7,6 @@ OBJECT=key
 ID=0
 KEY_SIZE=2048
 
-for PROVIDER in /usr/lib64/pkcs11/libsofthsm2.so /usr/lib64/softhsm/libsofthsm2.so; do
+for PROVIDER in /usr/lib64/pkcs11/libsofthsm2.so /usr/lib64/softhsm/libsofthsm2.so /usr/lib/softhsm/libsofthsm2.so; do
 	[ -f "${PROVIDER}" ] && break
 done
