@@ -1,0 +1,34 @@
+---
+name: build-linux
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  build-linux:
+    name: build-linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: dependencies
+        run: |
+          sudo apt install \
+                autotools-dev \
+                autoconf \
+                automake \
+                libtool \
+                libssl-dev \
+                libpkcs11-helper-dev \
+                libgpg-error-dev \
+                libassuan-dev \
+                libgcrypt-dev \
+                ${NULL}
+      - name: gen
+        run: |
+          autoreconf -ivf
+      - name: build
+        run: |
+          ./configure --enable-strict --enable-pedantic
+          make distcheck
