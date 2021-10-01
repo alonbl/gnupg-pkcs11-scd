@@ -862,9 +862,20 @@ gpg_error_t cmd_readkey (assuan_context_t ctx, char *line)
 	gcry_sexp_t sexp = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
+	char *key_hexgrip = NULL;
+	char *keypairinfo = NULL;
 	const char *l;
+	int info = 0;
+	int info_only = 0;
+	char *ser = NULL;
+	size_t ser_len;
+	const struct strgetopt_option options[] = {
+		{"info", strgtopt_no_argument, NULL, &info},
+		{"info-only", strgtopt_no_argument, NULL, &info_only},
+		{NULL, 0, NULL, NULL}
+	};
 
-	l = strgetopt_getopt(line, NULL);
+	l = strgetopt_getopt(line, options);
 
 	if (
 		(error = _get_certificate_by_name (
@@ -876,6 +887,7 @@ gpg_error_t cmd_readkey (assuan_context_t ctx, char *line)
 		)) != GPG_ERR_NO_ERROR ||
 		(error = get_cert_sexp (ctx, cert_id, &sexp)) != GPG_ERR_NO_ERROR
 	) {
+		error = GPG_ERR_NOT_FOUND;
 		goto cleanup;
 	}
 
@@ -894,23 +906,92 @@ gpg_error_t cmd_readkey (assuan_context_t ctx, char *line)
 		goto cleanup;
 	}
 
-	if (
-		(error = assuan_send_data(
-			ctx,
-			blob,
-			gcry_sexp_canon_len (blob, 0, NULL, NULL)
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
+	if (info || info_only) {
+		if (
+			(error = common_map_pkcs11_error (
+				pkcs11h_certificate_serializeCertificateId (
+					NULL,
+					&ser_len,
+					cert_id
+				)
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
+		}
+
+		if ((ser = (char *)malloc (ser_len)) == NULL) {
+			error = GPG_ERR_ENOMEM;
+			goto cleanup;
+		}
+
+		if (
+			(error = common_map_pkcs11_error (
+				pkcs11h_certificate_serializeCertificateId (
+					ser,
+					&ser_len,
+					cert_id
+				)
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
+		}
+		if (
+			(key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL ||
+			(keypairinfo = strdup (key_hexgrip)) == NULL ||
+			!encoding_strappend (&keypairinfo, " ") ||
+			!encoding_strappend (&keypairinfo, ser)
+		) {
+			error = GPG_ERR_ENOMEM;
+			goto cleanup;
+		}
+
+		if (
+			(error = assuan_write_status (
+				ctx,
+				"KEYPAIRINFO",
+				keypairinfo
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
+		}
+	}
+
+	if (!info_only) {
+		if (
+			(error = assuan_send_data(
+				ctx,
+				blob,
+				gcry_sexp_canon_len (blob, 0, NULL, NULL)
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
+		}
 	}
 
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
 
+	strgetopt_free(options);
+
 	if (sexp != NULL) {
 		gcry_sexp_release(sexp);
 		sexp = NULL;
+	}
+
+	if (key_hexgrip == NULL) {
+		free(key_hexgrip);
+		key_hexgrip = NULL;
+	}
+
+	if (keypairinfo == NULL) {
+		free(keypairinfo);
+		keypairinfo = NULL;
+	}
+
+	if (ser != NULL) {
+		free(ser);
+		ser = NULL;
 	}
 
 	if (cert_id != NULL) {
