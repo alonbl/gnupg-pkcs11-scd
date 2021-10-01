@@ -1532,6 +1532,190 @@ gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line)
 	return gpg_error (error);
 }
 
+gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
+{
+	gpg_err_code_t error = GPG_ERR_GENERAL;
+	pkcs11h_certificate_id_list_t user_certificates = NULL;
+	pkcs11h_certificate_id_list_t curr_cert;
+	char *list = NULL;
+	int data_arg = 0;
+	const char *l;
+	char *serial;
+	int found;
+	int filter;
+
+	const struct strgetopt_option options[] = {
+		{"list", strgtopt_optional_argument, &list, NULL},
+		{"data", strgtopt_no_argument, NULL, &data_arg},
+		{NULL, 0, NULL, NULL}
+	};
+
+	l = strgetopt_getopt(line, options);
+
+	if (list == NULL) {
+	}
+	else if (!strcmp(list, "")) {
+		filter = 0;
+	}
+	else if (!strcmp(list, "auth")) {
+		filter = OPENPGP_AUTH;
+	}
+	else if (!strcmp(list, "encr")) {
+		filter = OPENPGP_ENCR;
+	}
+	else if (!strcmp(list, "sign")) {
+		filter = OPENPGP_SIGN;
+	}
+	else {
+		goto cleanup;
+	}
+
+	found = list != NULL;
+
+	if (
+		(error = common_map_pkcs11_error (
+			pkcs11h_certificate_enumCertificateIds (
+				PKCS11H_ENUM_METHOD_CACHE_EXIST,
+				ctx,
+				PKCS11H_PROMPT_MASK_ALLOW_ALL,
+				NULL,
+				&user_certificates
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	for (
+		curr_cert = user_certificates;
+		curr_cert != NULL;
+		curr_cert = curr_cert->next
+	) {
+		char *certid = NULL;
+		char *key_hexgrip = NULL;
+		char *keyinfo_line = NULL;
+		gcry_sexp_t sexp = NULL;
+		size_t ser_len;
+		int print = 0;
+
+		if ((error = get_cert_sexp (ctx, curr_cert->certificate_id, &sexp)) != GPG_ERR_NO_ERROR) {
+			goto retry;
+		}
+
+		if ((key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL) {
+			error = GPG_ERR_ENOMEM;
+			goto retry;
+		}
+
+		if (
+			(error = common_map_pkcs11_error (
+				pkcs11h_certificate_serializeCertificateId (
+					NULL,
+					&ser_len,
+					curr_cert->certificate_id
+				)
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto retry;
+		}
+
+		if ((certid = (char *)malloc (ser_len)) == NULL	) {
+			error = GPG_ERR_ENOMEM;
+			goto retry;
+		}
+
+		if (
+			(error = common_map_pkcs11_error (
+				pkcs11h_certificate_serializeCertificateId (
+					certid,
+					&ser_len,
+					curr_cert->certificate_id
+				)
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto retry;
+		}
+
+		if ((error = get_serial_of_tokenid(curr_cert->certificate_id->token_id, &serial)) != GPG_ERR_NO_ERROR) {
+			goto cleanup;
+		}
+
+		if (list == NULL) {
+			if (!strcmp(l, key_hexgrip)) {
+				found=1;
+				print=1;
+			}
+		}
+		else {
+			print=1;
+		}
+
+		if (data_arg &&  print) {
+			if (
+				(keyinfo_line = strdup (key_hexgrip)) == NULL ||
+				!encoding_strappend (&keyinfo_line, " T ") ||
+				!encoding_strappend (&keyinfo_line, serial) ||
+				!encoding_strappend (&keyinfo_line, " ") ||
+				!encoding_strappend (&keyinfo_line, certid)
+			) {
+				error = GPG_ERR_ENOMEM;
+				goto retry;
+			}
+
+			if (
+				(error = assuan_write_status(
+					ctx,
+					"KEYINFO",
+					keyinfo_line
+				)) != GPG_ERR_NO_ERROR
+			) {
+				goto cleanup;
+			}
+		}
+
+		error = GPG_ERR_NO_ERROR;
+
+	retry:
+
+		if (keyinfo_line != NULL) {
+			free (keyinfo_line);
+			keyinfo_line = NULL;
+		}
+
+		if (certid != NULL) {
+			free (certid);
+			certid = NULL;
+		}
+
+		if (serial != NULL) {
+			free(serial);
+			serial = NULL;
+		}
+
+		if (key_hexgrip != NULL) {
+			free (key_hexgrip);
+			key_hexgrip = NULL;
+		}
+
+		if (error != GPG_ERR_NO_ERROR) {
+			goto cleanup;
+		}
+	}
+
+	error = found ? GPG_ERR_NO_ERROR : GPG_ERR_NOT_FOUND;
+
+cleanup:
+
+	strgetopt_free(options);
+
+	if (user_certificates != NULL) {
+		pkcs11h_certificate_freeCertificateIdList (user_certificates);
+		user_certificates = NULL;
+	}
+
+	return gpg_error (error);
+}
+
 gpg_error_t cmd_restart (assuan_context_t ctx, char *line)
 {
 	(void)ctx;

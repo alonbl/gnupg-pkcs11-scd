@@ -54,6 +54,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line);
 gpg_error_t cmd_random (assuan_context_t ctx, char *line);
 gpg_error_t cmd_checkpin (assuan_context_t ctx, char *line);
 gpg_error_t cmd_getinfo (assuan_context_t ctx, char *line);
+gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line);
 gpg_error_t cmd_restart (assuan_context_t ctx, char *line);
 gpg_error_t cmd_genkey (assuan_context_t ctx, char *line);
 gpg_error_t cmd_getattr (assuan_context_t ctx, char *line);
