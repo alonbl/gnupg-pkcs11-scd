@@ -619,6 +619,7 @@ pkcs11_pin_prompt_hook (
 	const size_t max_pin
 ) {
 	char cmd[1024];
+	global_t *global = global_data;
 	assuan_context_t ctx = user_data;
 	unsigned char *pin_read = NULL;
 	size_t pin_len;
@@ -626,6 +627,21 @@ pkcs11_pin_prompt_hook (
 	int ret = FALSE;
 
 	(void)global_data;
+
+	common_log (LOG_DEBUG,"PIN required for display: %s, model: %s, label: %s, serialNumber: %s", token->display, token->model, token->label, token->serialNumber);
+	for (int i=0;i<DCONFIG_MAX_TOKENS;i++) {
+		if (
+			global->config.tokens[i].label != NULL &&
+			global->config.tokens[i].pin != NULL
+		) {
+			if (strcmp (global->config.tokens[i].label, token->label) == 0
+			) {
+				common_log (LOG_DEBUG, "Use PIN from config for '%s':", global->config.tokens[i].label);
+				strcpy (pin, global->config.tokens[i].pin);
+				return TRUE;
+			}
+		}
+	}
 
 	snprintf (
 		cmd,
@@ -1119,7 +1135,7 @@ int main (int argc, char *argv[])
 	pkcs11h_setLogLevel (global.config.verbose ? PKCS11H_LOG_DEBUG2 : PKCS11H_LOG_INFO);
 	pkcs11h_setLogHook (pkcs11_log_hook, NULL);
 	pkcs11h_setTokenPromptHook (pkcs11_token_prompt_hook, NULL);
-	pkcs11h_setPINPromptHook (pkcs11_pin_prompt_hook, NULL);
+	pkcs11h_setPINPromptHook (pkcs11_pin_prompt_hook, &global);
 	pkcs11h_setProtectedAuthentication (TRUE);
 	pkcs11h_setPINCachePeriod(global.config.pin_cache);
 

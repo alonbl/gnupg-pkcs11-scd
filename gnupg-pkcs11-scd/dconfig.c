@@ -191,6 +191,38 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 				}
 			}
 		}
+		else if (prefix_is (line, "token-")) {
+			char *name = strchr (line, '-')+1;
+			char *p;
+
+			if ((p = strchr (name, '-')) != NULL) {
+				int entry;
+				*p = '\x0';
+				p++;
+
+				entry = atoi(name);
+				if (0 <= entry && entry < DCONFIG_MAX_TOKENS) {
+					if (prefix_is (p, "label ")) {
+						char *p2 = strchr (p, ' ') + 1;
+						trim (p2);
+						config->tokens[entry].label = strdup (p2);
+					}
+					else if (prefix_is (p, "pin ")) {
+						char *p2 = strchr (p, ' ') + 1;
+						trim (p2);
+						config->tokens[entry].pin = strdup (p2);
+					}
+					else {
+						common_log (LOG_ERROR, "Invalid token attribute '%s'", p);
+						goto cleanup;
+					}
+				}
+				else {
+					common_log (LOG_ERROR, "Invalid token number (0..%i)", DCONFIG_MAX_TOKENS - 1);
+					goto cleanup;
+				}
+			}
+		}
 		else {
 			common_log (LOG_ERROR, "Invalid option '%s'", line);
 			goto cleanup;
@@ -244,8 +276,13 @@ dconfig_free (dconfig_data_t * const config) {
 	f (config->openpgp_auth);
 
 	for (i=0;i<DCONFIG_MAX_PROVIDERS;i++) {
-		f (config->providers->name); 
+		f (config->providers->name);
 		f (config->providers->library);
+	}
+
+	for (i=0;i<DCONFIG_MAX_TOKENS;i++) {
+		f (config->tokens->label);
+		f (config->tokens->pin);
 	}
 
 #undef f

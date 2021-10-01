@@ -39,6 +39,17 @@ provider-p1-library /usr/lib/pkcs11/p1.so
 #provider-p1-cert-private
 #provider-p1-private-mask 0
 
+# The following attributes can be set for each token:
+#
+# label
+#	The pin will be used for the token with the given label.
+# pin
+#	Optional secret userpin for batch operations.
+#token-0-label mytoken
+#token-0-pin mypin
+#token-1-label corptoken
+#token-1-pin corppin
+
 #emulate-openpgpg
 #openpgp-sign 5C661B8C07CFD957F7D98D5B9A0F31D236BFAC2A
 #openpgp-encr D2DC0BD1EDD185969748B6025B452816F97CBA57

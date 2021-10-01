@@ -32,6 +32,7 @@
 #define __DCONFIG_H
 
 #define DCONFIG_MAX_PROVIDERS 20
+#define DCONFIG_MAX_TOKENS 10
 
 typedef struct {
 	char *log_file;
@@ -50,6 +51,11 @@ typedef struct {
 		int cert_is_private;
 		unsigned private_mask;
 	} providers[DCONFIG_MAX_PROVIDERS];
+
+	struct {
+		char *label;
+		char *pin;
+	} tokens[DCONFIG_MAX_TOKENS];
 } dconfig_data_t;
 
 int
