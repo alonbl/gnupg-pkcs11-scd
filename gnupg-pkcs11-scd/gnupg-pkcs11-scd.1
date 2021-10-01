@@ -205,7 +205,7 @@ provider-p1-library /usr/lib/pkcs11/p1.so
 #provider-p1-cert-private
 #provider-p1-private-mask 0
 
-# The following are for gnupg-2.0 mode
+# The following are for >=gnupg-2.0 and <gnupg-2.1.19
 #openpgp-sign 5C661B8C07CFD957F7D98D5B9A0F31D236BFAC2A
 #openpgp-encr D2DC0BD1EDD185969748B6025B452816F97CBA57
 #openpgp-auth A7B8C1A3A8F71FCEC018886F8767927B9C8D871F
@@ -261,7 +261,7 @@ Instruct GnuPG to discover all useful certificates on the card:
 .Pp
 Signing, verification, etc. work as usual with gpgsm.
 .Pp
-Typical steps to set up a card for gpg-2.0 usage:
+Typical steps to set up a card for >=gpg-2.0 and <gpg-2.1.19 usage:
 .Bl -enum
 .It
 Acquire key ids:
@@ -295,7 +295,7 @@ Then regenerate but without replace keys using:
 .Pp
 Signing, verification, etc. work as usual with gpg.
 .Pp
-Typical steps to set up a card for >=gpg-2.1.19 usage:
+Typical steps to set up a card for >=gpg-2.1.19 and <gpg-2.3 usage:
 .Bl -enum
 .It
 Refresh local key store:
@@ -317,7 +317,9 @@ probably use signature for master key.
 .It
 Add subkey using:
 .Dl gpg --expert --edit-key ${MASTER_KEY_ID}
+Enter:
 .Dl gpg> addkey
+Select:
 .Dl (13) Existing key
 Enter keygrip to be used as subkey.
 .It
