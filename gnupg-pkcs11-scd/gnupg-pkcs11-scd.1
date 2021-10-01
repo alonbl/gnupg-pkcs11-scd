@@ -327,6 +327,31 @@ Continue as usual to setup your subkey.
 .El
 .Pp
 Signing, verification, etc. work as usual with gpg.
+.Pp
+Typical steps to set up a card for >=gpg-2.3 usage:
+.Bl -enum
+.It
+Create master key based on existing key using:
+.Dl gpg --expert --full-generate-key
+Select:
+.Dl (14) Existing key from card
+Select the key from the list.
+.It
+Continue as usual to setup your primary key, you should
+probably use signature for master key.
+.It
+Add subkey using:
+.Dl gpg --expert --edit-key ${MASTER_KEY_ID}
+Enter:
+.Dl gpg> addkey
+Select:
+.Dl (14) Existing key from card
+Select the key from the list.
+.It
+Continue as usual to setup your subkey.
+.El
+.Pp
+Signing, verification, etc. work as usual with gpg.
 .Sh SECURITY CONSIDERATIONS
 All communication between components is currently unprotected and in plain
 text (that's how the Assuan protocol operates). It is trivial to trace (using
