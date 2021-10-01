@@ -560,27 +560,32 @@ int _get_certificate_by_name (assuan_context_t ctx, const char *name, int typehi
 		type = typehint;
 	}
 	else if (strncmp (name, OPENPGP_KEY_NAME_PREFIX, strlen (OPENPGP_KEY_NAME_PREFIX))) {
-		return common_map_pkcs11_error (
+		if ((error = common_map_pkcs11_error (
 			pkcs11h_certificate_deserializeCertificateId (p_cert_id, name)
-		);
+		)) == GPG_ERR_NO_ERROR) {
+			goto cleanup;
+		}
+		key = name;
 	}
 	else {
 		type = atoi(name + strlen (OPENPGP_KEY_NAME_PREFIX));
 	}
 
-	switch (type) {
-		case OPENPGP_SIGN:
-			key = data->config->openpgp_sign;
-		break;
-		case OPENPGP_ENCR:
-			key = data->config->openpgp_encr;
-		break;
-		case OPENPGP_AUTH:
-			key = data->config->openpgp_auth;
-		break;
-		default:
-			error = GPG_ERR_BAD_KEY;
-			goto cleanup;
+	if (key == NULL) {
+		switch (type) {
+			case OPENPGP_SIGN:
+				key = data->config->openpgp_sign;
+			break;
+			case OPENPGP_ENCR:
+				key = data->config->openpgp_encr;
+			break;
+			case OPENPGP_AUTH:
+				key = data->config->openpgp_auth;
+			break;
+			default:
+				error = GPG_ERR_BAD_KEY;
+				goto cleanup;
+		}
 	}
 
 	if (key == NULL) {
