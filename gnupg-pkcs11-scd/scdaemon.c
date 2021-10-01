@@ -140,6 +140,7 @@ register_commands (const assuan_context_t ctx)
 		{ "LOCK",	NULL, NULL },
 		{ "UNLOCK",	NULL, NULL },
 		{ "GETINFO",	cmd_getinfo, NULL },
+		{ "KEYINFO",	cmd_keyinfo, NULL },	/* gnupg-2.3.x */
 		{ "RESTART",	cmd_restart, NULL },
 		{ "DISCONNECT",	cmd_null, NULL },
 		{ "APDU",	NULL, NULL },
