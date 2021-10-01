@@ -220,7 +220,7 @@ cleanup:
 }
 /**
    Convert X.509 RSA public key into gcrypt internal sexp form. Only RSA
-   public keys are accepted at the moment. The resul is stored in *sexp,
+   public keys are accepted at the moment. The result is stored in *sexp,
    which must be freed (using ) when not needed anymore. *sexp must be
    NULL on entry, since it is overwritten.
 */

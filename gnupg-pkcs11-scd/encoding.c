@@ -118,7 +118,7 @@ encoding_strappend (
   and get back a time_t.  It differs from mktime() in that it handles
   the case where the struct tm is UTC and the local environment isn't.
 
-  Note, that this replacement implementaion is not thread-safe!
+  Note, that this replacement implementation is not thread-safe!
 
   Some BSDs don't handle the putenv("foo") case properly, so we use
   unsetenv if the platform has it to remove environment variables.

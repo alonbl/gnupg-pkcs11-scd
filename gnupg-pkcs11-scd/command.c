@@ -314,7 +314,7 @@ cleanup:
    S CERTINFO <certtype> <hexstring_with_id>
 
    If certificate is issuer, we set type to 102 (useful); otherwise it is
-   assumed that we're in posession of private key, so the type is set to 101
+   assumed that we're in possession of private key, so the type is set to 101
    (trusted).  The certificate ID is percent-plus escaped displayName.
 */
 static
