@@ -752,6 +752,128 @@ cleanup:
 	return ret;
 }
 
+static
+PKCS11H_BOOL
+pkcs11_key_prompt_hook (
+	void * const global_data,
+	void * const user_data,
+	const pkcs11h_token_id_t token,
+	const char * const label,
+	const unsigned retry,
+	char * const pin,
+	const size_t max_pin
+) {
+	global_t *global = (global_t *)global_data;
+	char keyid[1024];
+	char cmd[1024];
+	assuan_context_t ctx = user_data;
+	unsigned char *pin_read = NULL;
+	size_t pin_len;
+	int rc;
+	int ret = FALSE;
+	char *ser = NULL;
+	size_t n;
+
+	snprintf(keyid, sizeof(keyid), "%s", label);
+	keyid[sizeof(keyid)-1] = '\0';
+
+	{
+		size_t i;
+		for (i=0;i<strlen(keyid); i++) {
+			if (isspace(keyid[i])) {
+				keyid[i] = '_';
+			}
+		}
+	}
+
+	if (
+		(rc = common_map_pkcs11_error(
+			pkcs11h_token_serializeTokenId(
+				NULL,
+				&n,
+				token
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if ((ser = (char *)malloc(n)) == NULL) {
+		rc = GPG_ERR_ENOMEM;
+		goto cleanup;
+	}
+
+	if (
+		(rc = common_map_pkcs11_error(
+			pkcs11h_token_serializeTokenId(
+				ser,
+				&n,
+				token
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if (!global->config.use_gnupg_pin_cache) {
+		common_log (LOG_WARNING, "PIN cache disabled");
+		pin_len = 0;
+	}
+	else {
+		snprintf (
+			cmd,
+			sizeof(cmd),
+			"PINCACHE_GET %s/%s",
+			ser,
+			keyid
+		);
+
+		if ((rc = assuan_inquire (ctx, cmd, &pin_read, &pin_len, 1024))) {
+			common_log (LOG_WARNING,"PIN cache inquire error: %d [ignored]", rc);
+			pin_len = 0;
+		}
+	}
+
+	if (pin_len==0 || (pin_len+1 > max_pin)) {
+		snprintf (
+			cmd,
+			sizeof(cmd),
+			"NEEDPIN %s/%s",
+			ser,
+			keyid
+		);
+
+		if ((rc = assuan_inquire (ctx, cmd, &pin_read, &pin_len, 1024))) {
+			common_log (LOG_WARNING,"PIN inquire error: %d", rc);
+			goto cleanup;
+		}
+	}
+
+	if (pin_len==0 || (pin_len+1 > max_pin)) {
+		rc = GPG_ERR_TOO_LARGE;
+		goto cleanup;
+	}
+
+	strcpy (pin, (char *)pin_read);
+
+	ret = TRUE;
+
+cleanup:
+
+	if (ser != NULL) {
+		free(ser);
+		ser = NULL;
+	}
+
+	if (pin_read != NULL) {
+		memset (pin_read, 0, strlen ((char *)pin_read));
+		free (pin_read);
+		pin_read = NULL;
+	}
+
+	return ret;
+}
+
 #if !defined(HAVE_W32_SYSTEM)
 static RETSIGTYPE on_alarm (int signo)
 {
@@ -1213,6 +1335,15 @@ int main (int argc, char *argv[])
 	pkcs11h_setLogHook (pkcs11_log_hook, NULL);
 	pkcs11h_setTokenPromptHook (pkcs11_token_prompt_hook, &global);
 	pkcs11h_setPINPromptHook (pkcs11_pin_prompt_hook, &global);
+#ifdef PKCS11H_PROPERTY_KEY_PROMPT_HOOK
+	{
+		void *p;
+		p = &pkcs11_key_prompt_hook;
+		pkcs11h_setProperty(PKCS11H_PROPERTY_KEY_PROMPT_HOOK, &p, sizeof(p));
+		p = &global;
+		pkcs11h_setProperty(PKCS11H_PROPERTY_KEY_PROMPT_HOOK_DATA, &p, sizeof(p));
+	}
+#endif
 	pkcs11h_setProtectedAuthentication (TRUE);
 	pkcs11h_setPINCachePeriod(global.config.pin_cache);
 
