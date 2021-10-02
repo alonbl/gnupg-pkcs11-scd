@@ -45,6 +45,7 @@
 #include <getopt.h>
 #include <errno.h>
 #include <pkcs11-helper-1.0/pkcs11h-core.h>
+#include <pkcs11-helper-1.0/pkcs11h-token.h>
 #if !defined(HAVE_W32_SYSTEM)
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -576,15 +577,46 @@ pkcs11_token_prompt_hook (
 	assuan_context_t ctx = user_data;
 	int rc;
 	int ret = FALSE;
+	char *ser = NULL;
+	size_t n;
 
 	(void)global_data;
 	(void)retry;
 
+	if (
+		(rc = common_map_pkcs11_error(
+			pkcs11h_token_serializeTokenId(
+				NULL,
+				&n,
+				token
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if ((ser = (char *)malloc(n)) == NULL) {
+		rc = GPG_ERR_ENOMEM;
+		goto cleanup;
+	}
+
+	if (
+		(rc = common_map_pkcs11_error(
+			pkcs11h_token_serializeTokenId(
+				ser,
+				&n,
+				token
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
 	snprintf (
 		cmd,
 		sizeof(cmd),
-		"NEEDPIN Please insert token '%s' !!!DO NOT ENTER PIN HERE!!!!",
-		token->display
+		"NEEDPIN %s",
+		ser
 	);
 
 	if ((rc = assuan_inquire (ctx, cmd, &user_read, &user_read_len, 1024))) {
@@ -592,13 +624,18 @@ pkcs11_token_prompt_hook (
 		goto cleanup;
 	}
 
-	if (!strcmp ((char *)user_read, "cancel")) {
+	if (!strcmp ((char *)user_read, "cancel") || !strcmp((char *)user_read, "no")) {
 		goto cleanup;
 	}
 
 	ret = TRUE;
 
 cleanup:
+
+	if (ser != NULL) {
+		free(ser);
+		ser = NULL;
+	}
 
 	if (user_read != NULL) {
 		memset (user_read, 0, strlen ((char *)user_read));
@@ -625,15 +662,45 @@ pkcs11_pin_prompt_hook (
 	size_t pin_len;
 	int rc;
 	int ret = FALSE;
+	char *ser = NULL;
+	size_t n;
 
 	(void)global_data;
+
+	if (
+		(rc = common_map_pkcs11_error(
+			pkcs11h_token_serializeTokenId(
+				NULL,
+				&n,
+				token
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if ((ser = (char *)malloc(n)) == NULL) {
+		rc = GPG_ERR_ENOMEM;
+		goto cleanup;
+	}
+
+	if (
+		(rc = common_map_pkcs11_error(
+			pkcs11h_token_serializeTokenId(
+				ser,
+				&n,
+				token
+			)
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
 
 	snprintf (
 		cmd,
 		sizeof(cmd),
-		"NEEDPIN PIN required for token '%s' (try %u)",
-		token->display,
-		retry
+		"NEEDPIN %s",
+		ser
 	);
 
 	if ((rc = assuan_inquire (ctx, cmd, &pin_read, &pin_len, 1024))) {
@@ -642,6 +709,7 @@ pkcs11_pin_prompt_hook (
 	}
 
 	if (pin_len==0 || (pin_len+1 > max_pin)) {
+		rc = GPG_ERR_TOO_LARGE;
 		goto cleanup;
 	}
 
@@ -650,6 +718,11 @@ pkcs11_pin_prompt_hook (
 	ret = TRUE;
 
 cleanup:
+
+	if (ser != NULL) {
+		free(ser);
+		ser = NULL;
+	}
 
 	if (pin_read != NULL) {
 		memset (pin_read, 0, strlen ((char *)pin_read));
