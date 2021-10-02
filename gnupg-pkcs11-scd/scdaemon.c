@@ -656,6 +656,7 @@ pkcs11_pin_prompt_hook (
 	char * const pin,
 	const size_t max_pin
 ) {
+	global_t *global = (global_t *)global_data;
 	char cmd[1024];
 	assuan_context_t ctx = user_data;
 	unsigned char *pin_read = NULL;
@@ -664,8 +665,6 @@ pkcs11_pin_prompt_hook (
 	int ret = FALSE;
 	char *ser = NULL;
 	size_t n;
-
-	(void)global_data;
 
 	if (
 		(rc = common_map_pkcs11_error(
@@ -696,16 +695,36 @@ pkcs11_pin_prompt_hook (
 		goto cleanup;
 	}
 
-	snprintf (
-		cmd,
-		sizeof(cmd),
-		"NEEDPIN %s",
-		ser
-	);
+	if (!global->config.use_gnupg_pin_cache) {
+		common_log (LOG_WARNING, "PIN cache disabled");
+		pin_len = 0;
+	}
+	else {
+		snprintf (
+			cmd,
+			sizeof(cmd),
+			"PINCACHE_GET %s",
+			ser
+		);
 
-	if ((rc = assuan_inquire (ctx, cmd, &pin_read, &pin_len, 1024))) {
-		common_log (LOG_WARNING,"PIN inquire error: %d", rc);
-		goto cleanup;
+		if ((rc = assuan_inquire (ctx, cmd, &pin_read, &pin_len, 1024))) {
+			common_log (LOG_WARNING,"PIN cache inquire error: %d [ignored]", rc);
+			pin_len = 0;
+		}
+	}
+
+	if (pin_len==0 || (pin_len+1 > max_pin)) {
+		snprintf (
+			cmd,
+			sizeof(cmd),
+			"NEEDPIN %s",
+			ser
+		);
+
+		if ((rc = assuan_inquire (ctx, cmd, &pin_read, &pin_len, 1024))) {
+			common_log (LOG_WARNING,"PIN inquire error: %d", rc);
+			goto cleanup;
+		}
 	}
 
 	if (pin_len==0 || (pin_len+1 > max_pin)) {
@@ -1192,8 +1211,8 @@ int main (int argc, char *argv[])
 
 	pkcs11h_setLogLevel (global.config.verbose ? PKCS11H_LOG_DEBUG2 : PKCS11H_LOG_INFO);
 	pkcs11h_setLogHook (pkcs11_log_hook, NULL);
-	pkcs11h_setTokenPromptHook (pkcs11_token_prompt_hook, NULL);
-	pkcs11h_setPINPromptHook (pkcs11_pin_prompt_hook, NULL);
+	pkcs11h_setTokenPromptHook (pkcs11_token_prompt_hook, &global);
+	pkcs11h_setPINPromptHook (pkcs11_pin_prompt_hook, &global);
 	pkcs11h_setProtectedAuthentication (TRUE);
 	pkcs11h_setPINCachePeriod(global.config.pin_cache);
 

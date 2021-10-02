@@ -134,6 +134,9 @@ dconfig_read (const char * const _file, dconfig_data_t * const config) {
 		else if (prefix_is (line, "pin-cache ")) {
 			config->pin_cache = atoi (strchr (line, ' '));
 		}
+		else if (!strcmp (line, "use-gnupg-pin-cache")) {
+			config->use_gnupg_pin_cache = 1;
+		}
 		else if (prefix_is (line, "openpgp-sign")) {
 			char *p = strchr (line, ' ');
 			trim (p);
@@ -219,6 +222,7 @@ dconfig_print (const dconfig_data_t * const config) {
 
 	common_log (LOG_DEBUG, "config: debug=%d, verbose=%d", config->debug, config->verbose);
 	common_log (LOG_DEBUG, "config: pin_cache=%d", config->pin_cache);
+	common_log (LOG_DEBUG, "config: use_gnupg_pin_cache=%d", config->use_gnupg_pin_cache);
 
 	for (entry = 0;entry < DCONFIG_MAX_PROVIDERS;entry++) {
 		if (config->providers[entry].name != NULL) {

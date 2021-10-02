@@ -9,6 +9,7 @@ Copyright (c) 2006-2019 Alon Bar-Lev <alon.barlev@gmail.com>
  * Parse all commands using strgetopt.
  * Modify token and PIN prompts to pass the token id instead of text as
    gnupg expects a token term.
+ * Support gnupg pin cache using the use-gnupg-pin-cache option requires
  * Support gnupg-2.3.
 
 2019-01-05 - Version 0.9.2
