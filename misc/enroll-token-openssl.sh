@@ -35,6 +35,7 @@ for i in 1 2 3; do
 		--pin "${PIN}" \
 		--id "${myid}" --label "${myobject}" \
 		--key-type rsa:${KEY_SIZE} \
+		--always-auth \
 		--keypairgen || \
 		die "Cannot generate key"
 
@@ -46,7 +47,7 @@ engine -t dynamic \
 	-pre ID:pkcs11 \
 	-pre LIST_ADD:1 \
 	-pre LOAD \
-	-pre MODULE_PATH:${PROVIDER}
+	-post MODULE_PATH:${PROVIDER}
 
 req \
 	-engine pkcs11 \
