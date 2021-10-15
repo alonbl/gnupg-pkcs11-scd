@@ -15,6 +15,8 @@ cleanup() {
 }
 MYTMP="$(mktemp -d)"
 
+[ "${ALWAYS_AUTH}" -eq 0 ] || die "Always auth is not supported by gnutls"
+
 export GNUTLS_PIN="${PIN}"
 
 for i in 1 2 3; do
