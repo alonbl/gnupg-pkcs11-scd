@@ -4,6 +4,7 @@ Copyright (c) 2006-2021 Alon Bar-Lev <alon.barlev@gmail.com>
 
 ????-??-?? - Version 0.9.4
 
+ * Fix segfault in PKAUTH command, thanks to Mateusz Gozdek.
 
 2021-12-31 - Version 0.9.3
 
