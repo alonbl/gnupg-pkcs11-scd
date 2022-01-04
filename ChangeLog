@@ -2,6 +2,9 @@ gnupg-pkcs11-scd
 Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
 Copyright (c) 2006-2022 Alon Bar-Lev <alon.barlev@gmail.com>
 
+????-??-?? - Version ?.?.?
+
+
 2022-01-04 - Version 0.10.0
 
  * Ignore unsupported public keys, thanks to Manon Goo.
