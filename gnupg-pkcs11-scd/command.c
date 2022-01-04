@@ -1132,7 +1132,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	/*
 	 * sender prefixed data with algorithm OID
 	 */
-	if (strcmp(hash, "")) {
+	if (hash != NULL) {
 		if (!strcmp(hash, "rmd160") && data->size == (0x14 + sizeof(rmd160_prefix)) &&
 			!memcmp (data->data, rmd160_prefix, sizeof (rmd160_prefix))) {
 			inject = INJECT_NONE;
