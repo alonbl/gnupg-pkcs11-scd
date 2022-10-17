@@ -487,6 +487,11 @@ send_certificate_list (
 
 	retry:
 
+		if (sexp != NULL) {
+			gcry_sexp_release (sexp);
+			sexp = NULL;
+		}
+
 		if (info_cert != NULL) {
 			free (info_cert);
 			info_cert = NULL;

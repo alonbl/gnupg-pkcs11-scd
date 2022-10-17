@@ -4,6 +4,7 @@ Copyright (c) 2006-2022 Alon Bar-Lev <alon.barlev@gmail.com>
 
 ????-??-?? - Version ?.?.?
 
+ * Fix memory leak when reading invalid certificate, thanks to Roy Keene.
 
 2022-01-04 - Version 0.10.0
 
