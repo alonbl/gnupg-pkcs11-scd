@@ -34,43 +34,63 @@
 #include "common.h"
 
 typedef enum {
-	KEYUTIL_KEY_TYPE_UNKNOWN,
-	KEYUTIL_KEY_TYPE_RSA,
-	KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE
-} keyutil_key_type_t;
+	KEYINFO_KEY_TYPE_INVALID = -1,
+	KEYINFO_KEY_TYPE_UNKNOWN = 0,
+	KEYINFO_KEY_TYPE_RSA,
+	KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE
+} keyinfo_key_type_t;
 
-typedef struct {
-	keyutil_key_type_t type;
-	union {
-		struct {
-			gcry_mpi_t n;
-			gcry_mpi_t e;
-		} rsa;
+struct keyinfo_s;
+typedef struct keyinfo_s *keyinfo;
 
-		struct {
-			gcry_mpi_t q;
-			char *named_curve;
-			int named_curve_free;
-		} ecdsa;
-	} data;
-} keyutil_keyinfo_t;
+struct keyinfo_data_list_s {
+	struct keyinfo_data_list_s *next;
+	unsigned char *type;
+	unsigned char *value;
+	unsigned char *tag;
+};
+typedef struct keyinfo_data_list_s *keyinfo_data_list;
 
-gpg_err_code_t
-keyutil_get_cert_mpi (
-	unsigned char *der,
-	size_t len,
-	keyutil_keyinfo_t *key_info
-);
 
-gpg_err_code_t
-keyutil_get_cert_sexp (
-	unsigned char *der,
-	size_t len,
-	gcry_sexp_t *p_sexp
-);
+/**
+ * Instantiate a new key
+ */
+keyinfo keyinfo_new(void);
 
-char *keyutil_get_cert_hexgrip (gcry_sexp_t sexp);
-void keyutil_keyinfo_init(keyutil_keyinfo_t *keyinfo, keyutil_key_type_t keytype);
-void keyutil_keyinfo_free(keyutil_keyinfo_t *keyinfo);
+/**
+ * Free a key
+ */
+void keyinfo_free(keyinfo keyinfo);
+
+/**
+ * Get the Key Type (RSA, ECDSA) from a key
+ */
+keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo);
+
+/**
+ * Parse a DER-encoded X.509 certificate into a key
+ */
+gpg_err_code_t keyinfo_from_der(keyinfo keyinfo, unsigned char *der, size_t len);
+
+/**
+ * Produce a libgcrypt S-expression representing a key
+ */
+gcry_sexp_t keyinfo_to_sexp(keyinfo keyinfo);
+
+/**
+ * Produce a "hexgrip" from a libgcrypt S-expression representing a key
+ */
+char *keyinfo_get_hexgrip(gcry_sexp_t sexp);
+
+/**
+ * Get the serialized form of a key, in parts as a linked list
+ */
+keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo);
+
+/**
+ * Free the list of serialized parts of a key
+ */
+void keyinfo_data_free(keyinfo_data_list list);
+
 
 #endif

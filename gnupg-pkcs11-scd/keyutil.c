@@ -46,18 +46,34 @@ typedef unsigned char *my_openssl_d2i_t;
 typedef const unsigned char *my_openssl_d2i_t;
 #endif
 
+struct keyinfo_s {
+	keyinfo_key_type_t type;
+	union {
+		struct {
+			gcry_mpi_t n;
+			gcry_mpi_t e;
+		} rsa;
+
+		struct {
+			gcry_mpi_t q;
+			char *named_curve;
+			int named_curve_free;
+		} ecdsa;
+	} data;
+};
+
 /**
  * Initialize a KeyUtil KeyInfo Object
  */
-void keyutil_keyinfo_init(keyutil_keyinfo_t *keyinfo, keyutil_key_type_t keytype) {
+void keyinfo_init(keyinfo keyinfo, keyinfo_key_type_t keytype) {
 	keyinfo->type = keytype;
 
-	if (keyinfo->type == KEYUTIL_KEY_TYPE_RSA || keyinfo->type == KEYUTIL_KEY_TYPE_UNKNOWN) {
+	if (keyinfo->type == KEYINFO_KEY_TYPE_RSA || keyinfo->type == KEYINFO_KEY_TYPE_UNKNOWN) {
 		keyinfo->data.rsa.e = NULL;
 		keyinfo->data.rsa.n = NULL;
 	}
 
-	if (keyinfo->type == KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE || keyinfo->type == KEYUTIL_KEY_TYPE_UNKNOWN) {
+	if (keyinfo->type == KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE || keyinfo->type == KEYINFO_KEY_TYPE_UNKNOWN) {
 		keyinfo->data.ecdsa.q = NULL;
 		keyinfo->data.ecdsa.named_curve = NULL;
 		keyinfo->data.ecdsa.named_curve_free = 0;
@@ -65,12 +81,31 @@ void keyutil_keyinfo_init(keyutil_keyinfo_t *keyinfo, keyutil_key_type_t keytype
 }
 
 /**
- * Free any resources held by a KeyUtil KeyInfo object.
- * Does not release the KeyInfo object itself (which may be stack allocated)
+ * Allocate a new KeyInfo object
  */
-void keyutil_keyinfo_free(keyutil_keyinfo_t *keyinfo) {
+keyinfo keyinfo_new(void) {
+	keyinfo keyinfo;
+
+	keyinfo = malloc(sizeof(*keyinfo));
+	if (keyinfo == NULL) {
+		return(NULL);
+	}
+
+	keyinfo_init(keyinfo, KEYINFO_KEY_TYPE_UNKNOWN);
+
+	return(keyinfo);
+}
+
+/**
+ * Free any resources held by a KeyUtil KeyInfo object.
+ */
+void keyinfo_free(keyinfo keyinfo) {
+	if (keyinfo == NULL) {
+		return;
+	}
+
 	switch (keyinfo->type) {
-		case KEYUTIL_KEY_TYPE_RSA:
+		case KEYINFO_KEY_TYPE_RSA:
 			if (keyinfo->data.rsa.e) {
 				gcry_mpi_release(keyinfo->data.rsa.e);
 				keyinfo->data.rsa.e = NULL;
@@ -80,7 +115,7 @@ void keyutil_keyinfo_free(keyutil_keyinfo_t *keyinfo) {
 				keyinfo->data.rsa.n = NULL;
 			}
 			break;
-		case KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE:
+		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
 			if (keyinfo->data.ecdsa.q) {
 				gcry_mpi_release(keyinfo->data.ecdsa.q);
 				keyinfo->data.ecdsa.q = NULL;
@@ -92,10 +127,25 @@ void keyutil_keyinfo_free(keyutil_keyinfo_t *keyinfo) {
 				keyinfo->data.ecdsa.named_curve = NULL;
 			}
 			break;
-		case KEYUTIL_KEY_TYPE_UNKNOWN:
+		case KEYINFO_KEY_TYPE_UNKNOWN:
 			/* Nothing to do for unknown types */
 			break;
+		case KEYINFO_KEY_TYPE_INVALID:
+			abort();
+			break;
 	}
+
+	keyinfo->type = KEYINFO_KEY_TYPE_INVALID;
+
+	free(keyinfo);
+}
+
+keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo) {
+	if (keyinfo->type == KEYINFO_KEY_TYPE_INVALID) {
+		abort();
+	}
+
+	return(keyinfo->type);
 }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
@@ -114,11 +164,15 @@ static void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const
 
 #endif
 
+/**
+ * Convert the public key from an X.509 certificate into an already-created
+ * key object
+ */
 gpg_err_code_t
-keyutil_get_cert_mpi (
+keyinfo_from_der(
+	keyinfo keyinfo,
 	unsigned char *der,
-	size_t len,
-	keyutil_keyinfo_t *keyinfo
+	size_t len
 ) {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	gcry_mpi_t n_mpi = NULL;
@@ -135,8 +189,8 @@ keyutil_get_cert_mpi (
 	EVP_PKEY_CTX *pubkey_ctx = NULL;
 	RSA *rsa = NULL;
 	EC_KEY *ec_key = NULL;
-	EC_POINT *ec_pubkey;
-	EC_GROUP *ec_group;
+	const EC_POINT *ec_pubkey;
+	const EC_GROUP *ec_group;
 	const BIGNUM *n, *e;
 	BN_CTX *q_ctx = NULL;
 	char *n_hex = NULL, *e_hex = NULL, *q_hex = NULL;
@@ -181,7 +235,6 @@ keyutil_get_cert_mpi (
 
 	pubkey_ctx = EVP_PKEY_CTX_new(pubkey, NULL);
 	if (pubkey_ctx == NULL) {
-fprintf(stderr, "Can't create PUBKEY_CTX\n");
 		error = GPG_ERR_BAD_CERT;
 		goto cleanup;
 	}
@@ -192,22 +245,21 @@ fprintf(stderr, "Can't create PUBKEY_CTX\n");
 	 */
 	check_result = EVP_PKEY_public_check(pubkey_ctx);
 	if (check_result != 1 && check_result != -2) {
-fprintf(stderr, "Can't check PUBKEY_CTX\n");
 		error = GPG_ERR_WRONG_PUBKEY_ALGO;
 		goto cleanup;
 	}
 
 	if (EVP_PKEY_CTX_is_a(pubkey_ctx, "EC") == 1) {
-		keyutil_keyinfo_init(keyinfo, KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE);
+		keyinfo_init(keyinfo, KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE);
 	}
 
 	if (EVP_PKEY_CTX_is_a(pubkey_ctx, "RSA") == 1) {
-		keyutil_keyinfo_init(keyinfo, KEYUTIL_KEY_TYPE_RSA);
+		keyinfo_init(keyinfo, KEYINFO_KEY_TYPE_RSA);
 	}
 
 	switch (keyinfo->type) {
-		case KEYUTIL_KEY_TYPE_RSA:
-			/* Warning: EVP_PKEY_get1_RSA is deprecated in OpenSSL 3.0 */ 
+		case KEYINFO_KEY_TYPE_RSA:
+			/* Warning: EVP_PKEY_get1_RSA is deprecated in OpenSSL 3.0 */
 			if ((rsa = EVP_PKEY_get1_RSA(pubkey)) == NULL) {
 				error = GPG_ERR_WRONG_PUBKEY_ALGO;
 				goto cleanup;
@@ -222,7 +274,7 @@ fprintf(stderr, "Can't check PUBKEY_CTX\n");
 				error = GPG_ERR_BAD_KEY;
 				goto cleanup;
 			}
- 
+
 			if (
 				gcry_mpi_scan (&n_mpi, GCRYMPI_FMT_HEX, n_hex, 0, NULL) ||
 				gcry_mpi_scan (&e_mpi, GCRYMPI_FMT_HEX, e_hex, 0, NULL)
@@ -231,7 +283,7 @@ fprintf(stderr, "Can't check PUBKEY_CTX\n");
 				goto cleanup;
 			}
 			break;
-		case KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE:
+		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
 			/* Warning: EVP_PKEY_get1_EC_KEY is depreacted in OpenSSL 3.0 */
 			ec_key = EVP_PKEY_get1_EC_KEY(pubkey);
 			if (ec_key == NULL) {
@@ -272,8 +324,11 @@ fprintf(stderr, "Can't check PUBKEY_CTX\n");
 				goto cleanup;
 			}
 			break;
-		case KEYUTIL_KEY_TYPE_UNKNOWN:
+		case KEYINFO_KEY_TYPE_UNKNOWN:
 			error = GPG_ERR_BAD_KEY;
+			goto cleanup;
+		case KEYINFO_KEY_TYPE_INVALID:
+			abort();
 			goto cleanup;
 	}
 #else
@@ -281,7 +336,7 @@ fprintf(stderr, "Can't check PUBKEY_CTX\n");
 #endif
 
 	switch (keyinfo->type) {
-		case KEYUTIL_KEY_TYPE_RSA:
+		case KEYINFO_KEY_TYPE_RSA:
 			keyinfo->data.rsa.n = n_mpi;
 			n_mpi = NULL;
 
@@ -290,7 +345,7 @@ fprintf(stderr, "Can't check PUBKEY_CTX\n");
 
 			error = GPG_ERR_NO_ERROR;
 			break;
-		case KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE:
+		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
 			keyinfo->data.ecdsa.named_curve = "prime256v1"; /* XXX:TODO */
 			keyinfo->data.ecdsa.named_curve_free = 0;
 
@@ -299,10 +354,12 @@ fprintf(stderr, "Can't check PUBKEY_CTX\n");
 
 			error = GPG_ERR_NO_ERROR;
 			break;
-		case KEYUTIL_KEY_TYPE_UNKNOWN:
-fprintf(stderr, "Can't identify pubkey [2]\n");
+		case KEYINFO_KEY_TYPE_UNKNOWN:
 			error = GPG_ERR_BAD_KEY;
 			goto cleanup;
+			break;
+		case KEYINFO_KEY_TYPE_INVALID:
+			abort();
 			break;
 	}
 
@@ -391,79 +448,52 @@ cleanup:
 	return error;
 }
 
-/**
-   Convert the public key from an X.509 certificate into gcrypt internal
-   sexp form.  The result is stored in *sexp, which must be freed (using
-   gcry_sexp_release) when not needed anymore. *sexp must be NULL on
-   entry, since it is overwritten.
-*/
-gpg_err_code_t
-keyutil_get_cert_sexp (
-	unsigned char *der,
-	size_t len,
-	gcry_sexp_t *p_sexp
-) {
-	gpg_err_code_t error = GPG_ERR_GENERAL;
-	keyutil_keyinfo_t keyinfo;
-	gcry_sexp_t sexp = NULL;
+gcry_sexp_t keyinfo_to_sexp(keyinfo keyinfo) {
+	gcry_sexp_t sexp = NULL, complete_sexp = NULL;
 	gcry_error_t sexp_build_result;
 
-	keyutil_keyinfo_init(&keyinfo, KEYUTIL_KEY_TYPE_UNKNOWN);
-
-	fprintf(stderr, "der = %p (len = %lli)\n", der, (unsigned long long) len);
-	error = keyutil_get_cert_mpi (
-		der,
-		len,
-		&keyinfo
-	);
-
-	if (error != GPG_ERR_NO_ERROR) {
-		goto cleanup;
-	}
-
-	switch (keyinfo.type) {
-		case KEYUTIL_KEY_TYPE_RSA:
+	switch (keyinfo->type) {
+		case KEYINFO_KEY_TYPE_RSA:
 			sexp_build_result = gcry_sexp_build(
 				&sexp,
 				NULL,
 				"(public-key (rsa (n %m) (e %m)))",
-				keyinfo.data.rsa.n,
-				keyinfo.data.rsa.e
+				keyinfo->data.rsa.n,
+				keyinfo->data.rsa.e
 			);
 			break;
-		case KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE:
+		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
 			sexp_build_result = gcry_sexp_build(
 				&sexp,
 				NULL,
 				"(public-key (ecc (curve %s) (q %m)))",
-				keyinfo.data.ecdsa.named_curve,
-				keyinfo.data.ecdsa.q
+				keyinfo->data.ecdsa.named_curve,
+				keyinfo->data.ecdsa.q
 			);
 			break;
-		case KEYUTIL_KEY_TYPE_UNKNOWN:
+		case KEYINFO_KEY_TYPE_UNKNOWN:
 			sexp_build_result = 1;
+			break;
+		case KEYINFO_KEY_TYPE_INVALID:
+			abort();
 			break;
 	}
 
 	if (sexp_build_result != 0) {
-		error = GPG_ERR_BAD_KEY;
 		goto cleanup;
 	}
 
-	*p_sexp = sexp;
+	complete_sexp = sexp;
 	sexp = NULL;
-	error = GPG_ERR_NO_ERROR;
 
 cleanup:
-
-	keyutil_keyinfo_free(&keyinfo);
 
 	if (sexp != NULL) {
 		gcry_sexp_release (sexp);
 		sexp = NULL;
 	}
 
-	return error;
+	return complete_sexp;
 }
 
 #if 0
@@ -485,7 +515,7 @@ void cert_get_hexgrip(unsigned char *der, size_t len, char *certid)
 #endif
 
 /** Calculate hex-encoded keygrip of public key in sexp. */
-char *keyutil_get_cert_hexgrip (gcry_sexp_t sexp)
+char *keyinfo_get_hexgrip (gcry_sexp_t sexp)
 {
 	char *ret = NULL;
 	unsigned char grip[20];
@@ -495,4 +525,109 @@ char *keyutil_get_cert_hexgrip (gcry_sexp_t sexp)
 	}
 
 	return ret;
+}
+
+void keyinfo_data_free(keyinfo_data_list list) {
+	keyinfo_data_list next, curr;
+
+	if (list == NULL) {
+		return;
+	}
+
+	for (curr = list; curr != NULL; curr = next) {
+		next = curr->next;
+
+		free(curr);
+	}
+}
+
+keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
+	keyinfo_data_list first = NULL, n_item = NULL, e_item = NULL, q_item = NULL;
+	unsigned char *n_hex = NULL;
+	unsigned char *e_hex = NULL;
+
+	if (keyinfo->type == KEYINFO_KEY_TYPE_INVALID) {
+		abort();
+	}
+
+	if (keyinfo->type != KEYINFO_KEY_TYPE_UNKNOWN) {
+		return(NULL);
+	}
+
+	switch (keyinfo->type) {
+		case KEYINFO_KEY_TYPE_RSA:
+			if (
+				gcry_mpi_aprint (
+					GCRYMPI_FMT_HEX,
+					&n_hex,
+					NULL,
+					keyinfo->data.rsa.n
+				) ||
+				gcry_mpi_aprint (
+					GCRYMPI_FMT_HEX,
+					&e_hex,
+					NULL,
+					keyinfo->data.rsa.e
+				)
+			) {
+				break;
+			}
+
+			e_item = malloc(sizeof(*e_item));
+			if (e_item == NULL) {
+				break;
+			}
+			e_item->next = NULL;
+			e_item->type = (unsigned char *) "KEY-DATA";
+			e_item->tag = (unsigned char *) "e";
+			e_item->value = e_hex;
+
+			n_item = malloc(sizeof(*n_item));
+			if (n_item == NULL) {
+				break;
+			}
+			n_item->next = e_item;
+			n_item->type = (unsigned char *) "KEY-DATA";
+			e_item->tag = (unsigned char *) "n";
+			n_item->value = n_hex;
+
+			first = n_item;
+			n_item = NULL;
+			e_item = NULL;
+
+			break;
+		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
+			break;
+		case KEYINFO_KEY_TYPE_UNKNOWN:
+			break;
+		case KEYINFO_KEY_TYPE_INVALID:
+			abort();
+	}
+
+	if (n_hex != NULL) {
+		gcry_free(n_hex);
+		n_hex = NULL;
+	}
+
+	if (e_hex != NULL) {
+		gcry_free(e_hex);
+		e_hex = NULL;
+	}
+
+	if (n_item != NULL) {
+		free(n_item);
+		n_item = NULL;
+	}
+
+	if (e_item != NULL) {
+		free(e_item);
+		e_item = NULL;
+	}
+
+	if (q_item != NULL) {
+		free(q_item);
+		q_item = NULL;
+	}
+
+	return(first);
 }

@@ -148,14 +148,17 @@ get_cert_sexp (
 ) {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	gcry_sexp_t sexp = NULL;
+	keyinfo keyinfo = NULL;
 	unsigned char *blob = NULL;
 	size_t blob_size;
 
 	*p_sexp = NULL;
+	keyinfo = keyinfo_new();
 
 	if (
 		(error = get_cert_blob (ctx, cert_id, &blob, &blob_size)) != GPG_ERR_NO_ERROR ||
-		(error = keyutil_get_cert_sexp (blob, blob_size, &sexp)) != GPG_ERR_NO_ERROR
+		(error = keyinfo_from_der (keyinfo, blob, blob_size)) != GPG_ERR_NO_ERROR ||
+		(sexp = keyinfo_to_sexp(keyinfo)) == NULL
 	) {
 		goto cleanup;
 	}
@@ -170,6 +173,10 @@ cleanup:
 	if (sexp != NULL) {
 		gcry_sexp_release(sexp);
 		sexp = NULL;
+	}
+
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
 	}
 
 	if (blob != NULL) {
@@ -348,7 +355,7 @@ send_certificate_list (
 			goto retry;
 		}
 
-		if ((key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL) {
+		if ((key_hexgrip = keyinfo_get_hexgrip (sexp)) == NULL) {
 			error = GPG_ERR_ENOMEM;
 			goto retry;
 		}
@@ -621,7 +628,7 @@ int _get_certificate_by_name (assuan_context_t ctx, const char *name, int typehi
 			goto cleanup;
 		}
 
-		if ((key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL) {
+		if ((key_hexgrip = keyinfo_get_hexgrip (sexp)) == NULL) {
 			error = GPG_ERR_ENOMEM;
 			goto cleanup;
 		}
@@ -945,7 +952,7 @@ gpg_error_t cmd_readkey (assuan_context_t ctx, char *line)
 			goto cleanup;
 		}
 		if (
-			(key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL ||
+			(key_hexgrip = keyinfo_get_hexgrip (sexp)) == NULL ||
 			(keypairinfo = strdup (key_hexgrip)) == NULL ||
 			!encoding_strappend (&keypairinfo, " ") ||
 			!encoding_strappend (&keypairinfo, ser)
@@ -1692,7 +1699,7 @@ gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
 			goto retry;
 		}
 
-		if ((key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL) {
+		if ((key_hexgrip = keyinfo_get_hexgrip (sexp)) == NULL) {
 			error = GPG_ERR_ENOMEM;
 			goto retry;
 		}
@@ -1970,11 +1977,11 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
-	keyutil_keyinfo_t keyinfo;
+	keyinfo keyinfo;
+	keyinfo_data_list key_parts, curr_key_part;
 	unsigned char *n_hex = NULL;
 	unsigned char *e_hex = NULL;
-	char *n_resp = strdup ("n ");
-	char *e_resp = strdup ("e ");
+	char *part_resp = NULL;
 	unsigned char *blob = NULL;
 	char *serial = NULL;
 	const char *key = NULL;
@@ -1988,7 +1995,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 		{NULL, 0, NULL, NULL}
 	};
 
-	keyutil_keyinfo_init(&keyinfo, KEYUTIL_KEY_TYPE_UNKNOWN);
+	keyinfo = keyinfo_new();
 
 	l = strgetopt_getopt(line, options);
 
@@ -2045,75 +2052,59 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 			&blob,
 			&blob_size
 		)) != GPG_ERR_NO_ERROR ||
-		(error = keyutil_get_cert_mpi (
+		(error = keyinfo_from_der(
+			keyinfo,
 			blob,
-			blob_size,
-			&keyinfo
+			blob_size
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
 	}
 
-	switch (keyinfo.type) {
-		case KEYUTIL_KEY_TYPE_RSA:
-			if (
-				gcry_mpi_aprint (
-					GCRYMPI_FMT_HEX,
-					&n_hex,
-					NULL,
-					keyinfo.data.rsa.n
-				) ||
-				gcry_mpi_aprint (
-					GCRYMPI_FMT_HEX,
-					&e_hex,
-					NULL,
-					keyinfo.data.rsa.e
-				)
-			) {
-				error = GPG_ERR_BAD_KEY;
-				goto cleanup;
-			}
+	key_parts = keyinfo_get_key_data(keyinfo);
 
-			if (
-				!encoding_strappend (&n_resp, (char *)n_hex) ||
-				!encoding_strappend (&e_resp, (char *)e_hex)
-			) {
-				error = GPG_ERR_ENOMEM;
-				goto cleanup;
-			}
-
-			if (
-				(error = assuan_write_status(
-					ctx,
-					"KEY-DATA",
-					n_resp
-				)) != GPG_ERR_NO_ERROR
-			) {
-				goto cleanup;
-			}
-
-			if (
-				(error = assuan_write_status(
-					ctx,
-					"KEY-DATA",
-					e_resp
-				)) != GPG_ERR_NO_ERROR
-			) {
-				goto cleanup;
-			}
-			break;
-		case KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE:
-			/* XXX:TODO */
+	for (curr_key_part = key_parts; curr_key_part != NULL; curr_key_part = curr_key_part->next) {
+		part_resp = strdup("");
+		if (
+			!encoding_strappend (&part_resp, (char *) curr_key_part->tag) ||
+			!encoding_strappend (&part_resp, (char *) " ") ||
+			!encoding_strappend (&part_resp, (char *) curr_key_part->value)
+		) {
+			error = GPG_ERR_ENOMEM;
 			goto cleanup;
-		case KEYUTIL_KEY_TYPE_UNKNOWN:
+		}
+
+		if (
+			(error = assuan_write_status(
+				ctx,
+				(char *) curr_key_part->type,
+				part_resp
+			)) != GPG_ERR_NO_ERROR
+		) {
 			goto cleanup;
+		}
+
+		free(part_resp);
+		part_resp = NULL;
 	}
 
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
 
-	keyutil_keyinfo_free(&keyinfo);
+	if (part_resp != NULL) {
+		free(part_resp);
+	}
+
+	if (key_parts != NULL) {
+		keyinfo_data_free(key_parts);
+		key_parts = NULL;
+	}
+
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
+		keyinfo = NULL;
+	}
 
 	if (n_hex != NULL) {
 		gcry_free (n_hex);
@@ -2123,16 +2114,6 @@ cleanup:
 	if (e_hex != NULL) {
 		gcry_free (e_hex);
 		e_hex = NULL;
-	}
-
-	if (n_resp != NULL) {
-		free (n_resp);
-		n_resp = NULL;
-	}
-
-	if (e_resp != NULL) {
-		free (e_resp);
-		e_resp = NULL;
 	}
 
 	if (blob != NULL) {
