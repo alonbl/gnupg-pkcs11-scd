@@ -31,12 +31,35 @@
 #ifndef __KEYUTIL_H
 #define __KEYUTIL_H
 
+#include "common.h"
+
+typedef enum {
+	KEYUTIL_KEY_TYPE_UNKNOWN,
+	KEYUTIL_KEY_TYPE_RSA,
+	KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE
+} keyutil_key_type_t;
+
+typedef struct {
+	keyutil_key_type_t type;
+	union {
+		struct {
+			gcry_mpi_t n;
+			gcry_mpi_t e;
+		} rsa;
+
+		struct {
+			gcry_mpi_t q;
+			char *named_curve;
+			int named_curve_free;
+		} ecdsa;
+	} data;
+} keyutil_keyinfo_t;
+
 gpg_err_code_t
 keyutil_get_cert_mpi (
 	unsigned char *der,
 	size_t len,
-	gcry_mpi_t *p_n_mpi,
-	gcry_mpi_t *p_e_mpi
+	keyutil_keyinfo_t *key_info
 );
 
 gpg_err_code_t
@@ -47,5 +70,7 @@ keyutil_get_cert_sexp (
 );
 
 char *keyutil_get_cert_hexgrip (gcry_sexp_t sexp);
+void keyutil_keyinfo_init(keyutil_keyinfo_t *keyinfo, keyutil_key_type_t keytype);
+void keyutil_keyinfo_free(keyutil_keyinfo_t *keyinfo);
 
 #endif

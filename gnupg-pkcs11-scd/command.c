@@ -1966,8 +1966,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
-	gcry_mpi_t n_mpi = NULL;
-	gcry_mpi_t e_mpi = NULL;
+	keyutil_keyinfo_t keyinfo;
 	unsigned char *n_hex = NULL;
 	unsigned char *e_hex = NULL;
 	char *n_resp = strdup ("n ");
@@ -1984,6 +1983,8 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 		{"timestamp", strgtopt_required_argument, &timestamp, NULL},
 		{NULL, 0, NULL, NULL}
 	};
+
+	keyutil_keyinfo_init(&keyinfo, KEYUTIL_KEY_TYPE_UNKNOWN);
 
 	l = strgetopt_getopt(line, options);
 
@@ -2043,72 +2044,72 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 		(error = keyutil_get_cert_mpi (
 			blob,
 			blob_size,
-			&n_mpi,
-			&e_mpi
+			&keyinfo
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
 	}
 
-	if (
-		gcry_mpi_aprint (
-			GCRYMPI_FMT_HEX,
-			&n_hex,
-			NULL,
-			n_mpi
-		) ||
-		gcry_mpi_aprint (
-			GCRYMPI_FMT_HEX,
-			&e_hex,
-			NULL,
-			e_mpi
-		)
-	) {
-		error = GPG_ERR_BAD_KEY;
-		goto cleanup;
-	}
+	switch (keyinfo.type) {
+		case KEYUTIL_KEY_TYPE_RSA:
+			if (
+				gcry_mpi_aprint (
+					GCRYMPI_FMT_HEX,
+					&n_hex,
+					NULL,
+					keyinfo.data.rsa.n
+				) ||
+				gcry_mpi_aprint (
+					GCRYMPI_FMT_HEX,
+					&e_hex,
+					NULL,
+					keyinfo.data.rsa.e
+				)
+			) {
+				error = GPG_ERR_BAD_KEY;
+				goto cleanup;
+			}
 
-	if (
-		!encoding_strappend (&n_resp, (char *)n_hex) ||
-		!encoding_strappend (&e_resp, (char *)e_hex)
-	) {
-		error = GPG_ERR_ENOMEM;
-		goto cleanup;
-	}
+			if (
+				!encoding_strappend (&n_resp, (char *)n_hex) ||
+				!encoding_strappend (&e_resp, (char *)e_hex)
+			) {
+				error = GPG_ERR_ENOMEM;
+				goto cleanup;
+			}
 
-	if (
-		(error = assuan_write_status(
-			ctx,
-			"KEY-DATA",
-			n_resp
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
-	}
+			if (
+				(error = assuan_write_status(
+					ctx,
+					"KEY-DATA",
+					n_resp
+				)) != GPG_ERR_NO_ERROR
+			) {
+				goto cleanup;
+			}
 
-	if (
-		(error = assuan_write_status(
-			ctx,
-			"KEY-DATA",
-			e_resp
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
+			if (
+				(error = assuan_write_status(
+					ctx,
+					"KEY-DATA",
+					e_resp
+				)) != GPG_ERR_NO_ERROR
+			) {
+				goto cleanup;
+			}
+			break;
+		case KEYUTIL_KEY_TYPE_ECDSA_NAMED_CURVE:
+			/* XXX:TODO */
+			goto cleanup;
+		case KEYUTIL_KEY_TYPE_UNKNOWN:
+			goto cleanup;
 	}
 
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
 
-	if (n_mpi != NULL) {
-		gcry_mpi_release (n_mpi);
-		n_mpi = NULL;
-	}
-
-	if (e_mpi != NULL) {
-		gcry_mpi_release (e_mpi);
-		e_mpi = NULL;
-	}
+	keyutil_keyinfo_free(&keyinfo);
 
 	if (n_hex != NULL) {
 		gcry_free (n_hex);
