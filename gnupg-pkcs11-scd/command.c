@@ -30,6 +30,7 @@
 
 #include "common.h"
 #include "strgetopt.h"
+#include <pkcs11-helper-1.0/pkcs11.h>
 #include <pkcs11-helper-1.0/pkcs11h-token.h>
 #include <pkcs11-helper-1.0/pkcs11h-certificate.h>
 #include "command.h"
@@ -141,25 +142,64 @@ cleanup:
 
 static
 gpg_err_code_t
+get_cert_keyinfo (
+	assuan_context_t ctx,
+	pkcs11h_certificate_id_t cert_id,
+	keyinfo *p_keyinfo
+) {
+	gpg_err_code_t error = GPG_ERR_GENERAL;
+	keyinfo keyinfo;
+	unsigned char *blob = NULL;
+	size_t blob_size;
+
+	*p_keyinfo = NULL;
+	keyinfo = keyinfo_new();
+
+	if (
+		(error = get_cert_blob (ctx, cert_id, &blob, &blob_size)) != GPG_ERR_NO_ERROR ||
+		(error = keyinfo_from_der (keyinfo, blob, blob_size)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	*p_keyinfo = keyinfo;
+	keyinfo = NULL;
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
+
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
+	}
+
+	if (blob != NULL) {
+		free (blob);
+		blob = NULL;
+	}
+
+	return error;
+}
+
+static
+gpg_err_code_t
 get_cert_sexp (
 	assuan_context_t ctx,
 	pkcs11h_certificate_id_t cert_id,
 	gcry_sexp_t *p_sexp
 ) {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
-	gcry_sexp_t sexp = NULL;
 	keyinfo keyinfo = NULL;
-	unsigned char *blob = NULL;
-	size_t blob_size;
+	gcry_sexp_t sexp;
 
-	*p_sexp = NULL;
-	keyinfo = keyinfo_new();
+	error = get_cert_keyinfo(ctx, cert_id, &keyinfo);
+	if (error != GPG_ERR_NO_ERROR) {
+		goto cleanup;
+	}
 
-	if (
-		(error = get_cert_blob (ctx, cert_id, &blob, &blob_size)) != GPG_ERR_NO_ERROR ||
-		(error = keyinfo_from_der (keyinfo, blob, blob_size)) != GPG_ERR_NO_ERROR ||
-		(sexp = keyinfo_to_sexp(keyinfo)) == NULL
-	) {
+	sexp = keyinfo_to_sexp(keyinfo);
+	if (sexp == NULL) {
+		error = GPG_ERR_GENERAL;
 		goto cleanup;
 	}
 
@@ -177,11 +217,6 @@ cleanup:
 
 	if (keyinfo != NULL) {
 		keyinfo_free(keyinfo);
-	}
-
-	if (blob != NULL) {
-		free (blob);
-		blob = NULL;
 	}
 
 	return error;
@@ -1075,31 +1110,52 @@ cleanup:
 	return gpg_error (error);
 }
 
+static CK_RV _pkcs11_keyinfo_mechanism(keyinfo keyinfo, CK_MECHANISM_TYPE_PTR pkcs11_mechanism) {
+	if (keyinfo == NULL) {
+		return(CKR_ARGUMENTS_BAD);
+	}
+
+	switch (keyinfo_get_type(keyinfo)) {
+		case KEYINFO_KEY_TYPE_RSA:
+			*pkcs11_mechanism = CKM_RSA_PKCS;
+			return(CKR_OK);
+		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
+			*pkcs11_mechanism = CKM_ECDSA;
+			return(CKR_OK);
+		case KEYINFO_KEY_TYPE_UNKNOWN:
+			return(CKR_GENERAL_ERROR);
+		case KEYINFO_KEY_TYPE_INVALID:
+			abort();
+	}
+
+	return(CKR_GENERAL_ERROR);
+}
+
 static
 gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 {
-	static const unsigned char rmd160_prefix[] = /* (1.3.36.3.2.1) */
+	static const unsigned char rmd160_prefix_pkcs1[] = /* (1.3.36.3.2.1) */
 		{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x24, 0x03,
 		0x02, 0x01, 0x05, 0x00, 0x04, 0x14  };
-	static const unsigned char md5_prefix[] =   /* (1.2.840.113549.2.5) */
+	static const unsigned char md5_prefix_pkcs1[] =   /* (1.2.840.113549.2.5) */
 		{ 0x30, 0x2c, 0x30, 0x09, 0x06, 0x08, 0x2a, 0x86, 0x48,
 		0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10  };
-	static const unsigned char sha1_prefix[] =   /* (1.3.14.3.2.26) */
+	static const unsigned char sha1_prefix_pkcs1[] =   /* (1.3.14.3.2.26) */
 		{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
 		0x02, 0x1a, 0x05, 0x00, 0x04, 0x14  };
-	static const unsigned char sha224_prefix[] = /* (2.16.840.1.101.3.4.2.4) */
+	static const unsigned char sha224_prefix_pkcs1[] = /* (2.16.840.1.101.3.4.2.4) */
 		{ 0x30, 0x2D, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
 		0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04,
 		0x1C  };
-	static const unsigned char sha256_prefix[] = /* (2.16.840.1.101.3.4.2.1) */
+	static const unsigned char sha256_prefix_pkcs1[] = /* (2.16.840.1.101.3.4.2.1) */
 		{ 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
 		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
 		0x00, 0x04, 0x20  };
-	static const unsigned char sha384_prefix[] = /* (2.16.840.1.101.3.4.2.2) */
+	static const unsigned char sha384_prefix_pkcs1[] = /* (2.16.840.1.101.3.4.2.2) */
 		{ 0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
 		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05,
 		0x00, 0x04, 0x30  };
-	static const unsigned char sha512_prefix[] = /* (2.16.840.1.101.3.4.2.3) */
+	static const unsigned char sha512_prefix_pkcs1[] = /* (2.16.840.1.101.3.4.2.3) */
 		{ 0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
 		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05,
 		0x00, 0x04, 0x40  };
@@ -1111,6 +1167,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	cmd_data_t *_data = data;
 	int need_free__data = 0;
 	int session_locked = 0;
+	keyinfo keyinfo = NULL;
 	unsigned char *sig = NULL;
 	size_t sig_len;
 	enum {
@@ -1123,6 +1180,8 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		INJECT_SHA384,
 		INJECT_SHA512
 	} inject = INJECT_NONE;
+	CK_MECHANISM_TYPE pkcs11_mechanism;
+	int use_pkcs1;
 	char *hash = NULL;
 	const char *l;
 	const struct strgetopt_option options[] = {
@@ -1141,94 +1200,136 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
-	/*
-	 * sender prefixed data with algorithm OID
-	 */
-	if (hash != NULL) {
-		if (!strcmp(hash, "rmd160") && data->size == (0x14 + sizeof(rmd160_prefix)) &&
-			!memcmp (data->data, rmd160_prefix, sizeof (rmd160_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "rmd160") && data->size == 0x14) {
-			inject = INJECT_RMD160;
-		}
-		else if (!strcmp(hash, "md5") && data->size == (0x10 + sizeof(md5_prefix)) &&
-			!memcmp (data->data, md5_prefix, sizeof (md5_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "md5") && data->size == 0x10) {
-			inject = INJECT_MD5;
-		}
-		else if (!strcmp(hash, "sha1") && data->size == (0x14 + sizeof(sha1_prefix)) &&
-			!memcmp (data->data, sha1_prefix, sizeof (sha1_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha1") && data->size == 0x14) {
-			inject = INJECT_SHA1;
-		}
-		else if (!strcmp(hash, "sha224") && data->size == (0x1c + sizeof(sha224_prefix)) &&
-			!memcmp (data->data, sha224_prefix, sizeof (sha224_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha224") && data->size == 0x1c) {
-			inject = INJECT_SHA224;
-		}
-		else if (!strcmp(hash, "sha256") && data->size == (0x20 + sizeof(sha256_prefix)) &&
-			!memcmp (data->data, sha256_prefix, sizeof (sha256_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha256") && data->size == 0x20) {
-			inject = INJECT_SHA256;
-		}
-		else if (!strcmp(hash, "sha384") && data->size == (0x30 + sizeof(sha384_prefix)) &&
-			!memcmp (data->data, sha384_prefix, sizeof (sha384_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha384") && data->size == 0x30) {
-			inject = INJECT_SHA384;
-		}
-		else if (!strcmp(hash, "sha512") && data->size == (0x40 + sizeof(sha512_prefix)) &&
-			!memcmp (data->data, sha512_prefix, sizeof (sha512_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha512") && data->size == 0x40) {
-			inject = INJECT_SHA512;
-		}
-		else {
-			common_log (LOG_DEBUG, "unsupported hash algo (hash=%s,size=%d)", hash, data->size);
-			error = GPG_ERR_UNSUPPORTED_ALGORITHM;
-			goto cleanup;
-		}
+
+	if (
+		(error = _get_certificate_by_name (
+			ctx,
+			l,
+			typehint,
+			&cert_id,
+			NULL
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
-	else {
-		if (
-			data->size == 0x10 + sizeof (md5_prefix) ||
-			data->size == 0x14 + sizeof (sha1_prefix) ||
-			data->size == 0x14 + sizeof (rmd160_prefix)
-		) {
-			if (
-				memcmp (data->data, md5_prefix, sizeof (md5_prefix)) &&
-				memcmp (data->data, sha1_prefix, sizeof (sha1_prefix)) &&
-				memcmp (data->data, rmd160_prefix, sizeof (rmd160_prefix))
-			) {
+
+	if (
+		(error = get_cert_keyinfo(ctx, cert_id, &keyinfo)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if (_pkcs11_keyinfo_mechanism(keyinfo, &pkcs11_mechanism) != CKR_OK) {
+		goto cleanup;
+	}
+
+	switch (pkcs11_mechanism) {
+		case CKM_RSA_PKCS:
+			use_pkcs1 = 1;
+			break;
+		case CKM_ECDSA:
+			use_pkcs1 = 0;
+			break;
+		default:
+			error = GPG_ERR_BAD_KEY;
+			goto cleanup;
+	}
+
+	if (use_pkcs1) {
+		/* Use PKCS1 framing if required by the mechanism */
+
+		/*
+		 * sender prefixed data with algorithm OID
+		 */
+		if (hash != NULL) {
+			if (!strcmp(hash, "rmd160") && data->size == (0x14 + sizeof(rmd160_prefix_pkcs1)) &&
+				!memcmp (data->data, rmd160_prefix_pkcs1, sizeof (rmd160_prefix_pkcs1))) {
+				inject = INJECT_NONE;
+			}
+			else if (!strcmp(hash, "rmd160") && data->size == 0x14) {
+				inject = INJECT_RMD160;
+			}
+			else if (!strcmp(hash, "md5") && data->size == (0x10 + sizeof(md5_prefix_pkcs1)) &&
+				!memcmp (data->data, md5_prefix_pkcs1, sizeof (md5_prefix_pkcs1))) {
+				inject = INJECT_NONE;
+			}
+			else if (!strcmp(hash, "md5") && data->size == 0x10) {
+				inject = INJECT_MD5;
+			}
+			else if (!strcmp(hash, "sha1") && data->size == (0x14 + sizeof(sha1_prefix_pkcs1)) &&
+				!memcmp (data->data, sha1_prefix_pkcs1, sizeof (sha1_prefix_pkcs1))) {
+				inject = INJECT_NONE;
+			}
+			else if (!strcmp(hash, "sha1") && data->size == 0x14) {
+				inject = INJECT_SHA1;
+			}
+			else if (!strcmp(hash, "sha224") && data->size == (0x1c + sizeof(sha224_prefix_pkcs1)) &&
+				!memcmp (data->data, sha224_prefix_pkcs1, sizeof (sha224_prefix_pkcs1))) {
+				inject = INJECT_NONE;
+			}
+			else if (!strcmp(hash, "sha224") && data->size == 0x1c) {
+				inject = INJECT_SHA224;
+			}
+			else if (!strcmp(hash, "sha256") && data->size == (0x20 + sizeof(sha256_prefix_pkcs1)) &&
+				!memcmp (data->data, sha256_prefix_pkcs1, sizeof (sha256_prefix_pkcs1))) {
+				inject = INJECT_NONE;
+			}
+			else if (!strcmp(hash, "sha256") && data->size == 0x20) {
+				inject = INJECT_SHA256;
+			}
+			else if (!strcmp(hash, "sha384") && data->size == (0x30 + sizeof(sha384_prefix_pkcs1)) &&
+				!memcmp (data->data, sha384_prefix_pkcs1, sizeof (sha384_prefix_pkcs1))) {
+				inject = INJECT_NONE;
+			}
+			else if (!strcmp(hash, "sha384") && data->size == 0x30) {
+				inject = INJECT_SHA384;
+			}
+			else if (!strcmp(hash, "sha512") && data->size == (0x40 + sizeof(sha512_prefix_pkcs1)) &&
+				!memcmp (data->data, sha512_prefix_pkcs1, sizeof (sha512_prefix_pkcs1))) {
+				inject = INJECT_NONE;
+			}
+			else if (!strcmp(hash, "sha512") && data->size == 0x40) {
+				inject = INJECT_SHA512;
+			}
+			else {
+				common_log (LOG_DEBUG, "unsupported hash algo (hash=%s,size=%d)", hash, data->size);
 				error = GPG_ERR_UNSUPPORTED_ALGORITHM;
 				goto cleanup;
 			}
 		}
 		else {
-			/*
-			 * unknown hash algorithm;
-			 * gnupg's scdaemon forces to SHA1
-			 */
-			inject = INJECT_SHA1;
+			if (
+				data->size == 0x10 + sizeof (md5_prefix_pkcs1) ||
+				data->size == 0x14 + sizeof (sha1_prefix_pkcs1) ||
+				data->size == 0x14 + sizeof (rmd160_prefix_pkcs1)
+			) {
+				if (
+					memcmp (data->data, md5_prefix_pkcs1, sizeof (md5_prefix_pkcs1)) &&
+					memcmp (data->data, sha1_prefix_pkcs1, sizeof (sha1_prefix_pkcs1)) &&
+					memcmp (data->data, rmd160_prefix_pkcs1, sizeof (rmd160_prefix_pkcs1))
+				) {
+					error = GPG_ERR_UNSUPPORTED_ALGORITHM;
+					goto cleanup;
+				}
+			}
+			else {
+				/*
+				 * unknown hash algorithm;
+				 * gnupg's scdaemon forces to SHA1
+				 */
+				inject = INJECT_SHA1;
 
-			/* When doing auth operation, hash algorithm prefix detection does not work
-			 * but data always comes with algorithm appended, so do not append anything
-			 * by default. */
-			if (typehint == OPENPGP_AUTH) {
-				inject = INJECT_NONE;
+				/* When doing auth operation, hash algorithm prefix detection does not work
+				 * but data always comes with algorithm appended, so do not append anything
+				 * by default. */
+				if (typehint == OPENPGP_AUTH) {
+					inject = INJECT_NONE;
+				}
 			}
 		}
+	} else {
+		/* Non-PKCS1 does not inject anything */
+		inject = INJECT_NONE;
 	}
 
 	if (inject != INJECT_NONE) {
@@ -1236,32 +1337,32 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		size_t oid_size;
 		switch (inject) {
 			case INJECT_RMD160:
-				oid = rmd160_prefix;
-				oid_size = sizeof (rmd160_prefix);
+				oid = rmd160_prefix_pkcs1;
+				oid_size = sizeof (rmd160_prefix_pkcs1);
 			break;
 			case INJECT_MD5:
-				oid = md5_prefix;
-				oid_size = sizeof (md5_prefix);
+				oid = md5_prefix_pkcs1;
+				oid_size = sizeof (md5_prefix_pkcs1);
 			break;
 			case INJECT_SHA1:
-				oid = sha1_prefix;
-				oid_size = sizeof (sha1_prefix);
+				oid = sha1_prefix_pkcs1;
+				oid_size = sizeof (sha1_prefix_pkcs1);
 			break;
 			case INJECT_SHA224:
-				oid = sha224_prefix;
-				oid_size = sizeof (sha224_prefix);
+				oid = sha224_prefix_pkcs1;
+				oid_size = sizeof (sha224_prefix_pkcs1);
 			break;
 			case INJECT_SHA256:
-				oid = sha256_prefix;
-				oid_size = sizeof(sha256_prefix);
+				oid = sha256_prefix_pkcs1;
+				oid_size = sizeof(sha256_prefix_pkcs1);
 			break;
 			case INJECT_SHA384:
-				oid = sha384_prefix;
-				oid_size = sizeof(sha384_prefix);
+				oid = sha384_prefix_pkcs1;
+				oid_size = sizeof(sha384_prefix_pkcs1);
 			break;
 			case INJECT_SHA512:
-				oid = sha512_prefix;
-				oid_size = sizeof(sha512_prefix);
+				oid = sha512_prefix_pkcs1;
+				oid_size = sizeof(sha512_prefix_pkcs1);
 			break;
 			default:
 				error = GPG_ERR_INV_DATA;
@@ -1285,18 +1386,6 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		_data->size += oid_size;
 		memmove (_data->data+_data->size, data->data, data->size);
 		_data->size += data->size;
-	}
-
-	if (
-		(error = _get_certificate_by_name (
-			ctx,
-			l,
-			typehint,
-			&cert_id,
-			NULL
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
 	}
 
 	if (
@@ -1326,7 +1415,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_signAny (
 				cert,
-				CKM_RSA_PKCS,
+				pkcs11_mechanism,
 				_data->data,
 				_data->size,
 				NULL,
@@ -1346,7 +1435,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_signAny (
 				cert,
-				CKM_RSA_PKCS,
+				pkcs11_mechanism,
 				_data->data,
 				_data->size,
 				sig,
@@ -1375,6 +1464,11 @@ cleanup:
 	if (cert_id != NULL) {
 		pkcs11h_certificate_freeCertificateId (cert_id);
 		cert_id = NULL;
+	}
+
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
+		keyinfo = NULL;
 	}
 
 	if (sig != NULL) {
@@ -1487,7 +1581,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_decryptAny (
 				cert,
-				CKM_RSA_PKCS, 
+				CKM_RSA_PKCS,
 				_data.data,
 				_data.size,
 				NULL,
@@ -1507,7 +1601,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_decryptAny (
 				cert,
-				CKM_RSA_PKCS, 
+				CKM_RSA_PKCS,
 				_data.data,
 				_data.size,
 				ptext,
