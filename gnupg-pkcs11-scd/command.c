@@ -496,6 +496,7 @@ send_certificate_list (
 
 		if (sexp != NULL) {
 			gcry_sexp_release (sexp);
+			sexp = NULL;
 		}
 
 		if (info_cert != NULL) {
