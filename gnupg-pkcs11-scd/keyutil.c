@@ -40,13 +40,6 @@
 #include "encoding.h"
 #include "keyutil.h"
 
-#if defined(ENABLE_OPENSSL)
-#if OPENSSL_VERSION_NUMBER < 0x00908000L
-typedef unsigned char *my_openssl_d2i_t;
-#else
-typedef const unsigned char *my_openssl_d2i_t;
-#endif
-
 struct keyinfo_s {
 	keyinfo_key_type_t type;
 	union {
@@ -148,6 +141,13 @@ keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo) {
 
 	return(keyinfo->type);
 }
+
+#if defined(ENABLE_OPENSSL)
+#if OPENSSL_VERSION_NUMBER < 0x00908000L
+typedef unsigned char *my_openssl_d2i_t;
+#else
+typedef const unsigned char *my_openssl_d2i_t;
+#endif
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
 static void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const BIGNUM **d) {
