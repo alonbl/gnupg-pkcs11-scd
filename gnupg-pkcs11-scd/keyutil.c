@@ -163,8 +163,8 @@ static void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const
 }
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
-static int EVP_PKEY_get_base_id(const EVP_PKEY *pkey) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20500030L)
+static int EVP_PKEY_base_id(const EVP_PKEY *pkey) {
 	return(EVP_PKEY_type(pkey->type));
 }
 #endif
@@ -256,11 +256,11 @@ keyinfo_from_der(
 		goto cleanup;
 	}
 
-	if (EVP_PKEY_get_base_id(pubkey) == EVP_PKEY_EC) {
+	if (EVP_PKEY_base_id(pubkey) == EVP_PKEY_EC) {
 		keyinfo_init(keyinfo, KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE);
 	}
 
-	if (EVP_PKEY_get_base_id(pubkey) == EVP_PKEY_RSA) {
+	if (EVP_PKEY_base_id(pubkey) == EVP_PKEY_RSA) {
 		keyinfo_init(keyinfo, KEYINFO_KEY_TYPE_RSA);
 	}
 
