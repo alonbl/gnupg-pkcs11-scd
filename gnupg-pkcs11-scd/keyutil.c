@@ -353,7 +353,7 @@ keyinfo_from_der(
 			error = GPG_ERR_NO_ERROR;
 			break;
 		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
-			keyinfo->data.ecdsa.named_curve = "prime256v1"; /* XXX:TODO */
+			keyinfo->data.ecdsa.named_curve = "NIST P-256"; /* XXX:TODO */
 			keyinfo->data.ecdsa.named_curve_free = 0;
 
 			keyinfo->data.ecdsa.q = q_mpi;
@@ -577,9 +577,7 @@ struct curve_info_map_s {
 static struct curve_info_map_s curve_info_map[] = {
 	/* secp256r1 */
 	{"NIST P-256", "082A8648CE3D030107"},
-	{"secp256r1", "082A8648CE3D030107"},
 	{"nistp256", "082A8648CE3D030107"},
-	{"prime256v1", "082A8648CE3D030107"},
 	{"1.2.840.10045.3.1.7", "082A8648CE3D030107"},
 
 	/* secp256k1 */
