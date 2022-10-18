@@ -1979,7 +1979,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
 	keyinfo keyinfo;
-	keyinfo_data_list key_parts, curr_key_part;
+	keyinfo_data_list key_parts = NULL, curr_key_part;
 	unsigned char *n_hex = NULL;
 	unsigned char *e_hex = NULL;
 	char *part_resp = NULL;
