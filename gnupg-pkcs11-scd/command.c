@@ -2007,7 +2007,7 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 
 	if (timestamp == NULL) {
 		sprintf (_timestamp, "%d", (int)time (NULL));
-		timestamp = _timestamp;
+		timestamp = strdup(_timestamp);
 	}
 
 	if (
