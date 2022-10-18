@@ -583,7 +583,7 @@ static struct curve_info_map_s curve_info_map[] = {
 	{"1.2.840.10045.3.1.7", "082A8648CE3D030107"},
 
 	/* secp256k1 */
-	{"secp256k1", "052b8104000a"},
+	{"secp256k1", "052B8104000A"},
 	{"1.3.132.0.10", "052B8104000A"},
 
 	/* Terminator */
