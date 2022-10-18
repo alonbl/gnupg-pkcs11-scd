@@ -571,14 +571,22 @@ struct curve_info_map_s {
 /**
  * Mapping of libgcrypt supported Curve names (found
  * https://www.gnupg.org/documentation/manuals/gcrypt/ECC-key-parameters.html)
- * to GnuPG SCD protocol Curve names (found ???)
+ * to GnuPG SCD protocol Curve value which is the DER-encoded OID minus the
+ * tag (byte 0x06)
  */
 static struct curve_info_map_s curve_info_map[] = {
-	{"NIST P-256", "???"},
-	{"secp256r1", "???"},
-	{"nistp256", "???"},
-	{"prime256v1", "???"},
-	{"1.2.840.10045.3.1.7", "???"},
+	/* secp256r1 */
+	{"NIST P-256", "082A8648CE3D030107"},
+	{"secp256r1", "082A8648CE3D030107"},
+	{"nistp256", "082A8648CE3D030107"},
+	{"prime256v1", "082A8648CE3D030107"},
+	{"1.2.840.10045.3.1.7", "082A8648CE3D030107"},
+
+	/* secp256k1 */
+	{"secp256k1", "052b8104000a"},
+	{"1.3.132.0.10", "052B8104000A"},
+
+	/* Terminator */
 	{NULL, NULL}
 };
 
