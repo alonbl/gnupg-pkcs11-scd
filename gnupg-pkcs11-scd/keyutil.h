@@ -46,8 +46,10 @@ typedef struct keyinfo_s *keyinfo;
 struct keyinfo_data_list_s {
 	struct keyinfo_data_list_s *next;
 	unsigned char *type;
-	unsigned char *value;
 	unsigned char *tag;
+	unsigned char *value;
+	void (*value_free)(void *);
+	void (*tag_free)(void *);
 };
 typedef struct keyinfo_data_list_s *keyinfo_data_list;
 

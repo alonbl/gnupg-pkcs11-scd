@@ -544,6 +544,18 @@ void keyinfo_data_free(keyinfo_data_list list) {
 	for (curr = list; curr != NULL; curr = next) {
 		next = curr->next;
 
+		if (curr->value != NULL) {
+			if (curr->value_free != NULL) {
+				curr->value_free(curr->value);
+			}
+		}
+
+		if (curr->tag != NULL) {
+			if (curr->tag_free != NULL) {
+				curr->tag_free(curr->tag);
+			}
+		}
+
 		free(curr);
 	}
 }
@@ -588,6 +600,9 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 			e_item->type = (unsigned char *) "KEY-DATA";
 			e_item->tag = (unsigned char *) "e";
 			e_item->value = e_hex;
+			e_item->value_free = gcry_free;
+			e_item->tag_free = NULL;
+			e_hex = NULL;
 
 			n_item = malloc(sizeof(*n_item));
 			if (n_item == NULL) {
@@ -595,8 +610,11 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 			}
 			n_item->next = e_item;
 			n_item->type = (unsigned char *) "KEY-DATA";
-			e_item->tag = (unsigned char *) "n";
+			n_item->tag = (unsigned char *) "n";
 			n_item->value = n_hex;
+			n_item->value_free = gcry_free;
+			n_item->tag_free = NULL;
+			n_hex = NULL;
 
 			first = n_item;
 			n_item = NULL;
