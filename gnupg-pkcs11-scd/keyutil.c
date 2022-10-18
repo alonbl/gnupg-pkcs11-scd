@@ -163,6 +163,12 @@ static void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const
 }
 #endif
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L || defined(LIBRESSL_VERSION_NUMBER)
+static int EVP_PKEY_get_base_id(const EVP_PKEY *pkey) {
+	return(EVP_PKEY_type(pkey->type));
+}
+#endif
+
 #endif
 
 /**
