@@ -284,21 +284,21 @@ keyinfo_from_der(
 			}
 			break;
 		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
-			/* Warning: EVP_PKEY_get1_EC_KEY is depreacted in OpenSSL 3.0 */
+			/* Warning: EVP_PKEY_get1_EC_KEY is deprecated in OpenSSL 3.0 */
 			ec_key = EVP_PKEY_get1_EC_KEY(pubkey);
 			if (ec_key == NULL) {
 				error = GPG_ERR_BAD_KEY;
 				goto cleanup;
 			}
 
-			/* Warning: EC_KEY_get0_public_key is depreacted in OpenSSL 3.0 */
+			/* Warning: EC_KEY_get0_public_key is deprecated in OpenSSL 3.0 */
 			ec_pubkey = EC_KEY_get0_public_key(ec_key);
 			if (ec_pubkey == NULL) {
 				error = GPG_ERR_BAD_KEY;
 				goto cleanup;
 			}
 
-			/* Warning: EC_KEY_get0_group is depreacted in OpenSSL 3.0 */
+			/* Warning: EC_KEY_get0_group is deprecated in OpenSSL 3.0 */
 			ec_group = EC_KEY_get0_group(ec_key);
 			if (ec_group == NULL) {
 				error = GPG_ERR_BAD_KEY;
