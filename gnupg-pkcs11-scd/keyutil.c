@@ -35,6 +35,7 @@
 #if defined(ENABLE_OPENSSL)
 #include <openssl/x509.h>
 #include <openssl/rsa.h>
+#include <openssl/evp.h>
 #endif
 #include "encoding.h"
 #include "keyutil.h"
@@ -249,11 +250,11 @@ keyinfo_from_der(
 		goto cleanup;
 	}
 
-	if (EVP_PKEY_CTX_is_a(pubkey_ctx, "EC") == 1) {
+	if (EVP_PKEY_get_base_id(pubkey) == EVP_PKEY_EC) {
 		keyinfo_init(keyinfo, KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE);
 	}
 
-	if (EVP_PKEY_CTX_is_a(pubkey_ctx, "RSA") == 1) {
+	if (EVP_PKEY_get_base_id(pubkey) == EVP_PKEY_RSA) {
 		keyinfo_init(keyinfo, KEYINFO_KEY_TYPE_RSA);
 	}
 
