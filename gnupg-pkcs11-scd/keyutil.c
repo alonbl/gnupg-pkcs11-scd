@@ -560,10 +560,46 @@ void keyinfo_data_free(keyinfo_data_list list) {
 	}
 }
 
+/**
+ * Structure to hold mapping of libgcrypt supported Curve names to SCD protocol curve values
+ */
+struct curve_info_map_s {
+	char *curve_name;
+	char *curve_gpg_value;
+};
+
+/**
+ * Mapping of libgcrypt supported Curve names (found
+ * https://www.gnupg.org/documentation/manuals/gcrypt/ECC-key-parameters.html)
+ * to GnuPG SCD protocol Curve names (found ???)
+ */
+static struct curve_info_map_s curve_info_map[] = {
+	{"NIST P-256", "???"},
+	{"secp256r1", "???"},
+	{"nistp256", "???"},
+	{"prime256v1", "???"},
+	{"1.2.840.10045.3.1.7", "???"},
+	{NULL, NULL}
+};
+
+static unsigned char *_keyinfo_lookup_named_curve(const char *named_curve) {
+	struct curve_info_map_s *curr;
+
+	for (curr = curve_info_map; curr->curve_name != NULL; curr++) {
+		if (strcmp(curr->curve_name, named_curve) == 0) {
+			return((unsigned char *) curr->curve_gpg_value);
+		}
+	}
+
+	return(NULL);
+}
+
 keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
-	keyinfo_data_list first = NULL, n_item = NULL, e_item = NULL, q_item = NULL;
+	keyinfo_data_list first = NULL, n_item = NULL, e_item = NULL, q_item = NULL, curve_item = NULL;
 	unsigned char *n_hex = NULL;
 	unsigned char *e_hex = NULL;
+	unsigned char *q_hex = NULL;
+	unsigned char *curve_value = NULL;
 
 	if (keyinfo->type == KEYINFO_KEY_TYPE_INVALID) {
 		abort();
@@ -602,7 +638,6 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 			e_item->value = e_hex;
 			e_item->value_free = gcry_free;
 			e_item->tag_free = NULL;
-			e_hex = NULL;
 
 			n_item = malloc(sizeof(*n_item));
 			if (n_item == NULL) {
@@ -614,14 +649,58 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 			n_item->value = n_hex;
 			n_item->value_free = gcry_free;
 			n_item->tag_free = NULL;
-			n_hex = NULL;
 
 			first = n_item;
 			n_item = NULL;
 			e_item = NULL;
+			n_hex = NULL;
+			e_hex = NULL;
 
 			break;
 		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
+			if (
+				gcry_mpi_aprint (
+					GCRYMPI_FMT_HEX,
+					&q_hex,
+					NULL,
+					keyinfo->data.ecdsa.q
+				)
+			) {
+				break;
+			}
+
+			curve_item = malloc(sizeof(*curve_item));
+			if (curve_item == NULL) {
+				break;
+			}
+
+			curve_value = _keyinfo_lookup_named_curve(keyinfo->data.ecdsa.named_curve);
+			if (curve_value == NULL) {
+				break;
+			}
+
+			curve_item->next = NULL;
+			curve_item->type = (unsigned char *) "KEY-DATA";
+			curve_item->tag = (unsigned char *) "curve";
+			curve_item->value = curve_value;
+			curve_item->value_free = NULL;
+			curve_item->tag_free = NULL;
+
+			q_item = malloc(sizeof(*q_item));
+			if (q_item == NULL) {
+				break;
+			}
+			q_item->next = curve_item;
+			q_item->type = (unsigned char *) "KEY-DATA";
+			q_item->tag = (unsigned char *) "q";
+			q_item->value = q_hex;
+			q_item->value_free = gcry_free;
+			q_item->tag_free = NULL;
+
+			first = q_item;
+			q_item = NULL;
+			q_hex = NULL;
+			curve_value = NULL;
 			break;
 		case KEYINFO_KEY_TYPE_UNKNOWN:
 			break;
@@ -639,6 +718,11 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 		e_hex = NULL;
 	}
 
+	if (q_hex != NULL) {
+		gcry_free(q_hex);
+		q_hex = NULL;
+	}
+
 	if (n_item != NULL) {
 		free(n_item);
 		n_item = NULL;
@@ -649,9 +733,19 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 		e_item = NULL;
 	}
 
+	if (curve_value != NULL) {
+		free(curve_value);
+		curve_value = NULL;
+	}
+
 	if (q_item != NULL) {
 		free(q_item);
 		q_item = NULL;
+	}
+
+	if (curve_item != NULL) {
+		free(curve_item);
+		curve_item = NULL;
 	}
 
 	return(first);
