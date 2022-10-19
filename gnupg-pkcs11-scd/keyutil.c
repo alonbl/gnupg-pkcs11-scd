@@ -272,6 +272,7 @@ keyinfo_from_der(
 				goto cleanup;
 			}
 
+			/* Warning: RSA_get0_key is deprecated in OpenSSL 3.0 */
 			RSA_get0_key(rsa, &n, &e, NULL);
 
 			n_hex = BN_bn2hex (n);
@@ -573,6 +574,8 @@ struct curve_info_map_s {
  * https://www.gnupg.org/documentation/manuals/gcrypt/ECC-key-parameters.html)
  * to GnuPG SCD protocol Curve value which is the DER-encoded OID minus the
  * tag (byte 0x06)
+ *
+ * The curve names must exist in GnuPG's openpgp-oid.c
  */
 static struct curve_info_map_s curve_info_map[] = {
 	/* secp256r1 */
