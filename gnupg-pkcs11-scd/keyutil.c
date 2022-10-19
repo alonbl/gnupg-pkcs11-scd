@@ -42,6 +42,7 @@
 
 struct keyinfo_s {
 	keyinfo_key_type_t type;
+	unsigned int key_length;
 	union {
 		struct {
 			gcry_mpi_t n;
@@ -61,6 +62,7 @@ struct keyinfo_s {
  */
 void keyinfo_init(keyinfo keyinfo, keyinfo_key_type_t keytype) {
 	keyinfo->type = keytype;
+	keyinfo->key_length = 0;
 
 	if (keyinfo->type == KEYINFO_KEY_TYPE_RSA || keyinfo->type == KEYINFO_KEY_TYPE_UNKNOWN) {
 		keyinfo->data.rsa.e = NULL;
@@ -130,6 +132,7 @@ void keyinfo_free(keyinfo keyinfo) {
 	}
 
 	keyinfo->type = KEYINFO_KEY_TYPE_INVALID;
+	keyinfo->key_length = 0;
 
 	free(keyinfo);
 }
@@ -140,6 +143,35 @@ keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo) {
 	}
 
 	return(keyinfo->type);
+}
+
+ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length) {
+	unsigned int key_length;
+
+	if (keyinfo == NULL) {
+		return(-1);
+	}
+
+	key_length = keyinfo->key_length / 8;
+
+	switch (keyinfo->type) {
+		case KEYINFO_KEY_TYPE_RSA:
+			if (input_length > key_length) {
+				return(-1);
+			} else {
+				return(input_length);
+			}
+		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
+			if (input_length > key_length) {
+				return(key_length);
+			} else {
+				return(input_length);
+			}
+		case KEYINFO_KEY_TYPE_UNKNOWN:
+			return(-1);
+		case KEYINFO_KEY_TYPE_INVALID:
+			abort();
+	}
 }
 
 #if defined(ENABLE_OPENSSL)
@@ -275,6 +307,9 @@ keyinfo_from_der(
 			/* Warning: RSA_get0_key is deprecated in OpenSSL 3.0 */
 			RSA_get0_key(rsa, &n, &e, NULL);
 
+			/* Warning: RSA_size is deprecated in OpenSSL 3.0 */
+			keyinfo->key_length = RSA_size(rsa);
+
 			n_hex = BN_bn2hex (n);
 			e_hex = BN_bn2hex (e);
 
@@ -355,6 +390,7 @@ keyinfo_from_der(
 			break;
 		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
 			keyinfo->data.ecdsa.named_curve = "NIST P-256"; /* XXX:TODO */
+			keyinfo->key_length = 256; /* XXX:TODO */
 			keyinfo->data.ecdsa.named_curve_free = 0;
 
 			keyinfo->data.ecdsa.q = q_mpi;

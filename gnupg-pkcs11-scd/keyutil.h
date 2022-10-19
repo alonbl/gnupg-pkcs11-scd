@@ -70,6 +70,11 @@ void keyinfo_free(keyinfo keyinfo);
 keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo);
 
 /**
+ * Get the size of data which may be signed/encrypted
+ */
+ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length);
+
+/**
  * Parse a DER-encoded X.509 certificate into a key
  */
 gpg_err_code_t keyinfo_from_der(keyinfo keyinfo, unsigned char *der, size_t len);

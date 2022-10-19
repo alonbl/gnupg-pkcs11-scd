@@ -1170,6 +1170,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	keyinfo keyinfo = NULL;
 	unsigned char *sig = NULL;
 	size_t sig_len;
+	ssize_t data_effective_len;
 	enum {
 		INJECT_NONE,
 		INJECT_RMD160,
@@ -1402,6 +1403,11 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		goto cleanup;
 	}
 
+	data_effective_len = keyinfo_get_data_length(keyinfo, _data->size);
+	if (data_effective_len < 0) {
+		goto cleanup;
+	}
+
 	if (
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_lockSession (cert)
@@ -1417,7 +1423,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 				cert,
 				pkcs11_mechanism,
 				_data->data,
-				_data->size,
+				data_effective_len,
 				NULL,
 				&sig_len
 			)
@@ -1437,7 +1443,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 				cert,
 				pkcs11_mechanism,
 				_data->data,
-				_data->size,
+				data_effective_len,
 				sig,
 				&sig_len
 			)
