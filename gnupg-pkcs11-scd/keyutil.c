@@ -137,10 +137,8 @@ void keyinfo_free(keyinfo keyinfo) {
 			}
 			break;
 		case KEYINFO_KEY_TYPE_UNKNOWN:
-			/* Nothing to do for unknown types */
-			break;
 		case KEYINFO_KEY_TYPE_INVALID:
-			abort();
+			/* Nothing to do for unknown types */
 			break;
 	}
 
@@ -151,10 +149,6 @@ void keyinfo_free(keyinfo keyinfo) {
 }
 
 keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo) {
-	if (keyinfo->type == KEYINFO_KEY_TYPE_INVALID) {
-		abort();
-	}
-
 	return keyinfo->type;
 }
 
@@ -181,9 +175,8 @@ ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length) {
 				return input_length;
 			}
 		case KEYINFO_KEY_TYPE_UNKNOWN:
-			return -1;
 		case KEYINFO_KEY_TYPE_INVALID:
-			abort();
+			return -1;
 	}
 }
 
@@ -393,10 +386,8 @@ keyinfo_from_der(
 			}
 			break;
 		case KEYINFO_KEY_TYPE_UNKNOWN:
-			error = GPG_ERR_BAD_KEY;
-			goto cleanup;
 		case KEYINFO_KEY_TYPE_INVALID:
-			abort();
+			error = GPG_ERR_BAD_KEY;
 			goto cleanup;
 	}
 #else
@@ -424,11 +415,9 @@ keyinfo_from_der(
 			error = GPG_ERR_NO_ERROR;
 			break;
 		case KEYINFO_KEY_TYPE_UNKNOWN:
+		case KEYINFO_KEY_TYPE_INVALID:
 			error = GPG_ERR_BAD_KEY;
 			goto cleanup;
-			break;
-		case KEYINFO_KEY_TYPE_INVALID:
-			abort();
 			break;
 	}
 
@@ -541,10 +530,8 @@ gcry_sexp_t keyinfo_to_sexp(keyinfo keyinfo) {
 			);
 			break;
 		case KEYINFO_KEY_TYPE_UNKNOWN:
-			sexp_build_result = 1;
-			break;
 		case KEYINFO_KEY_TYPE_INVALID:
-			abort();
+			sexp_build_result = 1;
 			break;
 	}
 
@@ -672,7 +659,7 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 	unsigned char *curve_value = NULL;
 
 	if (keyinfo->type == KEYINFO_KEY_TYPE_INVALID) {
-		abort();
+		return NULL;
 	}
 
 	if (keyinfo->type != KEYINFO_KEY_TYPE_UNKNOWN) {
@@ -773,9 +760,8 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 			curve_value = NULL;
 			break;
 		case KEYINFO_KEY_TYPE_UNKNOWN:
-			break;
 		case KEYINFO_KEY_TYPE_INVALID:
-			abort();
+			break;
 	}
 
 	if (n_hex != NULL) {
