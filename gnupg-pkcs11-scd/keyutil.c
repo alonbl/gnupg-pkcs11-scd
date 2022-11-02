@@ -41,14 +41,27 @@
 #include "keyutil.h"
 
 struct keyinfo_s {
+	/**
+	 * Type of key
+	 */
 	keyinfo_key_type_t type;
+
+	/**
+	 * Key Length (in bits)
+	 */
 	unsigned int key_length;
 	union {
+		/**
+		 * RSA Public Key
+		 */
 		struct {
 			gcry_mpi_t n;
 			gcry_mpi_t e;
 		} rsa;
 
+		/**
+		 * EcDSA Public Key (named curve)
+		 */
 		struct {
 			gcry_mpi_t q;
 			char *named_curve;
@@ -172,6 +185,18 @@ ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length) {
 		case KEYINFO_KEY_TYPE_INVALID:
 			abort();
 	}
+}
+
+int keyinfo_get_key_length(keyinfo keyinfo) {
+	return(keyinfo->key_length);
+}
+
+const char *keyinfo_get_key_named_curve(keyinfo keyinfo) {
+	if (keyinfo->type != KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE) {
+		return(NULL);
+	}
+
+	return(keyinfo->data.ecdsa.named_curve);
 }
 
 #if defined(ENABLE_OPENSSL)

@@ -1982,8 +1982,33 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 	char *serial = NULL;
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	const char *l;
+	int need_certificates = 0;
+	keyinfo keyinfo = NULL;
 
 	l = strgetopt_getopt(line, NULL);
+
+	if (
+		!strcmp (l, "KEY-FPR") ||
+		!strcmp (l, "KEY-ATTR")
+	) {
+		need_certificates = 1;
+	}
+
+	if (need_certificates == 1) {
+		if (
+			(error = common_map_pkcs11_error (
+				pkcs11h_certificate_enumCertificateIds (
+					PKCS11H_ENUM_METHOD_CACHE_EXIST,
+					ctx,
+					PKCS11H_PROMPT_MASK_ALLOW_ALL,
+					NULL,
+					&user_certificates
+				)
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
+		}
+	}
 
 	if (!strcmp (l, "SERIALNO")) {
 		if (
@@ -2006,15 +2031,6 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 	}
 	else if (!strcmp (l, "KEY-FPR")) {
 		if (
-			(error = common_map_pkcs11_error (
-				pkcs11h_certificate_enumCertificateIds (
-					PKCS11H_ENUM_METHOD_CACHE_EXIST,
-					ctx,
-					PKCS11H_PROMPT_MASK_ALLOW_ALL,
-					NULL,
-					&user_certificates
-				)
-			)) != GPG_ERR_NO_ERROR ||
 			(error = send_certificate_list (
 				ctx,
 				user_certificates,
@@ -2048,11 +2064,58 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 	}
 	else if (!strcmp (l, "KEY-ATTR")) {
 		int i;
-		for (i=0;i<3;i++) {
-			char buffer[1024];
+		char buffer[1024];
+		const char *key_named_curve = NULL;
+		int keyAlgo;
+		int skip;
 
-			/* I am not sure 2048 is right here... */
-			snprintf(buffer, sizeof(buffer), "%d 1 %u %u %d", i+1, GCRY_PK_RSA, 2048, 0);
+		for (
+			pkcs11h_certificate_id_list_t curr_cert = user_certificates;
+			curr_cert != NULL;
+			curr_cert = curr_cert->next
+		) {
+			/* XXX:TODO: How do I know which key the KEY-ATTR is for ? */
+			error = get_cert_keyinfo(ctx, curr_cert->certificate_id, &keyinfo);
+			if (error != GPG_ERR_NO_ERROR) {
+				goto cleanup;
+			}
+
+		}
+
+		for (i=0;i<3;i++) {
+			skip = 0;
+			switch (keyinfo_get_type(keyinfo)) {
+				case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
+					if (i == 1) {
+						keyAlgo = 18 /* PUBKEY_ALGO_ECDH */;
+						skip = 1;
+						break;
+					} else {
+						keyAlgo = 19 /* PUBKEY_ALGO_ECDSA */;
+					}
+
+					key_named_curve = keyinfo_get_key_named_curve(keyinfo);
+					if (key_named_curve == NULL) {
+						skip = 1;
+
+						break;
+					}
+
+					snprintf(buffer, sizeof(buffer), "%d %d %s", i + 1, keyAlgo, key_named_curve);
+					break;
+				case KEYINFO_KEY_TYPE_RSA:
+					keyAlgo = GCRY_PK_RSA;
+
+					snprintf(buffer, sizeof(buffer), "%d 1 %u %u %d", i+1, keyAlgo, keyinfo_get_key_length(keyinfo), 0);
+					break;
+				default:
+					skip = 1;
+					break;
+			}
+
+			if (skip == 1) {
+				continue;
+			}
 
 			if (
 				(error = assuan_write_status(
@@ -2093,6 +2156,10 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
+
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
+	}
 
 	if (user_certificates != NULL) {
 		pkcs11h_certificate_freeCertificateIdList (user_certificates);

@@ -75,6 +75,18 @@ keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo);
 ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length);
 
 /**
+ * Get the size of the key (in bits)
+ */
+int keyinfo_get_key_length(keyinfo keyinfo);
+
+/**
+ * Get the named curve for a key (or NULL if there is no named curve or it's
+ * not applicable).  The returned data has the same lifetime of the keyinfo
+ * input.
+ */
+const char *keyinfo_get_key_named_curve(keyinfo keyinfo);
+
+/**
  * Parse a DER-encoded X.509 certificate into a key
  */
 gpg_err_code_t keyinfo_from_der(keyinfo keyinfo, unsigned char *der, size_t len);
