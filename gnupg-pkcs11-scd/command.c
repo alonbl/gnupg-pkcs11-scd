@@ -1112,23 +1112,23 @@ cleanup:
 
 static CK_RV _pkcs11_keyinfo_mechanism(keyinfo keyinfo, CK_MECHANISM_TYPE_PTR pkcs11_mechanism) {
 	if (keyinfo == NULL) {
-		return(CKR_ARGUMENTS_BAD);
+		return CKR_ARGUMENTS_BAD;
 	}
 
 	switch (keyinfo_get_type(keyinfo)) {
 		case KEYINFO_KEY_TYPE_RSA:
 			*pkcs11_mechanism = CKM_RSA_PKCS;
-			return(CKR_OK);
+			return CKR_OK;
 		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
 			*pkcs11_mechanism = CKM_ECDSA;
-			return(CKR_OK);
+			return CKR_OK;
 		case KEYINFO_KEY_TYPE_UNKNOWN:
-			return(CKR_GENERAL_ERROR);
+			return CKR_GENERAL_ERROR;
 		case KEYINFO_KEY_TYPE_INVALID:
-			abort();
+			return CKR_GENERAL_ERROR;
 	}
 
-	return(CKR_GENERAL_ERROR);
+	return CKR_GENERAL_ERROR;
 }
 
 struct prefix_pkcs1 {

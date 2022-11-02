@@ -97,12 +97,12 @@ keyinfo keyinfo_new(void) {
 
 	keyinfo = malloc(sizeof(*keyinfo));
 	if (keyinfo == NULL) {
-		return(NULL);
+		return NULL;
 	}
 
 	keyinfo_init(keyinfo, KEYINFO_KEY_TYPE_UNKNOWN);
 
-	return(keyinfo);
+	return keyinfo;
 }
 
 /**
@@ -155,14 +155,14 @@ keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo) {
 		abort();
 	}
 
-	return(keyinfo->type);
+	return keyinfo->type;
 }
 
 ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length) {
 	unsigned int key_length;
 
 	if (keyinfo == NULL) {
-		return(-1);
+		return -1;
 	}
 
 	key_length = keyinfo->key_length / 8;
@@ -170,33 +170,33 @@ ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length) {
 	switch (keyinfo->type) {
 		case KEYINFO_KEY_TYPE_RSA:
 			if (input_length > key_length) {
-				return(-1);
+				return -1;
 			} else {
-				return(input_length);
+				return input_length;
 			}
 		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
 			if (input_length > key_length) {
-				return(key_length);
+				return key_length;
 			} else {
-				return(input_length);
+				return input_length;
 			}
 		case KEYINFO_KEY_TYPE_UNKNOWN:
-			return(-1);
+			return -1;
 		case KEYINFO_KEY_TYPE_INVALID:
 			abort();
 	}
 }
 
 int keyinfo_get_key_length(keyinfo keyinfo) {
-	return(keyinfo->key_length);
+	return keyinfo->key_length;
 }
 
 const char *keyinfo_get_key_named_curve(keyinfo keyinfo) {
 	if (keyinfo->type != KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE) {
-		return(NULL);
+		return NULL;
 	}
 
-	return(keyinfo->data.ecdsa.named_curve);
+	return keyinfo->data.ecdsa.named_curve;
 }
 
 #if defined(ENABLE_OPENSSL)
@@ -222,7 +222,7 @@ static void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20500030L)
 static int EVP_PKEY_base_id(const EVP_PKEY *pkey) {
-	return(EVP_PKEY_type(pkey->type));
+	return EVP_PKEY_type(pkey->type);
 }
 #endif
 
@@ -657,11 +657,11 @@ static unsigned char *_keyinfo_lookup_named_curve(const char *named_curve) {
 
 	for (curr = curve_info_map; curr->curve_name != NULL; curr++) {
 		if (strcmp(curr->curve_name, named_curve) == 0) {
-			return((unsigned char *) curr->curve_gpg_value);
+			return (unsigned char *) curr->curve_gpg_value;
 		}
 	}
 
-	return(NULL);
+	return NULL;
 }
 
 keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
@@ -676,7 +676,7 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 	}
 
 	if (keyinfo->type != KEYINFO_KEY_TYPE_UNKNOWN) {
-		return(NULL);
+		return NULL;
 	}
 
 	switch (keyinfo->type) {
@@ -818,5 +818,5 @@ keyinfo_data_list keyinfo_get_key_data(keyinfo keyinfo) {
 		curve_item = NULL;
 	}
 
-	return(first);
+	return first;
 }
