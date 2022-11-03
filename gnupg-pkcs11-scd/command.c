@@ -1376,10 +1376,15 @@ cleanup:
 	}
 
 	if (need_free__data) {
-		free (_data->data);
-		_data->data = NULL;
-		free (_data);
-		_data = NULL;
+		if (_data != NULL) {
+			if (_data->data != NULL) {
+				free (_data->data);
+				_data->data = NULL;
+			}
+
+			free (_data);
+			_data = NULL;
+		}
 	}
 
 	strgetopt_free(options);
