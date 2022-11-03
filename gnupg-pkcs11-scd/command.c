@@ -30,6 +30,7 @@
 
 #include "common.h"
 #include "strgetopt.h"
+#include <pkcs11-helper-1.0/pkcs11.h>
 #include <pkcs11-helper-1.0/pkcs11h-token.h>
 #include <pkcs11-helper-1.0/pkcs11h-certificate.h>
 #include "command.h"
@@ -141,22 +142,64 @@ cleanup:
 
 static
 gpg_err_code_t
+get_cert_keyinfo (
+	assuan_context_t ctx,
+	pkcs11h_certificate_id_t cert_id,
+	keyinfo *p_keyinfo
+) {
+	gpg_err_code_t error = GPG_ERR_GENERAL;
+	keyinfo keyinfo;
+	unsigned char *blob = NULL;
+	size_t blob_size;
+
+	*p_keyinfo = NULL;
+	keyinfo = keyinfo_new();
+
+	if (
+		(error = get_cert_blob (ctx, cert_id, &blob, &blob_size)) != GPG_ERR_NO_ERROR ||
+		(error = keyinfo_from_der (keyinfo, blob, blob_size)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	*p_keyinfo = keyinfo;
+	keyinfo = NULL;
+
+	error = GPG_ERR_NO_ERROR;
+
+cleanup:
+
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
+	}
+
+	if (blob != NULL) {
+		free (blob);
+		blob = NULL;
+	}
+
+	return error;
+}
+
+static
+gpg_err_code_t
 get_cert_sexp (
 	assuan_context_t ctx,
 	pkcs11h_certificate_id_t cert_id,
 	gcry_sexp_t *p_sexp
 ) {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
-	gcry_sexp_t sexp = NULL;
-	unsigned char *blob = NULL;
-	size_t blob_size;
+	keyinfo keyinfo = NULL;
+	gcry_sexp_t sexp;
 
-	*p_sexp = NULL;
+	error = get_cert_keyinfo(ctx, cert_id, &keyinfo);
+	if (error != GPG_ERR_NO_ERROR) {
+		goto cleanup;
+	}
 
-	if (
-		(error = get_cert_blob (ctx, cert_id, &blob, &blob_size)) != GPG_ERR_NO_ERROR ||
-		(error = keyutil_get_cert_sexp (blob, blob_size, &sexp)) != GPG_ERR_NO_ERROR
-	) {
+	sexp = keyinfo_to_sexp(keyinfo);
+	if (sexp == NULL) {
+		error = GPG_ERR_GENERAL;
 		goto cleanup;
 	}
 
@@ -172,9 +215,8 @@ cleanup:
 		sexp = NULL;
 	}
 
-	if (blob != NULL) {
-		free (blob);
-		blob = NULL;
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
 	}
 
 	return error;
@@ -348,7 +390,7 @@ send_certificate_list (
 			goto retry;
 		}
 
-		if ((key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL) {
+		if ((key_hexgrip = keyinfo_get_hexgrip (sexp)) == NULL) {
 			error = GPG_ERR_ENOMEM;
 			goto retry;
 		}
@@ -622,7 +664,7 @@ int _get_certificate_by_name (assuan_context_t ctx, const char *name, int typehi
 			goto cleanup;
 		}
 
-		if ((key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL) {
+		if ((key_hexgrip = keyinfo_get_hexgrip (sexp)) == NULL) {
 			error = GPG_ERR_ENOMEM;
 			goto cleanup;
 		}
@@ -946,7 +988,7 @@ gpg_error_t cmd_readkey (assuan_context_t ctx, char *line)
 			goto cleanup;
 		}
 		if (
-			(key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL ||
+			(key_hexgrip = keyinfo_get_hexgrip (sexp)) == NULL ||
 			(keypairinfo = strdup (key_hexgrip)) == NULL ||
 			!encoding_strappend (&keypairinfo, " ") ||
 			!encoding_strappend (&keypairinfo, ser)
@@ -1068,35 +1110,115 @@ cleanup:
 	return gpg_error (error);
 }
 
+static CK_RV _pkcs11_keyinfo_mechanism(keyinfo keyinfo, CK_MECHANISM_TYPE_PTR pkcs11_mechanism) {
+	if (keyinfo == NULL) {
+		return CKR_ARGUMENTS_BAD;
+	}
+
+	switch (keyinfo_get_type(keyinfo)) {
+		case KEYINFO_KEY_TYPE_RSA:
+			*pkcs11_mechanism = CKM_RSA_PKCS;
+			return CKR_OK;
+		case KEYINFO_KEY_TYPE_UNKNOWN:
+			return CKR_GENERAL_ERROR;
+		case KEYINFO_KEY_TYPE_INVALID:
+			return CKR_GENERAL_ERROR;
+	}
+
+	return CKR_GENERAL_ERROR;
+}
+
+struct prefix_pkcs1 {
+	const char *const name;
+	const unsigned char der[32];
+	const unsigned int der_size;
+	const unsigned int hash_size;
+};
+static struct prefix_pkcs1 prefix_pkcs1_list[] = {
+	{
+		.name = "rmd160",
+		.der = {
+			/* (1.3.36.3.2.1) */
+			0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x24, 0x03,
+			0x02, 0x01, 0x05, 0x00, 0x04, 0x14
+		},
+		.der_size = 15,
+		.hash_size = 20
+	},
+	{
+		.name = "md5",
+		.der = {
+			/* (1.2.840.113549.2.5) */
+			0x30, 0x2c, 0x30, 0x09, 0x06, 0x08, 0x2a, 0x86, 0x48,
+			0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10
+		},
+		.der_size = 18,
+		.hash_size = 16
+	},
+	{
+		.name = "sha1",
+		.der = {
+			/* (1.3.14.3.2.26) */
+			0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
+			0x02, 0x1a, 0x05, 0x00, 0x04, 0x14
+		},
+		.der_size = 15,
+		.hash_size = 20
+	},
+	{
+		.name = "sha224",
+		.der = {
+			/* (2.16.840.1.101.3.4.2.4) */
+			0x30, 0x2D, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+			0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04,
+			0x1C
+		},
+		.der_size = 19,
+		.hash_size = 28
+	},
+	{
+		.name = "sha256",
+		.der = {
+			/* (2.16.840.1.101.3.4.2.1) */
+			0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+			0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04,
+			0x20
+		},
+		.der_size = 19,
+		.hash_size = 32
+	},
+	{
+		.name = "sha384",
+		.der = {
+			/* (2.16.840.1.101.3.4.2.2) */
+			0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+			0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04,
+			0x30
+		},
+		.der_size = 19,
+		.hash_size = 48
+	},
+	{
+		.name = "sha512",
+		.der = {
+			/* (2.16.840.1.101.3.4.2.3) */
+			0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
+			0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04,
+			0x40
+		},
+		.der_size = 19,
+		.hash_size = 64
+	},
+	{
+		.name = NULL,
+		.der_size = 0,
+		.hash_size = 0
+	}
+};
+
 static
 gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 {
-	static const unsigned char rmd160_prefix[] = /* (1.3.36.3.2.1) */
-		{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x24, 0x03,
-		0x02, 0x01, 0x05, 0x00, 0x04, 0x14  };
-	static const unsigned char md5_prefix[] =   /* (1.2.840.113549.2.5) */
-		{ 0x30, 0x2c, 0x30, 0x09, 0x06, 0x08, 0x2a, 0x86, 0x48,
-		0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10  };
-	static const unsigned char sha1_prefix[] =   /* (1.3.14.3.2.26) */
-		{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
-		0x02, 0x1a, 0x05, 0x00, 0x04, 0x14  };
-	static const unsigned char sha224_prefix[] = /* (2.16.840.1.101.3.4.2.4) */
-		{ 0x30, 0x2D, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48,
-		0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04,
-		0x1C  };
-	static const unsigned char sha256_prefix[] = /* (2.16.840.1.101.3.4.2.1) */
-		{ 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
-		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
-		0x00, 0x04, 0x20  };
-	static const unsigned char sha384_prefix[] = /* (2.16.840.1.101.3.4.2.2) */
-		{ 0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
-		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05,
-		0x00, 0x04, 0x30  };
-	static const unsigned char sha512_prefix[] = /* (2.16.840.1.101.3.4.2.3) */
-		{ 0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
-		0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05,
-		0x00, 0x04, 0x40  };
-
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
 	pkcs11h_certificate_t cert = NULL;
@@ -1104,19 +1226,16 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	cmd_data_t *_data = data;
 	int need_free__data = 0;
 	int session_locked = 0;
+	keyinfo keyinfo = NULL;
 	unsigned char *sig = NULL;
 	size_t sig_len;
-	enum {
-		INJECT_NONE,
-		INJECT_RMD160,
-		INJECT_MD5,
-		INJECT_SHA1,
-		INJECT_SHA224,
-		INJECT_SHA256,
-		INJECT_SHA384,
-		INJECT_SHA512
-	} inject = INJECT_NONE;
+	struct prefix_pkcs1 *inject = NULL;
+	ssize_t data_effective_len;
+	size_t data_offset = 0;
+	CK_MECHANISM_TYPE pkcs11_mechanism;
+	int use_pkcs1;
 	char *hash = NULL;
+	int found_hash_algo = 0;
 	const char *l;
 	const struct strgetopt_option options[] = {
 		{"hash", strgtopt_required_argument, &hash, NULL},
@@ -1134,132 +1253,164 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
-	/*
-	 * sender prefixed data with algorithm OID
-	 */
-	if (hash != NULL) {
-		if (!strcmp(hash, "rmd160") && data->size == (0x14 + sizeof(rmd160_prefix)) &&
-			!memcmp (data->data, rmd160_prefix, sizeof (rmd160_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "rmd160") && data->size == 0x14) {
-			inject = INJECT_RMD160;
-		}
-		else if (!strcmp(hash, "md5") && data->size == (0x10 + sizeof(md5_prefix)) &&
-			!memcmp (data->data, md5_prefix, sizeof (md5_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "md5") && data->size == 0x10) {
-			inject = INJECT_MD5;
-		}
-		else if (!strcmp(hash, "sha1") && data->size == (0x14 + sizeof(sha1_prefix)) &&
-			!memcmp (data->data, sha1_prefix, sizeof (sha1_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha1") && data->size == 0x14) {
-			inject = INJECT_SHA1;
-		}
-		else if (!strcmp(hash, "sha224") && data->size == (0x1c + sizeof(sha224_prefix)) &&
-			!memcmp (data->data, sha224_prefix, sizeof (sha224_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha224") && data->size == 0x1c) {
-			inject = INJECT_SHA224;
-		}
-		else if (!strcmp(hash, "sha256") && data->size == (0x20 + sizeof(sha256_prefix)) &&
-			!memcmp (data->data, sha256_prefix, sizeof (sha256_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha256") && data->size == 0x20) {
-			inject = INJECT_SHA256;
-		}
-		else if (!strcmp(hash, "sha384") && data->size == (0x30 + sizeof(sha384_prefix)) &&
-			!memcmp (data->data, sha384_prefix, sizeof (sha384_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha384") && data->size == 0x30) {
-			inject = INJECT_SHA384;
-		}
-		else if (!strcmp(hash, "sha512") && data->size == (0x40 + sizeof(sha512_prefix)) &&
-			!memcmp (data->data, sha512_prefix, sizeof (sha512_prefix))) {
-			inject = INJECT_NONE;
-		}
-		else if (!strcmp(hash, "sha512") && data->size == 0x40) {
-			inject = INJECT_SHA512;
-		}
-		else {
-			common_log (LOG_DEBUG, "unsupported hash algo (hash=%s,size=%d)", hash, data->size);
-			error = GPG_ERR_UNSUPPORTED_ALGORITHM;
-			goto cleanup;
-		}
+
+	if (
+		(error = _get_certificate_by_name (
+			ctx,
+			l,
+			typehint,
+			&cert_id,
+			NULL
+		)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
 	}
-	else {
-		if (
-			data->size == 0x10 + sizeof (md5_prefix) ||
-			data->size == 0x14 + sizeof (sha1_prefix) ||
-			data->size == 0x14 + sizeof (rmd160_prefix)
-		) {
-			if (
-				memcmp (data->data, md5_prefix, sizeof (md5_prefix)) &&
-				memcmp (data->data, sha1_prefix, sizeof (sha1_prefix)) &&
-				memcmp (data->data, rmd160_prefix, sizeof (rmd160_prefix))
-			) {
+
+	if (
+		(error = get_cert_keyinfo(ctx, cert_id, &keyinfo)) != GPG_ERR_NO_ERROR
+	) {
+		goto cleanup;
+	}
+
+	if (_pkcs11_keyinfo_mechanism(keyinfo, &pkcs11_mechanism) != CKR_OK) {
+		goto cleanup;
+	}
+
+	switch (pkcs11_mechanism) {
+		case CKM_RSA_PKCS:
+			use_pkcs1 = 1;
+			break;
+		default:
+			error = GPG_ERR_BAD_KEY;
+			goto cleanup;
+	}
+
+	if (use_pkcs1) {
+		/* Use PKCS1 framing if required by the mechanism */
+
+		/*
+		 * sender prefixed data with algorithm OID
+		 */
+		for (struct prefix_pkcs1 *prefix_pkcs1_check = prefix_pkcs1_list; prefix_pkcs1_check->name != NULL; prefix_pkcs1_check++) {
+			if (hash != NULL) {
+				if (strcmp(hash, prefix_pkcs1_check->name)) {
+					continue;
+				}
+
+				if (data->size == prefix_pkcs1_check->hash_size) {
+					inject = prefix_pkcs1_check;
+
+					found_hash_algo = 1;
+
+					break;
+				}
+			}
+
+			if (data->size == (prefix_pkcs1_check->hash_size + prefix_pkcs1_check->der_size) &&
+				!memcmp (data->data, prefix_pkcs1_check->der, prefix_pkcs1_check->der_size)) {
+
+				inject = NULL;
+
+				found_hash_algo = 1;
+
+				break;
+			}
+		}
+
+		if (!found_hash_algo) {
+			/*
+			 * If a hash algorithm was specified and it was not
+			 * found, return in failure
+			 */
+			if (hash != NULL) {
+				common_log (LOG_DEBUG, "unsupported hash algo (hash=%s,size=%d)", hash, data->size);
 				error = GPG_ERR_UNSUPPORTED_ALGORITHM;
 				goto cleanup;
 			}
-		}
-		else {
+
 			/*
 			 * unknown hash algorithm;
 			 * gnupg's scdaemon forces to SHA1
 			 */
-			inject = INJECT_SHA1;
+			for (struct prefix_pkcs1 *prefix_pkcs1_check = prefix_pkcs1_list; prefix_pkcs1_check->name != NULL; prefix_pkcs1_check++) {
+				if (!strcmp(prefix_pkcs1_check->name, "sha1")) {
+					inject = prefix_pkcs1_check;
+
+					break;
+				}
+			}
 
 			/* When doing auth operation, hash algorithm prefix detection does not work
 			 * but data always comes with algorithm appended, so do not append anything
 			 * by default. */
 			if (typehint == OPENPGP_AUTH) {
-				inject = INJECT_NONE;
+				inject = NULL;
 			}
+		}
+	} else {
+		/* Non-PKCS1 does not inject anything, but may need to remove wrapping */
+		inject = NULL;
+
+		/* Remove any existing PKCS1 prefix from to-be-signed data */
+		for (struct prefix_pkcs1 *prefix_pkcs1_check = prefix_pkcs1_list; prefix_pkcs1_check->name != NULL; prefix_pkcs1_check++) {
+			if (hash != NULL) {
+				if (strcmp(hash, prefix_pkcs1_check->name)) {
+					continue;
+				}
+
+				if (data->size == prefix_pkcs1_check->hash_size) {
+					data_offset = 0;
+
+					found_hash_algo = 1;
+
+					break;
+				}
+			}
+
+			if (data->size == (prefix_pkcs1_check->hash_size + prefix_pkcs1_check->der_size) &&
+				!memcmp (data->data, prefix_pkcs1_check->der, prefix_pkcs1_check->der_size)) {
+
+				data_offset = prefix_pkcs1_check->der_size;
+
+				found_hash_algo = 1;
+
+				break;
+			}
+		}
+
+		if (!found_hash_algo) {
+			common_log (LOG_DEBUG, "unsupported hash algo (hash=%s,size=%d)", hash, data->size);
+			error = GPG_ERR_UNSUPPORTED_ALGORITHM;
+			goto cleanup;
+		}
+
+		if (data_offset > 0) {
+			if (data_offset > _data->size) {
+				error = GPG_ERR_TRUNCATED;
+				goto cleanup;
+			}
+
+			need_free__data = 1;
+
+			if ((_data = (cmd_data_t *)malloc (sizeof (cmd_data_t))) == NULL) {
+				error = GPG_ERR_ENOMEM;
+				goto cleanup;
+			}
+
+			_data->size = data->size - data_offset;
+			if ((_data->data = (unsigned char *)malloc (_data->size)) == NULL) {
+				error = GPG_ERR_ENOMEM;
+				goto cleanup;
+			}
+
+			memcpy(_data->data, data->data + data_offset, _data->size);
+			data_offset = 0;
 		}
 	}
 
-	if (inject != INJECT_NONE) {
-		const unsigned char *oid;
-		size_t oid_size;
-		switch (inject) {
-			case INJECT_RMD160:
-				oid = rmd160_prefix;
-				oid_size = sizeof (rmd160_prefix);
-			break;
-			case INJECT_MD5:
-				oid = md5_prefix;
-				oid_size = sizeof (md5_prefix);
-			break;
-			case INJECT_SHA1:
-				oid = sha1_prefix;
-				oid_size = sizeof (sha1_prefix);
-			break;
-			case INJECT_SHA224:
-				oid = sha224_prefix;
-				oid_size = sizeof (sha224_prefix);
-			break;
-			case INJECT_SHA256:
-				oid = sha256_prefix;
-				oid_size = sizeof(sha256_prefix);
-			break;
-			case INJECT_SHA384:
-				oid = sha384_prefix;
-				oid_size = sizeof(sha384_prefix);
-			break;
-			case INJECT_SHA512:
-				oid = sha512_prefix;
-				oid_size = sizeof(sha512_prefix);
-			break;
-			default:
-				error = GPG_ERR_INV_DATA;
-				goto cleanup;
-		}
+	if (inject != NULL) {
+		const unsigned char *oid = inject->der;
+		size_t oid_size = inject->der_size;
 
 		need_free__data = 1;
 
@@ -1281,18 +1432,6 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	}
 
 	if (
-		(error = _get_certificate_by_name (
-			ctx,
-			l,
-			typehint,
-			&cert_id,
-			NULL
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
-	}
-
-	if (
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_create (
 				cert_id,
@@ -1303,6 +1442,12 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 			)
 		)) != GPG_ERR_NO_ERROR
 	) {
+		goto cleanup;
+	}
+
+	data_effective_len = keyinfo_get_data_length(keyinfo, _data->size);
+	if (data_effective_len < 0) {
+		error = GPG_ERR_TRUNCATED;
 		goto cleanup;
 	}
 
@@ -1319,9 +1464,9 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_signAny (
 				cert,
-				CKM_RSA_PKCS,
+				pkcs11_mechanism,
 				_data->data,
-				_data->size,
+				data_effective_len,
 				NULL,
 				&sig_len
 			)
@@ -1339,9 +1484,9 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_signAny (
 				cert,
-				CKM_RSA_PKCS,
+				pkcs11_mechanism,
 				_data->data,
-				_data->size,
+				data_effective_len,
 				sig,
 				&sig_len
 			)
@@ -1368,6 +1513,11 @@ cleanup:
 	if (cert_id != NULL) {
 		pkcs11h_certificate_freeCertificateId (cert_id);
 		cert_id = NULL;
+	}
+
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
+		keyinfo = NULL;
 	}
 
 	if (sig != NULL) {
@@ -1693,7 +1843,7 @@ gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
 			goto retry;
 		}
 
-		if ((key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL) {
+		if ((key_hexgrip = keyinfo_get_hexgrip (sexp)) == NULL) {
 			error = GPG_ERR_ENOMEM;
 			goto retry;
 		}
@@ -1767,6 +1917,10 @@ gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
 		error = GPG_ERR_NO_ERROR;
 
 	retry:
+		if (sexp != NULL) {
+			gcry_sexp_release(sexp);
+			sexp = NULL;
+		}
 
 		if (keyinfo_line != NULL) {
 			free (keyinfo_line);
@@ -1821,8 +1975,33 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 	char *serial = NULL;
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	const char *l;
+	int need_certificates = 0;
+	keyinfo keyinfo = NULL;
 
 	l = strgetopt_getopt(line, NULL);
+
+	if (
+		!strcmp (l, "KEY-FPR") ||
+		!strcmp (l, "KEY-ATTR")
+	) {
+		need_certificates = 1;
+	}
+
+	if (need_certificates == 1) {
+		if (
+			(error = common_map_pkcs11_error (
+				pkcs11h_certificate_enumCertificateIds (
+					PKCS11H_ENUM_METHOD_CACHE_EXIST,
+					ctx,
+					PKCS11H_PROMPT_MASK_ALLOW_ALL,
+					NULL,
+					&user_certificates
+				)
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
+		}
+	}
 
 	if (!strcmp (l, "SERIALNO")) {
 		if (
@@ -1845,15 +2024,6 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 	}
 	else if (!strcmp (l, "KEY-FPR")) {
 		if (
-			(error = common_map_pkcs11_error (
-				pkcs11h_certificate_enumCertificateIds (
-					PKCS11H_ENUM_METHOD_CACHE_EXIST,
-					ctx,
-					PKCS11H_PROMPT_MASK_ALLOW_ALL,
-					NULL,
-					&user_certificates
-				)
-			)) != GPG_ERR_NO_ERROR ||
 			(error = send_certificate_list (
 				ctx,
 				user_certificates,
@@ -1887,11 +2057,40 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 	}
 	else if (!strcmp (l, "KEY-ATTR")) {
 		int i;
-		for (i=0;i<3;i++) {
-			char buffer[1024];
+		char buffer[1024];
+		const char *key_named_curve = NULL;
+		int keyAlgo;
+		int skip;
 
-			/* I am not sure 2048 is right here... */
-			snprintf(buffer, sizeof(buffer), "%d 1 %u %u %d", i+1, GCRY_PK_RSA, 2048, 0);
+		for (
+			pkcs11h_certificate_id_list_t curr_cert = user_certificates;
+			curr_cert != NULL;
+			curr_cert = curr_cert->next
+		) {
+			/* XXX:TODO: How do I know which key the KEY-ATTR is for ? */
+			error = get_cert_keyinfo(ctx, curr_cert->certificate_id, &keyinfo);
+			if (error != GPG_ERR_NO_ERROR) {
+				goto cleanup;
+			}
+
+		}
+
+		for (i=0;i<3;i++) {
+			skip = 0;
+			switch (keyinfo_get_type(keyinfo)) {
+				case KEYINFO_KEY_TYPE_RSA:
+					keyAlgo = GCRY_PK_RSA;
+
+					snprintf(buffer, sizeof(buffer), "%d 1 %u %u %d", i+1, keyAlgo, keyinfo_get_key_length(keyinfo), 0);
+					break;
+				default:
+					skip = 1;
+					break;
+			}
+
+			if (skip == 1) {
+				continue;
+			}
 
 			if (
 				(error = assuan_write_status(
@@ -1933,6 +2132,10 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 
 cleanup:
 
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
+	}
+
 	if (user_certificates != NULL) {
 		pkcs11h_certificate_freeCertificateIdList (user_certificates);
 		user_certificates = NULL;
@@ -1971,12 +2174,11 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 {
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	pkcs11h_certificate_id_t cert_id = NULL;
-	gcry_mpi_t n_mpi = NULL;
-	gcry_mpi_t e_mpi = NULL;
+	keyinfo keyinfo;
+	keyinfo_data_list key_parts = NULL, curr_key_part;
 	unsigned char *n_hex = NULL;
 	unsigned char *e_hex = NULL;
-	char *n_resp = strdup ("n ");
-	char *e_resp = strdup ("e ");
+	char *part_resp = NULL;
 	unsigned char *blob = NULL;
 	char *serial = NULL;
 	const char *key = NULL;
@@ -1989,6 +2191,8 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 		{"timestamp", strgtopt_required_argument, &timestamp, NULL},
 		{NULL, 0, NULL, NULL}
 	};
+
+	keyinfo = keyinfo_new();
 
 	l = strgetopt_getopt(line, options);
 
@@ -2045,74 +2249,58 @@ gpg_error_t cmd_genkey (assuan_context_t ctx, char *line)
 			&blob,
 			&blob_size
 		)) != GPG_ERR_NO_ERROR ||
-		(error = keyutil_get_cert_mpi (
+		(error = keyinfo_from_der(
+			keyinfo,
 			blob,
-			blob_size,
-			&n_mpi,
-			&e_mpi
+			blob_size
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
 	}
 
-	if (
-		gcry_mpi_aprint (
-			GCRYMPI_FMT_HEX,
-			&n_hex,
-			NULL,
-			n_mpi
-		) ||
-		gcry_mpi_aprint (
-			GCRYMPI_FMT_HEX,
-			&e_hex,
-			NULL,
-			e_mpi
-		)
-	) {
-		error = GPG_ERR_BAD_KEY;
-		goto cleanup;
-	}
+	key_parts = keyinfo_get_key_data(keyinfo);
 
-	if (
-		!encoding_strappend (&n_resp, (char *)n_hex) ||
-		!encoding_strappend (&e_resp, (char *)e_hex)
-	) {
-		error = GPG_ERR_ENOMEM;
-		goto cleanup;
-	}
+	for (curr_key_part = key_parts; curr_key_part != NULL; curr_key_part = curr_key_part->next) {
+		part_resp = strdup("");
+		if (
+			!encoding_strappend (&part_resp, (char *) curr_key_part->tag) ||
+			!encoding_strappend (&part_resp, (char *) " ") ||
+			!encoding_strappend (&part_resp, (char *) curr_key_part->value)
+		) {
+			error = GPG_ERR_ENOMEM;
+			goto cleanup;
+		}
 
-	if (
-		(error = assuan_write_status(
-			ctx,
-			"KEY-DATA",
-			n_resp
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
-	}
+		if (
+			(error = assuan_write_status(
+				ctx,
+				(char *) curr_key_part->type,
+				part_resp
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
+		}
 
-	if (
-		(error = assuan_write_status(
-			ctx,
-			"KEY-DATA",
-			e_resp
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
+		free(part_resp);
+		part_resp = NULL;
 	}
 
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
 
-	if (n_mpi != NULL) {
-		gcry_mpi_release (n_mpi);
-		n_mpi = NULL;
+	if (part_resp != NULL) {
+		free(part_resp);
 	}
 
-	if (e_mpi != NULL) {
-		gcry_mpi_release (e_mpi);
-		e_mpi = NULL;
+	if (key_parts != NULL) {
+		keyinfo_data_free(key_parts);
+		key_parts = NULL;
+	}
+
+	if (keyinfo != NULL) {
+		keyinfo_free(keyinfo);
+		keyinfo = NULL;
 	}
 
 	if (n_hex != NULL) {
@@ -2123,16 +2311,6 @@ cleanup:
 	if (e_hex != NULL) {
 		gcry_free (e_hex);
 		e_hex = NULL;
-	}
-
-	if (n_resp != NULL) {
-		free (n_resp);
-		n_resp = NULL;
-	}
-
-	if (e_resp != NULL) {
-		free (e_resp);
-		e_resp = NULL;
 	}
 
 	if (blob != NULL) {
