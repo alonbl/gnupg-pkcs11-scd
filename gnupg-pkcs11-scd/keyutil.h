@@ -68,6 +68,11 @@ void keyinfo_free(keyinfo keyinfo);
 keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo);
 
 /**
+ * Get the size of data which may be signed/encrypted
+ */
+ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length);
+
+/**
  * Get the size of the key (in bits)
  */
 int keyinfo_get_key_length(keyinfo keyinfo);

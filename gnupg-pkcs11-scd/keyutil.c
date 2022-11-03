@@ -125,6 +125,30 @@ keyinfo_key_type_t keyinfo_get_type(keyinfo keyinfo) {
 	return keyinfo->type;
 }
 
+ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length) {
+	unsigned int key_length;
+
+	if (keyinfo == NULL) {
+		return -1;
+	}
+
+	key_length = keyinfo->key_length / 8;
+
+	switch (keyinfo->type) {
+		case KEYINFO_KEY_TYPE_RSA:
+			if (input_length > key_length) {
+				return -1;
+			} else {
+				return input_length;
+			}
+		case KEYINFO_KEY_TYPE_UNKNOWN:
+		case KEYINFO_KEY_TYPE_INVALID:
+			return -1;
+	}
+
+	return -1;
+}
+
 int keyinfo_get_key_length(keyinfo keyinfo) {
 	return keyinfo->key_length;
 }
