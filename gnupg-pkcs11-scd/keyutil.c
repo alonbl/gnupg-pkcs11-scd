@@ -36,6 +36,7 @@
 #include <openssl/x509.h>
 #include <openssl/rsa.h>
 #include <openssl/evp.h>
+#include <openssl/obj_mac.h>
 #endif
 #include "encoding.h"
 #include "keyutil.h"
@@ -68,6 +69,47 @@ struct keyinfo_s {
 			int named_curve_free;
 		} ecdsa;
 	} data;
+};
+
+/*
+ * If OpenSSL is disabled, define our own copies of these macros to use
+ * as internal IDs
+ */
+#ifndef ENABLE_OPENSSL
+#  define NID_X9_62_prime256v1 1
+#  define NID_secp256k1 2
+#endif
+
+/**
+ * Structure to hold mapping of libgcrypt supported Curve names to SCD protocol curve values
+ */
+struct curve_info_map_s {
+	char *curve_name;
+	char *curve_gpg_value;
+	int curve_id;
+	int key_length;
+};
+
+/**
+ * Mapping of libgcrypt supported Curve names (found
+ * https://www.gnupg.org/documentation/manuals/gcrypt/ECC-key-parameters.html)
+ * to GnuPG SCD protocol Curve value which is the DER-encoded OID minus the
+ * tag (byte 0x06)
+ *
+ * The curve names must exist in GnuPG's openpgp-oid.c
+ */
+static struct curve_info_map_s curve_info_map[] = {
+	/* secp256r1 */
+	{"NIST P-256", "082A8648CE3D030107", NID_X9_62_prime256v1, 256},
+	{"nistp256", "082A8648CE3D030107", NID_X9_62_prime256v1, 256},
+	{"1.2.840.10045.3.1.7", "082A8648CE3D030107", NID_X9_62_prime256v1, 256},
+
+	/* secp256k1 */
+	{"secp256k1", "052B8104000A", NID_secp256k1, 256},
+	{"1.3.132.0.10", "052B8104000A", NID_secp256k1, 256},
+
+	/* Terminator */
+	{NULL, NULL, -1, -1}
 };
 
 /**
@@ -231,6 +273,7 @@ keyinfo_from_der(
 	unsigned char *der,
 	size_t len
 ) {
+	struct curve_info_map_s *curr;
 	gpg_err_code_t error = GPG_ERR_GENERAL;
 	gcry_mpi_t n_mpi = NULL;
 	gcry_mpi_t e_mpi = NULL;
@@ -249,6 +292,7 @@ keyinfo_from_der(
 	const EC_POINT *ec_pubkey;
 	const EC_GROUP *ec_group;
 	const BIGNUM *n, *e;
+	int ec_curve_id;
 	BN_CTX *q_ctx = NULL;
 	char *n_hex = NULL, *e_hex = NULL, *q_hex = NULL;
 #endif
@@ -384,6 +428,14 @@ keyinfo_from_der(
 				error = GPG_ERR_BAD_KEY;
 				goto cleanup;
 			}
+
+			ec_curve_id = EC_GROUP_get_curve_name(ec_group);
+			if (ec_curve_id == 0) {
+				/* We only support named curves */
+				error = GPG_ERR_BAD_KEY;
+				goto cleanup;
+			}
+
 			break;
 		case KEYINFO_KEY_TYPE_UNKNOWN:
 		case KEYINFO_KEY_TYPE_INVALID:
@@ -405,8 +457,21 @@ keyinfo_from_der(
 			error = GPG_ERR_NO_ERROR;
 			break;
 		case KEYINFO_KEY_TYPE_ECDSA_NAMED_CURVE:
-			keyinfo->data.ecdsa.named_curve = "NIST P-256"; /* XXX:TODO */
-			keyinfo->key_length = 256; /* XXX:TODO */
+			for (curr = curve_info_map; curr->curve_name != NULL; curr++) {
+				if (curr->curve_id == ec_curve_id) {
+					keyinfo->data.ecdsa.named_curve = curr->curve_name;
+					keyinfo->key_length = curr->key_length;
+
+					break;
+				}
+			}
+
+			if (curr->curve_name == NULL) {
+				/* We couldn't find the named curve in our index */
+				error = GPG_ERR_BAD_KEY;
+				goto cleanup;
+			}
+
 			keyinfo->data.ecdsa.named_curve_free = 0;
 
 			keyinfo->data.ecdsa.q = q_mpi;
@@ -608,36 +673,6 @@ void keyinfo_data_free(keyinfo_data_list list) {
 		free(curr);
 	}
 }
-
-/**
- * Structure to hold mapping of libgcrypt supported Curve names to SCD protocol curve values
- */
-struct curve_info_map_s {
-	char *curve_name;
-	char *curve_gpg_value;
-};
-
-/**
- * Mapping of libgcrypt supported Curve names (found
- * https://www.gnupg.org/documentation/manuals/gcrypt/ECC-key-parameters.html)
- * to GnuPG SCD protocol Curve value which is the DER-encoded OID minus the
- * tag (byte 0x06)
- *
- * The curve names must exist in GnuPG's openpgp-oid.c
- */
-static struct curve_info_map_s curve_info_map[] = {
-	/* secp256r1 */
-	{"NIST P-256", "082A8648CE3D030107"},
-	{"nistp256", "082A8648CE3D030107"},
-	{"1.2.840.10045.3.1.7", "082A8648CE3D030107"},
-
-	/* secp256k1 */
-	{"secp256k1", "052B8104000A"},
-	{"1.3.132.0.10", "052B8104000A"},
-
-	/* Terminator */
-	{NULL, NULL}
-};
 
 static unsigned char *_keyinfo_lookup_named_curve(const char *named_curve) {
 	struct curve_info_map_s *curr;
