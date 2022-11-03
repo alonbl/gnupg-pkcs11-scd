@@ -370,7 +370,7 @@ keyinfo_from_der(
 			RSA_get0_key(rsa, &n, &e, NULL);
 
 			/* Warning: RSA_size is deprecated in OpenSSL 3.0 */
-			keyinfo->key_length = RSA_size(rsa);
+			keyinfo->key_length = RSA_size(rsa) * 8;
 
 			n_hex = BN_bn2hex (n);
 			e_hex = BN_bn2hex (e);
