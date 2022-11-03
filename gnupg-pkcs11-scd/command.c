@@ -1767,6 +1767,10 @@ gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
 		error = GPG_ERR_NO_ERROR;
 
 	retry:
+		if (sexp != NULL) {
+			gcry_sexp_release(sexp);
+			sexp = NULL;
+		}
 
 		if (keyinfo_line != NULL) {
 			free (keyinfo_line);
