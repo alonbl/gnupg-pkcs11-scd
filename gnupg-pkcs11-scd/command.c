@@ -1233,7 +1233,8 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	unsigned char *sig = NULL;
 	size_t sig_len;
 	struct prefix_pkcs1 *inject = NULL;
-	ssize_t data_effective_len, data_offset = 0;
+	ssize_t data_effective_len;
+	size_t data_offset = 0;
 	CK_MECHANISM_TYPE pkcs11_mechanism;
 	int use_pkcs1;
 	char *hash = NULL;
