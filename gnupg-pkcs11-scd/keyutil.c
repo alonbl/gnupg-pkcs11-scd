@@ -220,6 +220,8 @@ ssize_t keyinfo_get_data_length(keyinfo keyinfo, size_t input_length) {
 		case KEYINFO_KEY_TYPE_INVALID:
 			return -1;
 	}
+
+	return -1;
 }
 
 int keyinfo_get_key_length(keyinfo keyinfo) {
