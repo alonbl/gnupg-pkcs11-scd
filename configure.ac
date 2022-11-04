@@ -250,11 +250,7 @@ if test -z "${LIBGCRYPT_LIBS}"; then
 	fi
 fi
 
-PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7], [HAVE_OPENSSL="yes"], [HAVE_OPENSSL="no"])
-if test "${HAVE_OPENSSL}" = "no"; then
-	PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.7], [HAVE_OPENSSL="yes"], [HAVE_OPENSSL="no"])
-fi
-
+PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 1.1.0], [HAVE_OPENSSL="yes"], [HAVE_OPENSSL="no"])
 PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4], [HAVE_GNUTLS="yes"], [HAVE_GNUTLS="no"])
 
 PKG_CHECK_MODULES([PKCS11_HELPER], [libpkcs11-helper-1 >= 1.02],, [AC_MSG_ERROR([Cannot locate pkcs11-helper])])

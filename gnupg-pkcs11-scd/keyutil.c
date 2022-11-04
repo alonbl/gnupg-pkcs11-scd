@@ -39,29 +39,6 @@
 #include "encoding.h"
 #include "keyutil.h"
 
-#if defined(ENABLE_OPENSSL)
-#if OPENSSL_VERSION_NUMBER < 0x00908000L
-typedef unsigned char *my_openssl_d2i_t;
-#else
-typedef const unsigned char *my_openssl_d2i_t;
-#endif
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
-static void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const BIGNUM **d) {
-	if (n != NULL) {
-		*n = r->n;
-	}
-	if (e != NULL) {
-		*e = r->e;
-	}
-	if (d != NULL) {
-		*d = r->d;
-	}
-}
-#endif
-
-#endif
-
 gpg_err_code_t
 keyutil_get_cert_mpi (
 	unsigned char *der,
@@ -114,7 +91,7 @@ keyutil_get_cert_mpi (
 		goto cleanup;
 	}
 #elif defined(ENABLE_OPENSSL)
-	if (!d2i_X509 (&x509, (my_openssl_d2i_t *)&der, len)) {
+	if (!d2i_X509 (&x509, (const unsigned char **)&der, len)) {
 		error = GPG_ERR_BAD_CERT;
 		goto cleanup;
 	}

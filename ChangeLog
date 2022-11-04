@@ -5,6 +5,7 @@ Copyright (c) 2006-2022 Alon Bar-Lev <alon.barlev@gmail.com>
 ????-??-?? - Version ?.?.?
 
  * Fix several memory leaks and handling, thanks to Roy Keene.
+ * Remove support for <openssl-1.1
 
 2022-01-04 - Version 0.10.0
 
