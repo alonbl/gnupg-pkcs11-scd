@@ -14,4 +14,4 @@ Copyright:
 include(top_srcdir/COPYING)
 
 On Debian GNU/Linux systems, the complete text of the GNU General
-Public License can be found in `/usr/share/common-licenses/BSD'. 
+Public License can be found in `/usr/share/common-licenses/BSD'.

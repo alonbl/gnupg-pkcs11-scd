@@ -1480,7 +1480,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_decryptAny (
 				cert,
-				CKM_RSA_PKCS, 
+				CKM_RSA_PKCS,
 				_data.data,
 				_data.size,
 				NULL,
@@ -1500,7 +1500,7 @@ gpg_error_t cmd_pkdecrypt (assuan_context_t ctx, char *line)
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_decryptAny (
 				cert,
-				CKM_RSA_PKCS, 
+				CKM_RSA_PKCS,
 				_data.data,
 				_data.size,
 				ptext,

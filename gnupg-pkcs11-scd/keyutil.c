@@ -118,12 +118,12 @@ keyutil_get_cert_mpi (
 		error = GPG_ERR_BAD_CERT;
 		goto cleanup;
 	}
- 
+
 	if ((pubkey = X509_get_pubkey (x509)) == NULL) {
 		error = GPG_ERR_BAD_CERT;
 		goto cleanup;
 	}
- 
+
 	if ((rsa = EVP_PKEY_get1_RSA(pubkey)) == NULL) {
 		error = GPG_ERR_WRONG_PUBKEY_ALGO;
 		goto cleanup;
@@ -138,7 +138,7 @@ keyutil_get_cert_mpi (
 		error = GPG_ERR_BAD_KEY;
 		goto cleanup;
 	}
- 
+
 	if (
 		gcry_mpi_scan (&n_mpi, GCRYMPI_FMT_HEX, n_hex, 0, NULL) ||
 		gcry_mpi_scan (&e_mpi, GCRYMPI_FMT_HEX, e_hex, 0, NULL)

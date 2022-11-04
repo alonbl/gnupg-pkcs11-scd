@@ -128,8 +128,8 @@ register_commands (const assuan_context_t ctx)
 		{ "PKSIGN",	cmd_pksign, NULL },
 		{ "PKAUTH",	cmd_pkauth, NULL },
 		{ "PKDECRYPT",	cmd_pkdecrypt, NULL },
-		{ "INPUT",	NULL, NULL }, 
-		{ "OUTPUT",	NULL, NULL }, 
+		{ "INPUT",	NULL, NULL },
+		{ "OUTPUT",	NULL, NULL },
 		{ "GETATTR",	cmd_getattr, NULL },
 		{ "SETATTR",	cmd_setattr, NULL },
 		{ "WRITECERT",	NULL, NULL },
@@ -161,7 +161,7 @@ register_commands (const assuan_context_t ctx)
 		) {
 			return ret;
 		}
-	} 
+	}
 
 	assuan_set_hello_line (ctx, "PKCS#11 smart-card server for GnuPG ready");
 	/*assuan_register_reset_notify(ctx, reset_notify);*/

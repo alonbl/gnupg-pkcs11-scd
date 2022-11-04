@@ -248,7 +248,7 @@ dconfig_free (dconfig_data_t * const config) {
 	f (config->openpgp_auth);
 
 	for (i=0;i<DCONFIG_MAX_PROVIDERS;i++) {
-		f (config->providers->name); 
+		f (config->providers->name);
 		f (config->providers->library);
 	}
 

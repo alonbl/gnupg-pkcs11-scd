@@ -57,7 +57,7 @@ Cross-MinGW32
 		libgpg-error
 			./autogen.sh --build-w32
 			make install
-		
+
 		libassuan
 			./autogen.sh --build-w32
 			make install
