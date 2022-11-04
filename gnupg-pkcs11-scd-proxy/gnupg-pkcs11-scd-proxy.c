@@ -45,10 +45,10 @@
 
 static volatile int s_stop = 0;
 
-static RETSIGTYPE sigterm(int signo) {
+static void sigterm(int signo) {
 	(void)signo;
 	s_stop = 1;
-#if RETSIGTYPE != void
+#if void != void
 	return 0
 #endif
 }

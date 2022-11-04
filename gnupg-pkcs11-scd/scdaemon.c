@@ -875,7 +875,7 @@ cleanup:
 }
 
 #if !defined(HAVE_W32_SYSTEM)
-static RETSIGTYPE on_alarm (int signo)
+static void on_alarm (int signo)
 {
 	(void)signo;
 
@@ -886,12 +886,12 @@ static RETSIGTYPE on_alarm (int signo)
 	signal (SIGALRM, on_alarm);
 	alarm (ALARM_INTERVAL);
 
-#if RETSIGTYPE != void
+#if void != void
 	return 0
 #endif
 }
 
-static RETSIGTYPE on_signal (int signo)
+static void on_signal (int signo)
 {
 	(void)signo;
 
@@ -902,7 +902,7 @@ static RETSIGTYPE on_signal (int signo)
 	close (0);
 	close (1);
 
-#if RETSIGTYPE != void
+#if void != void
 	return 0
 #endif
 }

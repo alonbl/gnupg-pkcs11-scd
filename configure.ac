@@ -37,7 +37,7 @@ define([PACKAGE_SUFFIX], [_master])
 
 AC_INIT([gnupg-pkcs11-scd], [PACKAGE_VERSION_MAJOR.PACKAGE_VERSION_MINOR.PACKAGE_VERSION_FIX[]PACKAGE_SUFFIX])
 AC_CONFIG_AUX_DIR([.])
-AM_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([gnupg-pkcs11-scd/common.h])
 AM_INIT_AUTOMAKE
 
@@ -58,7 +58,7 @@ AC_CHECK_PROGS([M4], [m4])
 
 AC_ARG_WITH(
 	[cygwin-native],
-	[AC_HELP_STRING([--with-cygwin-native], [compile native win32])],
+	[AS_HELP_STRING([--with-cygwin-native], [compile native win32])],
 	,
 	[with_cygwin_native="no"]
 )
@@ -91,98 +91,98 @@ esac
 
 AC_ARG_ENABLE(
 	[strict],
-	[AC_HELP_STRING([--enable-strict], [enable strict compiler warnings])],
+	[AS_HELP_STRING([--enable-strict], [enable strict compiler warnings])],
 	,
 	[enable_strict="no"]
 )
 
 AC_ARG_ENABLE(
 	[pedantic],
-	[AC_HELP_STRING([--enable-pedantic], [enable pedantic compiler warnings])],
+	[AS_HELP_STRING([--enable-pedantic], [enable pedantic compiler warnings])],
 	,
 	[enable_pedantic="no"]
 )
 
 AC_ARG_ENABLE(
 	[proxy],
-	[AC_HELP_STRING([--enable-proxy], [enable gnupg-pkcs11-scd-proxy])],
+	[AS_HELP_STRING([--enable-proxy], [enable gnupg-pkcs11-scd-proxy])],
 	,
 	[enable_proxy="no"]
 )
 
 AC_ARG_WITH(
 	[proxy-socket],
-	[AC_HELP_STRING([--with-proxy-socket=FILE], [set proxy socket @<:@LOCALSTATEDIR/run/gnupg-pkcs11-scd-proxy/cmd@:>@])],
+	[AS_HELP_STRING([--with-proxy-socket=FILE], [set proxy socket @<:@LOCALSTATEDIR/run/gnupg-pkcs11-scd-proxy/cmd@:>@])],
 	,
 	[with_proxy_socket="\${localstatedir}/run/gnupg-pkcs11-scd-server/cmd"]
 )
 
 AC_ARG_WITH(
 	[proxy-user],
-	[AC_HELP_STRING([--with-proxy-user=USER], [set proxy user @<:@gnupg-pkcs11-scd-proxy@:>@])],
+	[AS_HELP_STRING([--with-proxy-user=USER], [set proxy user @<:@gnupg-pkcs11-scd-proxy@:>@])],
 	,
 	[with_proxy_user="gnupg-pkcs11-scd-proxy"]
 )
 
 AC_ARG_WITH(
 	[proxy-user-group],
-	[AC_HELP_STRING([--with-proxy-user-group=GROUP], [set proxy user group @<:@gnupg-pkcs11-scd-proxy@:>@])],
+	[AS_HELP_STRING([--with-proxy-user-group=GROUP], [set proxy user group @<:@gnupg-pkcs11-scd-proxy@:>@])],
 	,
 	[with_proxy_user_group="gnupg-pkcs11-scd-proxy"]
 )
 
 AC_ARG_WITH(
 	[proxy-group],
-	[AC_HELP_STRING([--with-proxy-group=GROUP], [set proxy group @<:@gnupg-pkcs11@:>@])],
+	[AS_HELP_STRING([--with-proxy-group=GROUP], [set proxy group @<:@gnupg-pkcs11@:>@])],
 	,
 	[with_proxy_group="gnupg-pkcs11"]
 )
 
 AC_ARG_WITH(
 	[openssl],
-	[AC_HELP_STRING([--without-openssl], [disable OpenSSL linkage)])],
+	[AS_HELP_STRING([--without-openssl], [disable OpenSSL linkage)])],
 	,
 	[with_openssl="yes"]
 )
 
 AC_ARG_WITH(
 	[gnutls],
-	[AC_HELP_STRING([--without-gnutls], [disable GNUTLS linkage (OpenSSL will be used if both enabled)])],
+	[AS_HELP_STRING([--without-gnutls], [disable GNUTLS linkage (OpenSSL will be used if both enabled)])],
 	,
 	[with_gnutls="yes"]
 )
 
 AC_ARG_WITH(
 	[system-config],
-	[AC_HELP_STRING([--with-system-config=FILE], [define gnupg system wide config])],
+	[AS_HELP_STRING([--with-system-config=FILE], [define gnupg system wide config])],
 	[SYSTEM_CONFIG="${withval}"],
 	[test "${HAVE_W32_SYSTEM}" = "yes" && SYSTEM_CONFIG="%SystemRoot%\\\\${PACKAGE}.conf" || SYSTEM_CONFIG="/etc/${PACKAGE}.conf"]
 )
 
 AC_ARG_WITH(
 	[gnupg-home],
-	[AC_HELP_STRING([--with-gnupg-home=DIR], [define gnupg home])],
+	[AS_HELP_STRING([--with-gnupg-home=DIR], [define gnupg home])],
 	[GNUPG_HOME="${withval}"],
 	[test "${HAVE_W32_SYSTEM}" = "yes" && GNUPG_HOME="~\\\\.gnupg" || GNUPG_HOME="~/.gnupg"]
 )
 
 AC_ARG_WITH(
 	[libgpg-error-prefix],
-	[AC_HELP_STRING([--with-libgpg-error-prefix=DIR], [define libgpgp-error prefix])],
+	[AS_HELP_STRING([--with-libgpg-error-prefix=DIR], [define libgpgp-error prefix])],
 	,
 	[with_libgpg_error_prefix="/usr" ]
 )
 
 AC_ARG_WITH(
 	[libassuan-prefix],
-	[AC_HELP_STRING([--with-libassuan-prefix=DIR], [define libassuan prefix])],
+	[AS_HELP_STRING([--with-libassuan-prefix=DIR], [define libassuan prefix])],
 	,
 	[with_libassuan_prefix="/usr" ]
 )
 
 AC_ARG_WITH(
 	[libgcrypt-prefix],
-	[AC_HELP_STRING([--with-libgcrypt-prefix=DIR], [define libgcrypt prefix])],
+	[AS_HELP_STRING([--with-libgcrypt-prefix=DIR], [define libgcrypt prefix])],
 	,
 	[with_libgcrypt_prefix="/usr" ]
 )
@@ -202,7 +202,6 @@ if test "${enable_strict}" = "yes"; then
 fi
 
 AC_FUNC_MKTIME
-AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([ \
 	gettimeofday memmove memset socket strchr strdup strerror strrchr \
@@ -303,14 +302,12 @@ else
 fi
 AM_CONDITIONAL([HAVE_W32_SYSTEM], [test "${HAVE_W32_SYSTEM}" = "yes"])
 
-AC_HEADER_STDC
 AC_C_CONST
 AC_C_VOLATILE
 AC_C_INLINE
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
-AC_HEADER_TIME
 AC_STRUCT_TM
 AC_CHECK_HEADERS([ \
 	stdio.h \
