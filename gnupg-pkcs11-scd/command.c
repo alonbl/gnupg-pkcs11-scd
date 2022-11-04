@@ -1633,7 +1633,6 @@ gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
 	const char *l;
 	char *serial;
 	int found;
-	int filter;
 
 	const struct strgetopt_option options[] = {
 		{"list", strgtopt_optional_argument, &list, NULL},
@@ -1643,21 +1642,7 @@ gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
 
 	l = strgetopt_getopt(line, options);
 
-	if (list == NULL) {
-	}
-	else if (!strcmp(list, "")) {
-		filter = 0;
-	}
-	else if (!strcmp(list, "auth")) {
-		filter = OPENPGP_AUTH;
-	}
-	else if (!strcmp(list, "encr")) {
-		filter = OPENPGP_ENCR;
-	}
-	else if (!strcmp(list, "sign")) {
-		filter = OPENPGP_SIGN;
-	}
-	else {
+	if (list != NULL && strcmp(list, "") && strcmp(list, "auth") && strcmp(list, "encr") && strcmp(list, "sign")) {
 		goto cleanup;
 	}
 
