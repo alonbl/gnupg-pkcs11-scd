@@ -1261,12 +1261,12 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 				goto cleanup;
 		}
 
-		need_free__data = 1;
-
 		if ((_data = (cmd_data_t *)malloc (sizeof (cmd_data_t))) == NULL) {
 			error = GPG_ERR_ENOMEM;
 			goto cleanup;
 		}
+
+		need_free__data = 1;
 
 		if ((_data->data = (unsigned char *)malloc (data->size + oid_size)) == NULL) {
 			error = GPG_ERR_ENOMEM;
