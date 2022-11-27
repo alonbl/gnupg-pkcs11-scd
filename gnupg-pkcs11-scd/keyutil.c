@@ -97,7 +97,7 @@ keyutil_get_cert_mpi (
 	}
 
 	if ((pubkey = X509_get_pubkey (x509)) == NULL) {
-		error = GPG_ERR_BAD_CERT;
+		error = GPG_ERR_WRONG_PUBKEY_ALGO;
 		goto cleanup;
 	}
 
