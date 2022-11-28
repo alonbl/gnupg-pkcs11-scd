@@ -39,6 +39,8 @@
 #define _M2S(x) #x
 #define M2S(x) _M2S(x)
 
+#define APP_TYPE "PKCS11"
+
 /*
  * OpenPGP prefix
  * 11
@@ -761,7 +763,7 @@ gpg_error_t cmd_learn (assuan_context_t ctx, char *line)
 		(error = assuan_write_status (
 			ctx,
 			"APPTYPE",
-			"PKCS11"
+			APP_TYPE
 		)) != GPG_ERR_NO_ERROR
 	) {
 		goto cleanup;
@@ -1813,7 +1815,18 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 
 	l = strgetopt_getopt(line, NULL);
 
-	if (!strcmp (l, "SERIALNO")) {
+	if (!strcmp (l, "APPTYPE")) {
+		if (
+			(error = assuan_write_status (
+				ctx,
+				l,
+				APP_TYPE
+			)) != GPG_ERR_NO_ERROR
+		) {
+			goto cleanup;
+		}
+	}
+	else if (!strcmp (l, "SERIALNO") || !strcmp (l, "$DISPSERIALNO")) {
 		if (
 			(error = get_serial(ctx, &serial)) != GPG_ERR_NO_ERROR
 		) {
@@ -1824,7 +1837,7 @@ gpg_error_t cmd_getattr (assuan_context_t ctx, char *line)
 			if (
 				(error = assuan_write_status (
 					ctx,
-					"SERIALNO",
+					l,
 					serial
 				)) != GPG_ERR_NO_ERROR
 			) {
