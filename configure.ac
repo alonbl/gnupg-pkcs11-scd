@@ -166,27 +166,6 @@ AC_ARG_WITH(
 	[test "${HAVE_W32_SYSTEM}" = "yes" && GNUPG_HOME="~\\\\.gnupg" || GNUPG_HOME="~/.gnupg"]
 )
 
-AC_ARG_WITH(
-	[libgpg-error-prefix],
-	[AS_HELP_STRING([--with-libgpg-error-prefix=DIR], [define libgpgp-error prefix])],
-	,
-	[with_libgpg_error_prefix="/usr" ]
-)
-
-AC_ARG_WITH(
-	[libassuan-prefix],
-	[AS_HELP_STRING([--with-libassuan-prefix=DIR], [define libassuan prefix])],
-	,
-	[with_libassuan_prefix="/usr" ]
-)
-
-AC_ARG_WITH(
-	[libgcrypt-prefix],
-	[AS_HELP_STRING([--with-libgcrypt-prefix=DIR], [define libgcrypt prefix])],
-	,
-	[with_libgcrypt_prefix="/usr" ]
-)
-
 if test "${HAVE_W32_SYSTEM}" = "yes"; then
 	AC_CHECK_PROGS([MAN2HTML], [man2html])
 	test -z "${MAN2HTML}" && AC_MSG_ERROR([man2html is required for win32])
@@ -211,44 +190,10 @@ AC_CHECK_FUNCS([ \
 AX_PTHREAD(, [AC_MSG_ERROR([Cannot find pthreads])])
 CC="${PTHREAD_CC}"
 
-AC_ARG_VAR([LIBGPG_ERROR_CFLAGS], [C compiler flags for libgpg-error])
-AC_ARG_VAR([LIBGPG_ERROR_LIBS], [linker flags for libgpg-error])
-if test -z "${LIBGPG_ERROR_LIBS}"; then
-	AC_MSG_CHECKING([for libgpg-error])
-	if ! test -x "${with_libgpg_error_prefix}/bin/gpg-error-config"; then
-		AC_MSG_ERROR([Cannot locate libgpg-error])
-	else
-		AC_MSG_RESULT([found])
-		LIBGPG_ERROR_CFLAGS="`\"${with_libgpg_error_prefix}/bin/gpg-error-config\" --cflags`"
-		LIBGPG_ERROR_LIBS="`\"${with_libgpg_error_prefix}/bin/gpg-error-config\" --libs`"
-	fi
-fi
-
-AC_ARG_VAR([LIBASSUAN_CFLAGS], [C compiler flags for libassuan])
-AC_ARG_VAR([LIBASSUAN_LIBS], [linker flags for libassuan])
-if test -z "${LIBASSUAN_LIBS}"; then
-	AC_MSG_CHECKING([for libassuan])
-	test -x "${with_libassuan_prefix}/bin/libassuan-config" || AC_MSG_ERROR([Cannot locate libassuan])
-	"${with_libassuan_prefix}/bin/libassuan-config" --version | grep "^2\." > /dev/null || AC_MSG_ERROR([Need assuan-2])
-
-	AC_MSG_RESULT([found])
-
-	LIBASSUAN_CFLAGS="`\"${with_libassuan_prefix}/bin/libassuan-config\" --cflags`"
-	LIBASSUAN_LIBS="`\"${with_libassuan_prefix}/bin/libassuan-config\" --libs`"
-fi
-
-AC_ARG_VAR([LIBGCRYPT_CFLAGS], [C compiler flags for libgcrypt])
-AC_ARG_VAR([LIBGCRYPT_LIBS], [linker flags for libgcrypt])
-if test -z "${LIBGCRYPT_LIBS}"; then
-	AC_MSG_CHECKING([for libgcrypt])
-	if ! test -x "${with_libgcrypt_prefix}/bin/libgcrypt-config"; then
-		AC_MSG_ERROR([Cannot locate libgcrypt])
-	else
-		AC_MSG_RESULT([found])
-		LIBGCRYPT_CFLAGS="`\"${with_libgcrypt_prefix}/bin/libgcrypt-config\" --cflags`"
-		LIBGCRYPT_LIBS="`\"${with_libgcrypt_prefix}/bin/libgcrypt-config\" --libs`"
-	fi
-fi
+PKG_CHECK_MODULES([LIBGPG_ERROR], [gpg-error])
+PKG_CHECK_MODULES([LIBASSUAN], [libassuan])
+PKG_CHECK_MODULES([LIBGCRYPT], [libgcrypt])
+PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 0.9.7], [HAVE_OPENSSL="yes"])
 
 PKG_CHECK_MODULES([OPENSSL], [libcrypto >= 1.1.0], [HAVE_OPENSSL="yes"], [HAVE_OPENSSL="no"])
 PKG_CHECK_MODULES([GNUTLS], [gnutls >= 1.4], [HAVE_GNUTLS="yes"], [HAVE_GNUTLS="no"])
