@@ -2,6 +2,9 @@ gnupg-pkcs11-scd
 Copyright (c) 2006-2007 Zeljko Vrba <zvrba@globalnet.hr>
 Copyright (c) 2006-2024 Alon Bar-Lev <alon.barlev@gmail.com>
 
+????-??-?? - Version 0.11.1
+
+
 2024-10-27 - Version 0.11.0
 
  * Return better error if pubkey algo unknown, thanks to Oleg Schelyklanov
