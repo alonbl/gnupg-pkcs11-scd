@@ -523,6 +523,7 @@ send_certificate_list (
 		}
 
 		if (error == GPG_ERR_WRONG_PUBKEY_ALGO) {
+			/* skip unsupported keys */
 			error = GPG_ERR_NO_ERROR;
 		}
 
@@ -544,8 +545,6 @@ int _get_certificate_by_name (assuan_context_t ctx, const char *name, int typehi
 	pkcs11h_certificate_id_list_t user_certificates = NULL;
 	pkcs11h_certificate_id_list_t curr_cert;
 	pkcs11h_certificate_id_t cert_id = NULL;
-	char *key_hexgrip = NULL;
-	gcry_sexp_t sexp = NULL;
 	const char *key = NULL;
 	int type;
 
@@ -617,14 +616,16 @@ int _get_certificate_by_name (assuan_context_t ctx, const char *name, int typehi
 		curr_cert != NULL && cert_id == NULL;
 		curr_cert = curr_cert->next
 	) {
+		gcry_sexp_t sexp = NULL;
+		char *key_hexgrip = NULL;
 
 		if ((error = get_cert_sexp (ctx, curr_cert->certificate_id, &sexp)) != GPG_ERR_NO_ERROR) {
-			goto cleanup;
+			goto retry;
 		}
 
 		if ((key_hexgrip = keyutil_get_cert_hexgrip (sexp)) == NULL) {
 			error = GPG_ERR_ENOMEM;
-			goto cleanup;
+			goto retry;
 		}
 
 		if (!strcmp (key_hexgrip, key)) {
@@ -636,8 +637,30 @@ int _get_certificate_by_name (assuan_context_t ctx, const char *name, int typehi
 					)
 				)) != GPG_ERR_NO_ERROR
 			) {
-				goto cleanup;
+				goto retry;
 			}
+		}
+
+		error = GPG_ERR_NO_ERROR;
+
+	retry:
+		if (sexp != NULL) {
+			gcry_sexp_release(sexp);
+			sexp = NULL;
+		}
+
+		if (key_hexgrip != NULL) {
+			free (key_hexgrip);
+			key_hexgrip = NULL;
+		}
+
+		if (error == GPG_ERR_WRONG_PUBKEY_ALGO) {
+			/* skip unsupported keys */
+			error = GPG_ERR_NO_ERROR;
+		}
+
+		if (error != GPG_ERR_NO_ERROR) {
+			goto cleanup;
 		}
 	}
 
@@ -654,16 +677,6 @@ int _get_certificate_by_name (assuan_context_t ctx, const char *name, int typehi
 	error = GPG_ERR_NO_ERROR;
 
 cleanup:
-
-	if (sexp != NULL) {
-		gcry_sexp_release(sexp);
-		sexp = NULL;
-	}
-
-	if (key_hexgrip != NULL) {
-		free (key_hexgrip);
-		key_hexgrip = NULL;
-	}
 
 	if (user_certificates != NULL) {
 		pkcs11h_certificate_freeCertificateIdList (user_certificates);
@@ -1775,6 +1788,11 @@ gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
 		if (key_hexgrip != NULL) {
 			free (key_hexgrip);
 			key_hexgrip = NULL;
+		}
+
+		if (error == GPG_ERR_WRONG_PUBKEY_ALGO) {
+			/* skip unsupported keys */
+			error = GPG_ERR_NO_ERROR;
 		}
 
 		if (error != GPG_ERR_NO_ERROR) {
