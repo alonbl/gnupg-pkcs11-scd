@@ -1631,7 +1631,7 @@ gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
 	char *list = NULL;
 	int data_arg = 0;
 	const char *l;
-	char *serial;
+	char *serial = NULL;
 	int found;
 
 	const struct strgetopt_option options[] = {
