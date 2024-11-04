@@ -651,6 +651,11 @@ int _get_certificate_by_name (assuan_context_t ctx, const char *name, int typehi
 			key_hexgrip = NULL;
 		}
 
+		if (error == GPG_ERR_WRONG_PUBKEY_ALGO) {
+			/* skip unsupported keys */
+			error = GPG_ERR_NO_ERROR;
+		}
+
 		if (error != GPG_ERR_NO_ERROR) {
 			goto cleanup;
 		}
@@ -1780,6 +1785,11 @@ gpg_error_t cmd_keyinfo (assuan_context_t ctx, char *line)
 		if (key_hexgrip != NULL) {
 			free (key_hexgrip);
 			key_hexgrip = NULL;
+		}
+
+		if (error == GPG_ERR_WRONG_PUBKEY_ALGO) {
+			/* skip unsupported keys */
+			error = GPG_ERR_NO_ERROR;
 		}
 
 		if (error != GPG_ERR_NO_ERROR) {
