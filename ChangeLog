@@ -4,6 +4,9 @@ Copyright (c) 2006-2024 Alon Bar-Lev <alon.barlev@gmail.com>
 
 ????-??-?? - Version 0.11.1
 
+ * Fix potential crash, thanks to Itay Duvdevani.
+ * Ignore keys with unsupported algorithms in more cases, thanks to Itay
+   Duvdevani.
 
 2024-10-27 - Version 0.11.0
 
