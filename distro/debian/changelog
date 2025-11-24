@@ -1,3 +1,9 @@
+gnupg-pkcs11-scd (0.11.0-1) unstable; urgency=low
+
+  * Copy debhelper-based package from Debian
+
+ -- Bastian Germann <bage@debian.org>  Mon, 24 Nov 2025 10:05:51 +0100
+
 gnupg-pkcs11-scd (0.04-0) unstable; urgency=low
 
   * New upstream release

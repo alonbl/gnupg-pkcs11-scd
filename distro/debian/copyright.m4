@@ -1,6 +1,3 @@
-This package was debianized by S. Wefel <wefel@informatik.uni-halle.de> on
-Mon, 29 Jan 2007 16:56:30 +0100.
-
 It was downloaded from http://gnupg-pkcs11.sourceforge.net/
 
 Upstream Authors:
@@ -13,5 +10,7 @@ Copyright:
 
 include(top_srcdir/COPYING)
 
-On Debian GNU/Linux systems, the complete text of the GNU General
-Public License can be found in `/usr/share/common-licenses/BSD'.
+The Debian package is licensed under gnupg-pkcs11-scd License and
+Copyright:
+	(C) 2007-2009 Daniel Baumann <daniel@debian.org>
+	(C) 2016-2024 Thorsten Alteholz <debian@alteholz.de>
