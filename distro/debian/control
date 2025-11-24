@@ -1,16 +1,23 @@
 Source: gnupg-pkcs11-scd
-Priority: extra
-Maintainer: S. Wefel <wefel@informatik.uni-halle.de>
-Build-Depends: cdbs (>= 0.4.27-1), debhelper (>= 5), autotools-dev, libssl-dev, pkg-config, libpkcs11-helper1-dev (>=1.03), libgpg-error-dev (>=1.3), libassuan-dev (>=0.9.2), libgcrypt11-dev (>=1.2.2)
-Standards-Version: 3.7.2
 Section: utils
+Priority: optional
+Maintainer: S. Wefel <wefel@informatik.uni-halle.de>
+Build-Depends: debhelper-compat (= 13)
+	, libassuan-dev
+	, libgpg-error-dev
+	, libgcrypt20-dev
+	, libpkcs11-helper-dev
+	, libssl-dev
+	, pkgconf
+Standards-Version: 4.6.1
+Homepage: http://gnupg-pkcs11.sourceforge.net/
+Rules-Requires-Root: no
 
 Package: gnupg-pkcs11-scd
-Section: utils
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Suggests: gnupg2 (> 2.0.0-2), gpgsm
-Description:  Enable PKCS#11 based cryptographic devices in GnuPG.
- gnupg-pkcs11 is a project to implement a BSD-licensed smart-card
- daemon to enable the use of PKCS#11 tokens with GnuPG.
-
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Suggests: gnupg | gpgsm
+Description: GnuPG smart-card daemon with PKCS#11 support
+ gnupg-pkcs11-scd is a drop-in replacement for the smart-card daemon (scd)
+ shipped with GnuPG. The daemon interfaces to smart-cards by using RSA Security
+ Inc. PKCS#11 Cryptographic Token Interface (Cryptoki).

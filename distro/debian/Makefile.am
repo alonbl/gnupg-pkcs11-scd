@@ -36,7 +36,7 @@ BUILT_SOURCES=copyright
 dist_noinst_DATA= \
 	changelog \
 	README.build \
-	compat \
+	gnupg-pkcs11-scd.install \
 	control \
 	copyright.m4 \
 	copyright \
