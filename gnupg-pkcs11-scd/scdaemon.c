@@ -44,8 +44,8 @@
 #include <signal.h>
 #include <getopt.h>
 #include <errno.h>
-#include <pkcs11-helper-1.0/pkcs11h-core.h>
-#include <pkcs11-helper-1.0/pkcs11h-token.h>
+#include <pkcs11-helper-1.0/alon1-core.h>
+#include <pkcs11-helper-1.0/alon1-token.h>
 #if !defined(HAVE_W32_SYSTEM)
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -568,7 +568,7 @@ PKCS11H_BOOL
 pkcs11_token_prompt_hook (
 	void * const global_data,
 	void * const user_data,
-	const pkcs11h_token_id_t token,
+	const alon1_token_id_t token,
 	const unsigned retry
 ) {
 	char cmd[1024];
@@ -585,7 +585,7 @@ pkcs11_token_prompt_hook (
 
 	if (
 		(rc = common_map_pkcs11_error(
-			pkcs11h_token_serializeTokenId(
+			alon1_token_serializeTokenId(
 				NULL,
 				&n,
 				token
@@ -602,7 +602,7 @@ pkcs11_token_prompt_hook (
 
 	if (
 		(rc = common_map_pkcs11_error(
-			pkcs11h_token_serializeTokenId(
+			alon1_token_serializeTokenId(
 				ser,
 				&n,
 				token
@@ -651,7 +651,7 @@ PKCS11H_BOOL
 pkcs11_pin_prompt_hook (
 	void * const global_data,
 	void * const user_data,
-	const pkcs11h_token_id_t token,
+	const alon1_token_id_t token,
 	const unsigned retry,
 	char * const pin,
 	const size_t max_pin
@@ -668,7 +668,7 @@ pkcs11_pin_prompt_hook (
 
 	if (
 		(rc = common_map_pkcs11_error(
-			pkcs11h_token_serializeTokenId(
+			alon1_token_serializeTokenId(
 				NULL,
 				&n,
 				token
@@ -685,7 +685,7 @@ pkcs11_pin_prompt_hook (
 
 	if (
 		(rc = common_map_pkcs11_error(
-			pkcs11h_token_serializeTokenId(
+			alon1_token_serializeTokenId(
 				ser,
 				&n,
 				token
@@ -757,7 +757,7 @@ PKCS11H_BOOL
 pkcs11_key_prompt_hook (
 	void * const global_data,
 	void * const user_data,
-	const pkcs11h_token_id_t token,
+	const alon1_token_id_t token,
 	const char * const label,
 	const unsigned retry,
 	char * const pin,
@@ -788,7 +788,7 @@ pkcs11_key_prompt_hook (
 
 	if (
 		(rc = common_map_pkcs11_error(
-			pkcs11h_token_serializeTokenId(
+			alon1_token_serializeTokenId(
 				NULL,
 				&n,
 				token
@@ -805,7 +805,7 @@ pkcs11_key_prompt_hook (
 
 	if (
 		(rc = common_map_pkcs11_error(
-			pkcs11h_token_serializeTokenId(
+			alon1_token_serializeTokenId(
 				ser,
 				&n,
 				token
@@ -1327,25 +1327,25 @@ int main (int argc, char *argv[])
 	}
 #endif
 
-	if ((rv = pkcs11h_initialize ()) != CKR_OK) {
-		common_log (LOG_FATAL, "Cannot initialize PKCS#11: %s", pkcs11h_getMessage (rv));
+	if ((rv = alon1_initialize ()) != CKR_OK) {
+		common_log (LOG_FATAL, "Cannot initialize PKCS#11: %s", alon1_getMessage (rv));
 	}
 
-	pkcs11h_setLogLevel (global.config.verbose ? PKCS11H_LOG_DEBUG2 : PKCS11H_LOG_INFO);
-	pkcs11h_setLogHook (pkcs11_log_hook, NULL);
-	pkcs11h_setTokenPromptHook (pkcs11_token_prompt_hook, &global);
-	pkcs11h_setPINPromptHook (pkcs11_pin_prompt_hook, &global);
+	alon1_setLogLevel (global.config.verbose ? PKCS11H_LOG_DEBUG2 : PKCS11H_LOG_INFO);
+	alon1_setLogHook (pkcs11_log_hook, NULL);
+	alon1_setTokenPromptHook (pkcs11_token_prompt_hook, &global);
+	alon1_setPINPromptHook (pkcs11_pin_prompt_hook, &global);
 #ifdef PKCS11H_PROPERTY_KEY_PROMPT_HOOK
 	{
 		void *p;
 		p = &pkcs11_key_prompt_hook;
-		pkcs11h_setProperty(PKCS11H_PROPERTY_KEY_PROMPT_HOOK, &p, sizeof(p));
+		alon1_setProperty(PKCS11H_PROPERTY_KEY_PROMPT_HOOK, &p, sizeof(p));
 		p = &global;
-		pkcs11h_setProperty(PKCS11H_PROPERTY_KEY_PROMPT_HOOK_DATA, &p, sizeof(p));
+		alon1_setProperty(PKCS11H_PROPERTY_KEY_PROMPT_HOOK_DATA, &p, sizeof(p));
 	}
 #endif
-	pkcs11h_setProtectedAuthentication (TRUE);
-	pkcs11h_setPINCachePeriod(global.config.pin_cache);
+	alon1_setProtectedAuthentication (TRUE);
+	alon1_setPINCachePeriod(global.config.pin_cache);
 
 	for (i=0;i<DCONFIG_MAX_PROVIDERS;i++) {
 		if (
@@ -1353,7 +1353,7 @@ int main (int argc, char *argv[])
 			global.config.providers[i].library != NULL
 		) {
 			if (
-				(rv = pkcs11h_addProvider (
+				(rv = alon1_addProvider (
 					global.config.providers[i].name,
 					global.config.providers[i].library,
 					global.config.providers[i].allow_protected,
@@ -1363,7 +1363,7 @@ int main (int argc, char *argv[])
 					global.config.providers[i].cert_is_private
 				)) != CKR_OK
 			) {
-				common_log (LOG_WARNING, "Cannot add PKCS#11 provider '%s': %ld-'%s'", global.config.providers[i].name, rv, pkcs11h_getMessage (rv));
+				common_log (LOG_WARNING, "Cannot add PKCS#11 provider '%s': %ld-'%s'", global.config.providers[i].name, rv, alon1_getMessage (rv));
 			}
 			else {
 				have_at_least_one_provider = 1;
@@ -1416,7 +1416,7 @@ int main (int argc, char *argv[])
 }
 #endif
 
-	pkcs11h_terminate ();
+	alon1_terminate ();
 
 #if defined(USE_GNUTLS)
 	gnutls_global_deinit ();

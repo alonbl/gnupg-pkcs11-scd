@@ -29,7 +29,7 @@
  */
 
 #include "common.h"
-#include <pkcs11-helper-1.0/pkcs11h-core.h>
+#include <pkcs11-helper-1.0/alon1-core.h>
 #include "dconfig.h"
 
 static

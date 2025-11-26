@@ -29,7 +29,7 @@
  */
 
 #include "common.h"
-#include <pkcs11-helper-1.0/pkcs11h-def.h>
+#include <pkcs11-helper-1.0/alon1-def.h>
 
 static FILE *log_stream = NULL;
 
