@@ -583,7 +583,7 @@ pkcs11_token_prompt_hook (
 	(void)global_data;
 	(void)retry;
 
-	/* this is a commit */
+	/* this is a commit fix */
 
 	if (
 		(rc = common_map_pkcs11_error(
