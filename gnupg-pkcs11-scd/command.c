@@ -1002,12 +1002,12 @@ cleanup:
 		sexp = NULL;
 	}
 
-	if (key_hexgrip == NULL) {
+	if (key_hexgrip != NULL) {
 		free(key_hexgrip);
 		key_hexgrip = NULL;
 	}
 
-	if (keypairinfo == NULL) {
+	if (keypairinfo != NULL) {
 		free(keypairinfo);
 		keypairinfo = NULL;
 	}
@@ -1115,10 +1115,15 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	pkcs11h_certificate_t cert = NULL;
 	cmd_data_t *data = (cmd_data_t *)assuan_get_pointer (ctx);
 	cmd_data_t *_data = data;
+	cmd_data_t ec_data = {0};
+	gcry_sexp_t public_key = NULL;
+	gcry_sexp_t ec_key = NULL;
+	CK_MECHANISM_TYPE mechanism = CKM_RSA_PKCS;
+	CK_RV sign_rv;
 	int need_free__data = 0;
 	int session_locked = 0;
 	unsigned char *sig = NULL;
-	size_t sig_len;
+	size_t sig_len = 0;
 	enum {
 		INJECT_NONE,
 		INJECT_RMD160,
@@ -1136,7 +1141,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		{NULL, 0, NULL, NULL}
 	};
 
-	if (data->data == NULL) {
+	if (data == NULL || data->data == NULL || data->size == 0) {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
 	}
@@ -1146,6 +1151,61 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	if (*l == '\x0') {
 		error = GPG_ERR_INV_DATA;
 		goto cleanup;
+	}
+
+	/* Resolve the key before deciding how to frame the digest. */
+	if ((error = _get_certificate_by_name (ctx, l, typehint, &cert_id, NULL)) != GPG_ERR_NO_ERROR ||
+		(error = get_cert_sexp (ctx, cert_id, &public_key)) != GPG_ERR_NO_ERROR) {
+		goto cleanup;
+	}
+	ec_key = gcry_sexp_find_token (public_key, "ecc", 0);
+	if (ec_key != NULL) {
+		const struct {
+			const char *name;
+			const unsigned char *prefix;
+			size_t prefix_size;
+			size_t digest_size;
+		} hashes[] = {
+			{ "sha224", sha224_prefix, sizeof (sha224_prefix), 28 },
+			{ "sha256", sha256_prefix, sizeof (sha256_prefix), 32 },
+			{ "sha384", sha384_prefix, sizeof (sha384_prefix), 48 },
+			{ "sha512", sha512_prefix, sizeof (sha512_prefix), 64 }
+		};
+		size_t i;
+		int found = 0;
+
+		/* keyutil currently admits only named P-384 EC keys. */
+		if (gcry_pk_get_nbits (public_key) != 384) {
+			error = GPG_ERR_WRONG_PUBKEY_ALGO;
+			goto cleanup;
+		}
+		for (i = 0; i < sizeof (hashes) / sizeof (hashes[0]); i++) {
+			if (hash != NULL && strcmp (hash, hashes[i].name)) {
+				continue;
+			}
+			if (hash != NULL && data->size == hashes[i].digest_size) {
+				ec_data.data = data->data;
+			}
+			else if (data->size == hashes[i].prefix_size + hashes[i].digest_size &&
+				!memcmp (data->data, hashes[i].prefix, hashes[i].prefix_size)) {
+				ec_data.data = data->data + hashes[i].prefix_size;
+			}
+			else {
+				continue;
+			}
+			/* ECDSA uses the leftmost order bits of an oversized digest.
+			 * P-384's order is 384 bits, so truncation is byte aligned. */
+			ec_data.size = hashes[i].digest_size > 48 ? 48 : hashes[i].digest_size;
+			found = 1;
+			break;
+		}
+		if (!found) {
+			error = GPG_ERR_UNSUPPORTED_ALGORITHM;
+			goto cleanup;
+		}
+		_data = &ec_data;
+		mechanism = CKM_ECDSA;
+		goto sign_certificate;
 	}
 	/*
 	 * sender prefixed data with algorithm OID
@@ -1274,7 +1334,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 				goto cleanup;
 		}
 
-		if ((_data = (cmd_data_t *)malloc (sizeof (cmd_data_t))) == NULL) {
+		if ((_data = (cmd_data_t *)calloc (1, sizeof (cmd_data_t))) == NULL) {
 			error = GPG_ERR_ENOMEM;
 			goto cleanup;
 		}
@@ -1293,18 +1353,7 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 		_data->size += data->size;
 	}
 
-	if (
-		(error = _get_certificate_by_name (
-			ctx,
-			l,
-			typehint,
-			&cert_id,
-			NULL
-		)) != GPG_ERR_NO_ERROR
-	) {
-		goto cleanup;
-	}
-
+sign_certificate:
 	if (
 		(error = common_map_pkcs11_error (
 			pkcs11h_certificate_create (
@@ -1328,39 +1377,40 @@ gpg_error_t _cmd_pksign_type (assuan_context_t ctx, char *line, int typehint)
 	}
 	session_locked = 1;
 
-	if (
-		(error = common_map_pkcs11_error (
-			pkcs11h_certificate_signAny (
-				cert,
-				CKM_RSA_PKCS,
-				_data->data,
-				_data->size,
-				NULL,
-				&sig_len
-			)
-		)) != GPG_ERR_NO_ERROR
-	) {
+	sign_rv = pkcs11h_certificate_signAny (
+		cert, mechanism, _data->data, _data->size, NULL, &sig_len
+	);
+	common_log (LOG_DEBUG,
+		"PKSIGN signAny stage=length CK_RV=0x%08lx mechanism=0x%08lx input_len=%zu output_len=%zu",
+		(unsigned long)sign_rv, (unsigned long)mechanism, _data->size, sig_len);
+	if ((error = common_map_pkcs11_error (sign_rv)) != GPG_ERR_NO_ERROR) {
 		goto cleanup;
 	}
 
+	if (mechanism == CKM_ECDSA && sig_len != 96) {
+		error = GPG_ERR_INV_LENGTH;
+		goto cleanup;
+	}
 	if ((sig = (unsigned char *)malloc (sig_len)) == NULL) {
 		error = GPG_ERR_ENOMEM;
 		goto cleanup;
 	}
 
-	if (
-		(error = common_map_pkcs11_error (
-			pkcs11h_certificate_signAny (
-				cert,
-				CKM_RSA_PKCS,
-				_data->data,
-				_data->size,
-				sig,
-				&sig_len
-			)
-		)) != GPG_ERR_NO_ERROR ||
-		(error = assuan_send_data(ctx, sig, sig_len)) != GPG_ERR_NO_ERROR
-	) {
+	sign_rv = pkcs11h_certificate_signAny (
+		cert, mechanism, _data->data, _data->size, sig, &sig_len
+	);
+	common_log (LOG_DEBUG,
+		"PKSIGN signAny stage=generate CK_RV=0x%08lx mechanism=0x%08lx input_len=%zu output_len=%zu",
+		(unsigned long)sign_rv, (unsigned long)mechanism, _data->size, sig_len);
+	if ((error = common_map_pkcs11_error (sign_rv)) != GPG_ERR_NO_ERROR) {
+		goto cleanup;
+	}
+	/* GnuPG expects fixed-width r || s, not an ASN.1 ECDSA-Sig-Value. */
+	if (mechanism == CKM_ECDSA && sig_len != 96) {
+		error = GPG_ERR_INV_LENGTH;
+		goto cleanup;
+	}
+	if ((error = assuan_send_data (ctx, sig, sig_len)) != GPG_ERR_NO_ERROR) {
 		goto cleanup;
 	}
 
@@ -1393,6 +1443,12 @@ cleanup:
 		_data->data = NULL;
 		free (_data);
 		_data = NULL;
+	}
+	if (ec_key != NULL) {
+		gcry_sexp_release (ec_key);
+	}
+	if (public_key != NULL) {
+		gcry_sexp_release (public_key);
 	}
 
 	strgetopt_free(options);
